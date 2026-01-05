@@ -363,24 +363,25 @@ Create a unique floor plan that clearly demonstrates this layout approach. Make 
         start_time = time.time()
         last_error = None
         
-        # Try Gemini API for image generation via REST API
+        # Try Gemini 2.0 Flash for image generation
         for attempt in range(self.max_retries):
             try:
-                print(f"[Attempt {attempt + 1}] Generating floor plan with Imagen 3: {variation_type}")
+                print(f"[Attempt {attempt + 1}] Generating floor plan with Gemini 2.0: {variation_type}")
                 
-                # Use REST API for Imagen 3 image generation
-                url = f"https://generativelanguage.googleapis.com/v1beta/models/imagen-3.0-generate-002:predict"
+                # Use Gemini 2.0 Flash Experimental with image output
+                url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent"
                 
                 headers = {
                     "Content-Type": "application/json",
                 }
                 
                 payload = {
-                    "instances": [{"prompt": full_prompt}],
-                    "parameters": {
-                        "sampleCount": 1,
-                        "aspectRatio": "4:3",
-                        "safetyFilterLevel": "block_only_high",
+                    "contents": [{
+                        "parts": [{"text": full_prompt}]
+                    }],
+                    "generationConfig": {
+                        "responseModalities": ["TEXT", "IMAGE"],
+                        "temperature": 1.0,
                     }
                 }
                 
@@ -395,24 +396,36 @@ Create a unique floor plan that clearly demonstrates this layout approach. Make 
                         data = response.json()
                         
                         # Extract image from response
-                        if "predictions" in data and len(data["predictions"]) > 0:
-                            prediction = data["predictions"][0]
-                            if "bytesBase64Encoded" in prediction:
-                                image_data = base64.b64decode(prediction["bytesBase64Encoded"])
-                                
-                                generation_time = (time.time() - start_time) * 1000
-                                print(f"✓ Successfully generated floor plan: {variation_type}")
-                                
-                                return GeneratedPlan(
-                                    success=True,
-                                    plan_id=plan_id,
-                                    image_data=image_data,
-                                    prompt_used=full_prompt,
-                                    variation_type=variation_type,
-                                    generation_time_ms=generation_time
-                                )
+                        if "candidates" in data and len(data["candidates"]) > 0:
+                            candidate = data["candidates"][0]
+                            if "content" in candidate and "parts" in candidate["content"]:
+                                for part in candidate["content"]["parts"]:
+                                    if "inlineData" in part:
+                                        inline_data = part["inlineData"]
+                                        if "data" in inline_data:
+                                            image_data = base64.b64decode(inline_data["data"])
+                                            
+                                            generation_time = (time.time() - start_time) * 1000
+                                            print(f"✓ Successfully generated floor plan: {variation_type}")
+                                            
+                                            return GeneratedPlan(
+                                                success=True,
+                                                plan_id=plan_id,
+                                                image_data=image_data,
+                                                prompt_used=full_prompt,
+                                                variation_type=variation_type,
+                                                generation_time_ms=generation_time
+                                            )
                         
-                        last_error = f"No image in response: {data}"
+                        # Check if we got text instead of image
+                        text_response = ""
+                        if "candidates" in data and len(data["candidates"]) > 0:
+                            for part in data["candidates"][0].get("content", {}).get("parts", []):
+                                if "text" in part:
+                                    text_response = part["text"][:200]
+                        
+                        last_error = f"No image in response. Text: {text_response}"
+                        print(f"✗ {last_error}")
                     else:
                         error_data = response.json() if response.headers.get("content-type", "").startswith("application/json") else response.text
                         last_error = f"API error {response.status_code}: {error_data}"
