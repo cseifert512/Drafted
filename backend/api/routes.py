@@ -453,13 +453,7 @@ async def generate_floor_plans(request: GenerationRequest):
     failed_count = 0
     
     for result in results:
-        plans_info.append(GeneratedPlanInfo(
-            plan_id=result.plan_id,
-            variation_type=result.variation_type,
-            generation_time_ms=result.generation_time_ms,
-            success=result.success,
-            error=result.error
-        ))
+        thumbnail_b64 = None
         
         if result.success and result.image_data:
             # Store generated plan in memory
@@ -479,8 +473,26 @@ async def generate_floor_plans(request: GenerationRequest):
             }
             plan_ids.append(result.plan_id)
             successful_count += 1
+            
+            # Generate thumbnail for immediate response
+            try:
+                image = load_image_from_bytes(result.image_data)
+                from utils import resize_image
+                thumb = resize_image(image, max_size=256)
+                thumbnail_b64 = f"data:image/png;base64,{encode_image_to_base64(thumb)}"
+            except Exception as e:
+                print(f"Failed to generate thumbnail: {e}")
         else:
             failed_count += 1
+        
+        plans_info.append(GeneratedPlanInfo(
+            plan_id=result.plan_id,
+            variation_type=result.variation_type,
+            generation_time_ms=result.generation_time_ms,
+            success=result.success,
+            error=result.error,
+            thumbnail=thumbnail_b64
+        ))
     
     total_time = (time.time() - start_time) * 1000
     

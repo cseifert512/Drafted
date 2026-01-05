@@ -69,17 +69,21 @@ export function useGeneration(): UseGenerationReturn {
       
       setPlans(newPlans);
       
-      // Load thumbnails in background
-      newPlans.forEach(plan => {
-        loadThumbnail(plan.id);
+      // Use thumbnails from response (already embedded)
+      const newThumbnails: Record<string, string> = {};
+      result.plans_info.forEach(p => {
+        if (p.success && p.thumbnail) {
+          newThumbnails[p.plan_id] = p.thumbnail;
+        }
       });
+      setThumbnails(newThumbnails);
       
       setGenerationState('complete');
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Generation failed');
       setGenerationState('error');
     }
-  }, [loadThumbnail]);
+  }, []);
 
   const resetGeneration = useCallback(() => {
     setGenerationState('idle');

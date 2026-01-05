@@ -110,6 +110,7 @@ export interface GeneratedPlanInfo {
   generation_time_ms: number;
   success: boolean;
   error?: string;
+  thumbnail?: string;  // Base64-encoded thumbnail
 }
 
 export interface GenerationResponse {

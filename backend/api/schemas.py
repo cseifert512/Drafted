@@ -202,6 +202,7 @@ class GeneratedPlanInfo(BaseModel):
     generation_time_ms: float
     success: bool
     error: Optional[str] = None
+    thumbnail: Optional[str] = None  # Base64-encoded thumbnail
 
 
 class GenerationResponse(BaseModel):
