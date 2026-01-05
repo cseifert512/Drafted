@@ -140,7 +140,7 @@ export default function Home() {
       )}
 
       {/* Generation Mode */}
-      {mode === 'generate' && !hasResults && (
+      {mode === 'generate' && (!hasResults || (hasResults && !hasPlans)) && (
         <Section className="bg-neutral-50 border-y border-neutral-100">
           <div className="max-w-2xl mx-auto">
             {isGenerating ? (
@@ -150,6 +150,38 @@ export default function Home() {
                 failed={generationResult?.failed_count || 0}
                 isComplete={false}
               />
+            ) : hasResults && !hasPlans ? (
+              // All generations failed state
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="text-center py-12"
+              >
+                <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <AlertCircle className="w-8 h-8 text-red-500" />
+                </div>
+                <h3 className="text-xl font-bold text-neutral-900 mb-2">
+                  Generation Failed
+                </h3>
+                <p className="text-neutral-500 mb-6 max-w-md mx-auto">
+                  {genError || `All ${generationResult?.failed_count || 0} generation attempts failed. This may be due to API limits or model availability.`}
+                </p>
+                <div className="flex gap-3 justify-center">
+                  <button
+                    onClick={handleReset}
+                    className="btn-secondary"
+                  >
+                    ← Back to options
+                  </button>
+                  <button
+                    onClick={() => resetGeneration()}
+                    className="btn-primary flex items-center gap-2"
+                  >
+                    <RefreshCw className="w-4 h-4" />
+                    Try Again
+                  </button>
+                </div>
+              </motion.div>
             ) : (
               <>
                 <button
