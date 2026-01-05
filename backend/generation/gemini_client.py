@@ -1,6 +1,6 @@
 """
 Gemini API client for floor plan generation.
-Uses Google AI Studio API to generate color-coded floor plans.
+Uses Google AI Studio API to generate color-coded floor plans with Imagen 3.
 """
 
 import os
@@ -16,10 +16,15 @@ import httpx
 
 from dotenv import load_dotenv
 
-load_dotenv()
-
-# Check if Imagen is available (requires different API access)
-IMAGEN_AVAILABLE = False
+# Load environment variables with explicit encoding handling
+try:
+    load_dotenv(encoding='utf-8')
+except Exception:
+    # If .env has encoding issues, try to load anyway
+    try:
+        load_dotenv(encoding='ascii')
+    except Exception:
+        pass  # Continue without .env, rely on system environment variables
 
 
 @dataclass
@@ -327,9 +332,7 @@ Create a unique floor plan that clearly demonstrates this layout approach. Make 
         plan_id: Optional[str] = None
     ) -> GeneratedPlan:
         """
-        Generate a single floor plan.
-        
-        For the prototype, uses synthetic generation to avoid API rate limits.
+        Generate a single floor plan using Gemini/Imagen API.
         
         Args:
             config: Generation configuration
@@ -349,7 +352,7 @@ Create a unique floor plan that clearly demonstrates this layout approach. Make 
             variation_index % len(self.VARIATION_SEEDS)
         ]
         
-        # Build prompt (kept for logging/future use)
+        # Build prompt
         base_prompt = self._build_base_prompt(config)
         full_prompt = self._build_variation_prompt(
             base_prompt, 
@@ -358,43 +361,93 @@ Create a unique floor plan that clearly demonstrates this layout approach. Make 
         )
         
         start_time = time.time()
+        last_error = None
         
-        # For prototype: Use synthetic generation directly to avoid rate limits
-        # This ensures the prototype works reliably for demonstrations
-        try:
-            print(f"Generating synthetic floor plan: {variation_type}")
-            synthetic_image = self._generate_synthetic_floor_plan(config, variation_type)
-            generation_time = (time.time() - start_time) * 1000
-            
-            return GeneratedPlan(
-                success=True,
-                plan_id=plan_id,
-                image_data=synthetic_image,
-                prompt_used=full_prompt,
-                variation_type=variation_type,
-                generation_time_ms=generation_time,
-                error=None
-            )
-        except Exception as e:
-            print(f"Synthetic generation failed: {e}")
-            import traceback
-            traceback.print_exc()
-            generation_time = (time.time() - start_time) * 1000
-            
-            return GeneratedPlan(
-                success=False,
-                plan_id=plan_id,
-                prompt_used=full_prompt,
-                variation_type=variation_type,
-                generation_time_ms=generation_time,
-                error=str(e)
-            )
+        # Try Gemini API for image generation
+        for attempt in range(self.max_retries):
+            try:
+                print(f"[Attempt {attempt + 1}] Generating floor plan with Gemini: {variation_type}")
+                
+                # Use Imagen 3 model for image generation
+                imagen_model = genai.ImageGenerationModel("imagen-3.0-generate-002")
+                
+                # Generate image
+                response = await asyncio.to_thread(
+                    imagen_model.generate_images,
+                    prompt=full_prompt,
+                    number_of_images=1,
+                    aspect_ratio="4:3",
+                    safety_filter_level="block_only_high",
+                )
+                
+                # Extract image from response
+                if response.images:
+                    image = response.images[0]
+                    # Convert to bytes
+                    img_buffer = io.BytesIO()
+                    image._pil_image.save(img_buffer, format='PNG')
+                    image_data = img_buffer.getvalue()
+                    
+                    generation_time = (time.time() - start_time) * 1000
+                    print(f"✓ Successfully generated floor plan: {variation_type}")
+                    
+                    return GeneratedPlan(
+                        success=True,
+                        plan_id=plan_id,
+                        image_data=image_data,
+                        prompt_used=full_prompt,
+                        variation_type=variation_type,
+                        generation_time_ms=generation_time
+                    )
+                else:
+                    last_error = "No images in response"
+                    
+            except Exception as e:
+                last_error = str(e)
+                print(f"✗ Gemini API error: {last_error}")
+                
+                # Check for rate limiting
+                if "429" in str(e) or "quota" in str(e).lower() or "rate" in str(e).lower():
+                    print(f"  Rate limited, waiting {self.retry_delay * (attempt + 1)}s...")
+                    await asyncio.sleep(self.retry_delay * (attempt + 1))
+                elif attempt < self.max_retries - 1:
+                    await asyncio.sleep(self.retry_delay)
+        
+        generation_time = (time.time() - start_time) * 1000
+        
+        # Fall back to synthetic generation if API fails and fallback is enabled
+        if self.use_synthetic_fallback:
+            try:
+                print(f"→ Using synthetic fallback for: {variation_type}")
+                synthetic_image = self._generate_synthetic_floor_plan(config, variation_type)
+                
+                return GeneratedPlan(
+                    success=True,
+                    plan_id=plan_id,
+                    image_data=synthetic_image,
+                    prompt_used=full_prompt,
+                    variation_type=variation_type,
+                    generation_time_ms=generation_time,
+                    error=None
+                )
+            except Exception as e:
+                print(f"✗ Synthetic fallback failed: {e}")
+                last_error = f"API: {last_error}; Fallback: {e}"
+        
+        return GeneratedPlan(
+            success=False,
+            plan_id=plan_id,
+            prompt_used=full_prompt,
+            variation_type=variation_type,
+            generation_time_ms=generation_time,
+            error=last_error
+        )
 
     async def generate_batch(
         self,
         config: GenerationConfig,
         count: int = 6,
-        parallel: bool = True
+        parallel: bool = False  # Default to sequential to avoid rate limits
     ) -> List[GeneratedPlan]:
         """
         Generate multiple floor plans with diversity.
@@ -402,43 +455,31 @@ Create a unique floor plan that clearly demonstrates this layout approach. Make 
         Args:
             config: Generation configuration
             count: Number of plans to generate
-            parallel: Whether to generate in parallel
+            parallel: Whether to generate in parallel (default False for API rate limits)
             
         Returns:
             List of GeneratedPlan objects
         """
         import uuid
         
-        # Create tasks for each plan
-        tasks = []
+        results = []
+        
         for i in range(count):
             plan_id = f"gen_{uuid.uuid4().hex[:8]}"
-            tasks.append(
-                self.generate_single(config, variation_index=i, plan_id=plan_id)
-            )
-        
-        if parallel:
-            # Run all generations in parallel (with some throttling)
-            # Split into batches of 3 to avoid rate limits
-            results = []
-            batch_size = 3
-            for i in range(0, len(tasks), batch_size):
-                batch = tasks[i:i + batch_size]
-                batch_results = await asyncio.gather(*batch)
-                results.extend(batch_results)
-                
-                # Small delay between batches to avoid rate limiting
-                if i + batch_size < len(tasks):
-                    await asyncio.sleep(1.0)
+            print(f"\n{'='*50}")
+            print(f"Generating plan {i+1}/{count}")
+            print(f"{'='*50}")
             
-            return results
-        else:
-            # Sequential generation
-            results = []
-            for task in tasks:
-                result = await task
-                results.append(result)
-            return results
+            result = await self.generate_single(config, variation_index=i, plan_id=plan_id)
+            results.append(result)
+            
+            # Delay between generations to respect rate limits
+            if i < count - 1:
+                delay = 2.0 if not self.use_synthetic_fallback else 0.1
+                print(f"Waiting {delay}s before next generation...")
+                await asyncio.sleep(delay)
+        
+        return results
 
     def generate_batch_sync(
         self,
