@@ -406,7 +406,7 @@ Create a unique floor plan that clearly demonstrates this layout approach. Make 
                                             image_data = base64.b64decode(inline_data["data"])
                                             
                                             generation_time = (time.time() - start_time) * 1000
-                                            print(f"✓ Successfully generated floor plan: {variation_type}")
+                                            print(f"[OK] Successfully generated floor plan: {variation_type}")
                                             
                                             return GeneratedPlan(
                                                 success=True,
@@ -425,11 +425,11 @@ Create a unique floor plan that clearly demonstrates this layout approach. Make 
                                     text_response = part["text"][:200]
                         
                         last_error = f"No image in response. Text: {text_response}"
-                        print(f"✗ {last_error}")
+                        print(f"[ERR] {last_error}")
                     else:
                         error_data = response.json() if response.headers.get("content-type", "").startswith("application/json") else response.text
                         last_error = f"API error {response.status_code}: {error_data}"
-                        print(f"✗ {last_error}")
+                        print(f"[ERR] {last_error}")
                         
                         # Check for rate limiting
                         if response.status_code == 429:
@@ -439,7 +439,7 @@ Create a unique floor plan that clearly demonstrates this layout approach. Make 
                     
             except Exception as e:
                 last_error = str(e)
-                print(f"✗ Gemini API error: {last_error}")
+                print(f"[ERR] Gemini API error: {last_error}")
                 
             if attempt < self.max_retries - 1:
                 await asyncio.sleep(self.retry_delay)
@@ -449,7 +449,7 @@ Create a unique floor plan that clearly demonstrates this layout approach. Make 
         # Fall back to synthetic generation if API fails and fallback is enabled
         if self.use_synthetic_fallback:
             try:
-                print(f"→ Using synthetic fallback for: {variation_type}")
+                print(f"[FALLBACK] Using synthetic fallback for: {variation_type}")
                 synthetic_image = self._generate_synthetic_floor_plan(config, variation_type)
                 
                 return GeneratedPlan(
@@ -462,7 +462,7 @@ Create a unique floor plan that clearly demonstrates this layout approach. Make 
                     error=None
                 )
             except Exception as e:
-                print(f"✗ Synthetic fallback failed: {e}")
+                print(f"[ERR] Synthetic fallback failed: {e}")
                 last_error = f"API: {last_error}; Fallback: {e}"
         
         return GeneratedPlan(

@@ -500,11 +500,17 @@ async def generate_floor_plans(request: GenerationRequest):
     analysis_result = None
     if successful_count >= 2:
         try:
+            print(f"Running analysis on {len(plan_ids)} plans...")
             # Call the analyze endpoint logic directly
             analysis_result = await analyze_plans(plan_ids)
+            print(f"Analysis complete!")
         except Exception as e:
+            import traceback
             print(f"Analysis after generation failed: {e}")
+            traceback.print_exc()
             # Continue without analysis
+    
+    print(f"Returning response: {successful_count} generated, {failed_count} failed")
     
     return GenerationResponse(
         success=successful_count > 0,
