@@ -85,7 +85,7 @@ export interface UploadResponse {
 
 // UI State types
 export type AnalysisState = 'idle' | 'uploading' | 'analyzing' | 'complete' | 'error';
-export type GenerationState = 'idle' | 'generating' | 'complete' | 'error';
+export type GenerationState = 'idle' | 'generating' | 'analyzing' | 'complete' | 'error';
 
 export interface AppState {
   plans: UploadedPlan[];
@@ -102,6 +102,7 @@ export interface GenerationRequest {
   style: string;
   count: number;
   additional_rooms?: string[];
+  skip_analysis?: boolean;
 }
 
 export interface GeneratedPlanInfo {

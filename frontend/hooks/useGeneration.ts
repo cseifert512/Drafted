@@ -8,7 +8,7 @@ import type {
   AnalysisResponse,
   GenerationState
 } from '@/lib/types';
-import { generateFloorPlans, getPlanThumbnail } from '@/lib/api';
+import { generateFloorPlans, analyzePlans, getPlanThumbnail } from '@/lib/api';
 
 interface UseGenerationReturn {
   // State
@@ -20,6 +20,7 @@ interface UseGenerationReturn {
   
   // Derived state
   isGenerating: boolean;
+  isAnalyzing: boolean;
   hasResults: boolean;
   analysisResult: AnalysisResponse | null;
   
@@ -35,6 +36,7 @@ export function useGeneration(): UseGenerationReturn {
   const [plans, setPlans] = useState<UploadedPlan[]>([]);
   const [thumbnails, setThumbnails] = useState<Record<string, string>>({});
   const [error, setError] = useState<string | null>(null);
+  const [analysisResult, setAnalysisResult] = useState<AnalysisResponse | null>(null);
 
   const loadThumbnail = useCallback(async (planId: string) => {
     if (thumbnails[planId]) return;
@@ -53,9 +55,14 @@ export function useGeneration(): UseGenerationReturn {
     setGenerationResult(null);
     setPlans([]);
     setThumbnails({});
+    setAnalysisResult(null);
 
     try {
-      const result = await generateFloorPlans(request);
+      // PHASE 1: Generate plans (skip analysis for faster response)
+      const result = await generateFloorPlans({
+        ...request,
+        skip_analysis: true  // Skip analysis during generation
+      });
       
       setGenerationResult(result);
       
@@ -65,6 +72,7 @@ export function useGeneration(): UseGenerationReturn {
         .map(p => ({
           id: p.plan_id,
           filename: `${p.variation_type}_${p.plan_id}.png`,
+          thumbnail: p.thumbnail,
         }));
       
       setPlans(newPlans);
@@ -77,6 +85,21 @@ export function useGeneration(): UseGenerationReturn {
         }
       });
       setThumbnails(newThumbnails);
+      
+      // PHASE 2: Run analysis in background if we have enough plans
+      if (result.plan_ids.length >= 2) {
+        setGenerationState('analyzing');
+        
+        try {
+          console.log('Starting analysis on plans:', result.plan_ids);
+          const analysis = await analyzePlans(result.plan_ids);
+          setAnalysisResult(analysis);
+          console.log('Analysis complete:', analysis);
+        } catch (analysisError) {
+          console.error('Analysis failed:', analysisError);
+          // Don't set error state - generation was still successful
+        }
+      }
       
       setGenerationState('complete');
     } catch (e) {
@@ -91,6 +114,7 @@ export function useGeneration(): UseGenerationReturn {
     setPlans([]);
     setThumbnails({});
     setError(null);
+    setAnalysisResult(null);
   }, []);
 
   return {
@@ -100,11 +124,11 @@ export function useGeneration(): UseGenerationReturn {
     thumbnails,
     error,
     isGenerating: generationState === 'generating',
-    hasResults: generationState === 'complete' && generationResult !== null,
-    analysisResult: generationResult?.analysis || null,
+    isAnalyzing: generationState === 'analyzing',
+    hasResults: (generationState === 'complete' || generationState === 'analyzing') && plans.length > 0,
+    analysisResult,
     handleGenerate,
     resetGeneration,
     loadThumbnail,
   };
 }
-

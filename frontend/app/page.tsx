@@ -51,6 +51,7 @@ export default function Home() {
     thumbnails: genThumbnails,
     error: genError,
     isGenerating,
+    isAnalyzing,
     hasResults,
     analysisResult: genAnalysisResult,
     handleGenerate,
@@ -236,8 +237,8 @@ export default function Home() {
             )}
           </AnimatePresence>
 
-          {/* Generation Progress */}
-          {isGenerating && (
+          {/* Generation Progress - Only show when generating AND no plans yet */}
+          {isGenerating && !hasPlans && (
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
@@ -253,7 +254,7 @@ export default function Home() {
           )}
 
           {/* Empty State */}
-          {!hasPlans && !isGenerating && !currentError && (
+          {!hasPlans && !isGenerating && !isAnalyzing && !currentError && (
             <div className="flex flex-col items-center justify-center py-24 px-6">
               <div className="w-20 h-20 bg-drafted-bg rounded-full flex items-center justify-center mb-4">
                 <Layers className="w-10 h-10 text-drafted-muted" />
@@ -270,9 +271,23 @@ export default function Home() {
             </div>
           )}
 
-          {/* Draft Grid */}
-          {hasPlans && !isGenerating && (
+          {/* Draft Grid - Show while analyzing too */}
+          {hasPlans && (
             <div className="p-6">
+              {/* Analysis Loading Indicator */}
+              {isAnalyzing && (
+                <motion.div
+                  initial={{ opacity: 0, y: -10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="mb-6 p-4 bg-drafted-bg border border-drafted-border rounded-drafted flex items-center gap-3"
+                >
+                  <div className="w-5 h-5 border-2 border-coral-500 border-t-transparent rounded-full animate-spin" />
+                  <p className="text-sm text-drafted-gray">
+                    Analyzing diversity metrics... This may take a moment.
+                  </p>
+                </motion.div>
+              )}
+
               {/* Analysis Panel - Collapsible */}
               <AnimatePresence>
                 {currentAnalysis && showAnalysis && (

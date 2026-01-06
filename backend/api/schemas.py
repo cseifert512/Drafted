@@ -181,6 +181,7 @@ class GenerationRequest(BaseModel):
     style: str = Field(default="modern", description="Architectural style")
     count: int = Field(default=6, ge=1, le=20, description="Number of plans to generate")
     additional_rooms: Optional[List[str]] = Field(default=None, description="Additional rooms to include")
+    skip_analysis: bool = Field(default=False, description="Skip automatic diversity analysis")
     
     class Config:
         json_schema_extra = {

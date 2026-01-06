@@ -496,9 +496,9 @@ async def generate_floor_plans(request: GenerationRequest):
     
     total_time = (time.time() - start_time) * 1000
     
-    # If we have at least 2 successful plans, run analysis
+    # If we have at least 2 successful plans and analysis not skipped, run analysis
     analysis_result = None
-    if successful_count >= 2:
+    if successful_count >= 2 and not request.skip_analysis:
         try:
             print(f"Running analysis on {len(plan_ids)} plans...")
             # Call the analyze endpoint logic directly
