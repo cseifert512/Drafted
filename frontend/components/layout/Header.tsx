@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import { HelpCircle } from 'lucide-react';
 
 export function Header() {
   return (
@@ -20,6 +21,12 @@ export function Header() {
             <button className="px-4 py-2 text-sm font-medium text-drafted-black bg-drafted-bg rounded-full">
               Diversity Analyzer
             </button>
+            <Link 
+              href="/how-it-works"
+              className="px-4 py-2 text-sm font-medium text-drafted-gray hover:text-drafted-black transition-colors"
+            >
+              How It Works
+            </Link>
             <a 
               href="https://drafted.ai" 
               target="_blank" 
@@ -32,6 +39,15 @@ export function Header() {
 
           {/* Right actions */}
           <div className="flex items-center gap-3">
+            {/* Help button */}
+            <Link
+              href="/how-it-works"
+              className="w-9 h-9 flex items-center justify-center rounded-full bg-drafted-bg hover:bg-drafted-border transition-colors"
+              title="How It Works"
+            >
+              <HelpCircle className="w-5 h-5 text-drafted-gray" />
+            </Link>
+            
             <a
               href="https://drafted.ai"
               target="_blank"
