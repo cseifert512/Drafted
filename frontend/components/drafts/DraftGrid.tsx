@@ -193,13 +193,6 @@ export function DraftGrid({
 
               {/* Plan Info */}
               <div className="p-4 space-y-3">
-                {/* Variation Type (if different from display name) */}
-                {plan.filename && (
-                  <p className="text-xs text-drafted-light truncate">
-                    {plan.filename.replace(/\.[^/.]+$/, '').replace(/_/g, ' ')}
-                  </p>
-                )}
-
                 {/* Action Buttons */}
                 <div className="flex gap-2">
                   {onEdit && (

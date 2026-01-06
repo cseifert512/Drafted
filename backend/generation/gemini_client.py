@@ -522,82 +522,110 @@ Create a unique floor plan that clearly demonstrates this layout approach. Make 
         """Synchronous wrapper for batch generation."""
         return asyncio.run(self.generate_batch(config, count))
 
-    async def stylize_plan(self, image_data: bytes) -> Optional[bytes]:
+    async def stylize_plan(self, image_data: bytes, max_retries: int = 3) -> Optional[bytes]:
         """
-        Transform a color-coded floor plan into a polished architectural rendering.
+        Transform a color-coded floor plan into a realistic rendered floor plan.
         
         Args:
             image_data: The colored floor plan image bytes
+            max_retries: Number of retry attempts for rate limiting
             
         Returns:
             Stylized image bytes, or None if failed
         """
-        prompt = """Transform this color-coded floor plan into a polished, professional architectural floor plan rendering.
+        prompt = """Transform this color-coded floor plan into a photorealistic 3D-rendered floor plan viewed from directly above.
 
-REQUIREMENTS:
-- Convert the colored rooms to a clean, elegant grayscale or muted earth-tone palette
-- Add subtle textures to differentiate room types (wood grain for bedrooms, tile pattern for bathrooms, etc.)
-- Keep walls as clean black lines
-- Add professional architectural line weights
-- Make it look like a high-end real estate marketing floor plan
-- Maintain the exact same room layout and proportions
-- Do NOT add furniture, text labels, or dimensions
-- Keep it as a 2D top-down view
-- Make it visually appealing and polished
+VISUAL STYLE REQUIREMENTS:
+- Realistic wood flooring texture throughout living areas and bedrooms (light oak/beige wood grain)
+- White/light gray tile texture for bathrooms and kitchen areas
+- Dark gray concrete texture for garage and gym areas
+- Light blue water texture for any pool areas
+- Thick black walls (about 6-8 pixels) with clean edges
+- Soft shadows where walls meet floors for depth
 
-Output a beautiful, presentation-ready floor plan image."""
+FURNITURE TO ADD (top-down view):
+- Bedrooms: White beds with pillows, nightstands, dressers
+- Living room: Sectional sofa, coffee table, area rug, entertainment center
+- Kitchen: White counters/cabinets in L or U shape, island if space allows
+- Dining area: Table with chairs
+- Bathrooms: White toilet, sink/vanity, bathtub or shower
+- Garage: 1-2 gray cars viewed from above
+- Office: Desk, chair
+- Gym (if present): Weight bench, equipment in dark gray room
 
-        try:
-            # Encode image to base64
-            image_b64 = base64.b64encode(image_data).decode('utf-8')
-            
-            url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent"
-            
-            payload = {
-                "contents": [{
-                    "parts": [
-                        {
-                            "inlineData": {
-                                "mimeType": "image/png",
-                                "data": image_b64
-                            }
-                        },
-                        {"text": prompt}
-                    ]
-                }],
-                "generationConfig": {
-                    "responseModalities": ["TEXT", "IMAGE"],
-                    "temperature": 0.8,
-                }
-            }
-            
-            async with httpx.AsyncClient(timeout=120.0) as client:
-                response = await client.post(
-                    f"{url}?key={self.api_key}",
-                    json=payload,
-                    headers={"Content-Type": "application/json"}
-                )
-                
-                if response.status_code == 200:
-                    data = response.json()
-                    
-                    if "candidates" in data and len(data["candidates"]) > 0:
-                        candidate = data["candidates"][0]
-                        if "content" in candidate and "parts" in candidate["content"]:
-                            for part in candidate["content"]["parts"]:
-                                if "inlineData" in part:
-                                    inline_data = part["inlineData"]
-                                    if "data" in inline_data:
-                                        print("[OK] Successfully stylized floor plan")
-                                        return base64.b64decode(inline_data["data"])
-                    
-                    print("[WARN] No image in stylize response")
-                else:
-                    print(f"[ERR] Stylize API error: {response.status_code}")
-                    
-        except Exception as e:
-            print(f"[ERR] Stylize failed: {e}")
+IMPORTANT:
+- Keep the EXACT same room layout and wall positions from the input
+- Top-down orthographic view only (no perspective/angle)
+- Photorealistic rendered style like high-end real estate marketing
+- No text labels, dimensions, or annotations
+- Warm, inviting color palette
+
+Output a beautiful, photorealistic rendered floor plan image."""
+
+        image_b64 = base64.b64encode(image_data).decode('utf-8')
+        url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent"
         
+        payload = {
+            "contents": [{
+                "parts": [
+                    {
+                        "inlineData": {
+                            "mimeType": "image/png",
+                            "data": image_b64
+                        }
+                    },
+                    {"text": prompt}
+                ]
+            }],
+            "generationConfig": {
+                "responseModalities": ["TEXT", "IMAGE"],
+                "temperature": 0.7,
+            }
+        }
+        
+        for attempt in range(max_retries):
+            try:
+                async with httpx.AsyncClient(timeout=120.0) as client:
+                    response = await client.post(
+                        f"{url}?key={self.api_key}",
+                        json=payload,
+                        headers={"Content-Type": "application/json"}
+                    )
+                    
+                    if response.status_code == 200:
+                        data = response.json()
+                        
+                        if "candidates" in data and len(data["candidates"]) > 0:
+                            candidate = data["candidates"][0]
+                            if "content" in candidate and "parts" in candidate["content"]:
+                                for part in candidate["content"]["parts"]:
+                                    if "inlineData" in part:
+                                        inline_data = part["inlineData"]
+                                        if "data" in inline_data:
+                                            print("[OK] Successfully stylized floor plan")
+                                            return base64.b64decode(inline_data["data"])
+                        
+                        print("[WARN] No image in stylize response")
+                        return None
+                        
+                    elif response.status_code == 429:
+                        # Rate limited - wait and retry
+                        wait_time = (attempt + 1) * 3  # 3s, 6s, 9s
+                        print(f"[WARN] Stylize rate limited, waiting {wait_time}s (attempt {attempt + 1}/{max_retries})")
+                        await asyncio.sleep(wait_time)
+                        continue
+                    else:
+                        print(f"[ERR] Stylize API error: {response.status_code}")
+                        return None
+                        
+            except Exception as e:
+                print(f"[ERR] Stylize failed: {e}")
+                if attempt < max_retries - 1:
+                    await asyncio.sleep(2)
+                    continue
+                return None
+        
+        print("[ERR] Stylize failed after all retries")
         return None
 
     async def edit_plan(self, image_data: bytes, instruction: str) -> Optional[bytes]:
