@@ -5,9 +5,11 @@ FastAPI routes for the Floor Plan Diversity Analyzer.
 import os
 import uuid
 import time
+import json
+import asyncio
 from typing import List, Optional
-from fastapi import APIRouter, UploadFile, File, HTTPException, BackgroundTasks
-from fastapi.responses import JSONResponse
+from fastapi import APIRouter, UploadFile, File, HTTPException, BackgroundTasks, Request
+from fastapi.responses import JSONResponse, StreamingResponse
 from pydantic import BaseModel
 import numpy as np
 
