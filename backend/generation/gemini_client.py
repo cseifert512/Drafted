@@ -42,7 +42,9 @@ class GeneratedPlan:
     """Result from a single floor plan generation."""
     success: bool
     plan_id: str
-    image_data: Optional[bytes] = None
+    image_data: Optional[bytes] = None  # Colored version for analysis
+    stylized_image_data: Optional[bytes] = None  # Polished version for display
+    display_name: Optional[str] = None  # AI-generated descriptive name
     prompt_used: str = ""
     variation_type: str = ""
     generation_time_ms: float = 0
@@ -519,6 +521,244 @@ Create a unique floor plan that clearly demonstrates this layout approach. Make 
     ) -> List[GeneratedPlan]:
         """Synchronous wrapper for batch generation."""
         return asyncio.run(self.generate_batch(config, count))
+
+    async def stylize_plan(self, image_data: bytes) -> Optional[bytes]:
+        """
+        Transform a color-coded floor plan into a polished architectural rendering.
+        
+        Args:
+            image_data: The colored floor plan image bytes
+            
+        Returns:
+            Stylized image bytes, or None if failed
+        """
+        prompt = """Transform this color-coded floor plan into a polished, professional architectural floor plan rendering.
+
+REQUIREMENTS:
+- Convert the colored rooms to a clean, elegant grayscale or muted earth-tone palette
+- Add subtle textures to differentiate room types (wood grain for bedrooms, tile pattern for bathrooms, etc.)
+- Keep walls as clean black lines
+- Add professional architectural line weights
+- Make it look like a high-end real estate marketing floor plan
+- Maintain the exact same room layout and proportions
+- Do NOT add furniture, text labels, or dimensions
+- Keep it as a 2D top-down view
+- Make it visually appealing and polished
+
+Output a beautiful, presentation-ready floor plan image."""
+
+        try:
+            # Encode image to base64
+            image_b64 = base64.b64encode(image_data).decode('utf-8')
+            
+            url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent"
+            
+            payload = {
+                "contents": [{
+                    "parts": [
+                        {
+                            "inlineData": {
+                                "mimeType": "image/png",
+                                "data": image_b64
+                            }
+                        },
+                        {"text": prompt}
+                    ]
+                }],
+                "generationConfig": {
+                    "responseModalities": ["TEXT", "IMAGE"],
+                    "temperature": 0.8,
+                }
+            }
+            
+            async with httpx.AsyncClient(timeout=120.0) as client:
+                response = await client.post(
+                    f"{url}?key={self.api_key}",
+                    json=payload,
+                    headers={"Content-Type": "application/json"}
+                )
+                
+                if response.status_code == 200:
+                    data = response.json()
+                    
+                    if "candidates" in data and len(data["candidates"]) > 0:
+                        candidate = data["candidates"][0]
+                        if "content" in candidate and "parts" in candidate["content"]:
+                            for part in candidate["content"]["parts"]:
+                                if "inlineData" in part:
+                                    inline_data = part["inlineData"]
+                                    if "data" in inline_data:
+                                        print("[OK] Successfully stylized floor plan")
+                                        return base64.b64decode(inline_data["data"])
+                    
+                    print("[WARN] No image in stylize response")
+                else:
+                    print(f"[ERR] Stylize API error: {response.status_code}")
+                    
+        except Exception as e:
+            print(f"[ERR] Stylize failed: {e}")
+        
+        return None
+
+    async def edit_plan(self, image_data: bytes, instruction: str) -> Optional[bytes]:
+        """
+        Edit a floor plan based on user instructions using image-to-image.
+        
+        Args:
+            image_data: The original floor plan image bytes
+            instruction: User's edit instruction (e.g., "Add a pool to the backyard")
+            
+        Returns:
+            Edited image bytes, or None if failed
+        """
+        prompt = f"""Modify this floor plan according to the following instruction:
+
+INSTRUCTION: {instruction}
+
+REQUIREMENTS:
+- Keep the same color coding scheme for room types:
+  * Living Room: #A8D5E5 (light blue)
+  * Bedroom: #E6E6FA (lavender)
+  * Bathroom: #98FB98 (mint green)
+  * Kitchen: #FF7F50 (coral)
+  * Hallway: #F5F5F5 (light gray)
+  * Pool/Outdoor: #87CEEB (sky blue)
+- Maintain black walls
+- Keep white background
+- Apply the requested modification while preserving the overall floor plan structure
+- Keep it as a clean 2D top-down floor plan
+- Do NOT add furniture, text labels, or dimensions
+
+Output the modified floor plan image."""
+
+        try:
+            image_b64 = base64.b64encode(image_data).decode('utf-8')
+            
+            url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent"
+            
+            payload = {
+                "contents": [{
+                    "parts": [
+                        {
+                            "inlineData": {
+                                "mimeType": "image/png",
+                                "data": image_b64
+                            }
+                        },
+                        {"text": prompt}
+                    ]
+                }],
+                "generationConfig": {
+                    "responseModalities": ["TEXT", "IMAGE"],
+                    "temperature": 0.9,
+                }
+            }
+            
+            async with httpx.AsyncClient(timeout=120.0) as client:
+                response = await client.post(
+                    f"{url}?key={self.api_key}",
+                    json=payload,
+                    headers={"Content-Type": "application/json"}
+                )
+                
+                if response.status_code == 200:
+                    data = response.json()
+                    
+                    if "candidates" in data and len(data["candidates"]) > 0:
+                        candidate = data["candidates"][0]
+                        if "content" in candidate and "parts" in candidate["content"]:
+                            for part in candidate["content"]["parts"]:
+                                if "inlineData" in part:
+                                    inline_data = part["inlineData"]
+                                    if "data" in inline_data:
+                                        print(f"[OK] Successfully edited floor plan: {instruction[:50]}...")
+                                        return base64.b64decode(inline_data["data"])
+                    
+                    print("[WARN] No image in edit response")
+                else:
+                    print(f"[ERR] Edit API error: {response.status_code}")
+                    
+        except Exception as e:
+            print(f"[ERR] Edit failed: {e}")
+        
+        return None
+
+    async def generate_plan_name(self, image_data: bytes) -> str:
+        """
+        Generate a descriptive name for a floor plan using AI.
+        
+        Args:
+            image_data: The floor plan image bytes
+            
+        Returns:
+            A descriptive name like "Modern L-Shaped with Central Kitchen"
+        """
+        prompt = """Look at this floor plan and give it a descriptive name in 3-5 words.
+
+Focus on:
+- The overall layout shape (L-shaped, linear, compact, open, etc.)
+- Key distinctive features (split bedrooms, central kitchen, open concept, etc.)
+- The style/feel (modern, cozy, spacious, efficient, etc.)
+
+Examples of good names:
+- "Spacious Open-Concept Ranch"
+- "Compact Urban Studio"
+- "L-Shaped Split Bedroom"
+- "Modern Courtyard Layout"
+- "Traditional Central Hall"
+- "Efficient Linear Design"
+
+Respond with ONLY the name, nothing else. No quotes, no explanation."""
+
+        try:
+            image_b64 = base64.b64encode(image_data).decode('utf-8')
+            
+            url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent"
+            
+            payload = {
+                "contents": [{
+                    "parts": [
+                        {
+                            "inlineData": {
+                                "mimeType": "image/png",
+                                "data": image_b64
+                            }
+                        },
+                        {"text": prompt}
+                    ]
+                }],
+                "generationConfig": {
+                    "temperature": 0.7,
+                }
+            }
+            
+            async with httpx.AsyncClient(timeout=30.0) as client:
+                response = await client.post(
+                    f"{url}?key={self.api_key}",
+                    json=payload,
+                    headers={"Content-Type": "application/json"}
+                )
+                
+                if response.status_code == 200:
+                    data = response.json()
+                    
+                    if "candidates" in data and len(data["candidates"]) > 0:
+                        candidate = data["candidates"][0]
+                        if "content" in candidate and "parts" in candidate["content"]:
+                            for part in candidate["content"]["parts"]:
+                                if "text" in part:
+                                    name = part["text"].strip().strip('"').strip("'")
+                                    # Limit to reasonable length
+                                    if len(name) > 50:
+                                        name = name[:50]
+                                    print(f"[OK] Generated name: {name}")
+                                    return name
+                    
+        except Exception as e:
+            print(f"[ERR] Name generation failed: {e}")
+        
+        # Fallback to variation type
+        return "Floor Plan"
 
 
 # Convenience function for quick generation

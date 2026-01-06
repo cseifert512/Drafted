@@ -9,6 +9,9 @@ import type {
   GenerationRequest,
   GenerationResponse,
   GenerationOptions,
+  EditPlanRequest,
+  EditPlanResponse,
+  RenamePlanResponse,
 } from './types';
 
 // API URL configuration
@@ -220,6 +223,71 @@ export async function generateSinglePlan(
   if (!response.ok) {
     const error = await response.json().catch(() => ({ detail: 'Generation failed' }));
     throw new Error(error.detail || 'Failed to generate floor plan');
+  }
+
+  return response.json();
+}
+
+// =============================================================================
+// EDIT AND RENAME API
+// =============================================================================
+
+/**
+ * Edit a floor plan using AI image-to-image
+ * Creates a new plan with the requested modifications
+ */
+export async function editPlan(planId: string, instruction: string): Promise<EditPlanResponse> {
+  console.log('Editing plan:', planId, 'with instruction:', instruction);
+  
+  const response = await fetch(`${BACKEND_DIRECT}/api/plan/${planId}/edit`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ instruction }),
+  });
+
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({ detail: 'Edit failed' }));
+    throw new Error(error.detail || 'Failed to edit plan');
+  }
+
+  return response.json();
+}
+
+/**
+ * Rename a floor plan
+ */
+export async function renamePlan(planId: string, newName: string): Promise<RenamePlanResponse> {
+  const response = await fetch(`${BACKEND_DIRECT}/api/plan/${planId}/rename`, {
+    method: 'PATCH',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ name: newName }),
+  });
+
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({ detail: 'Rename failed' }));
+    throw new Error(error.detail || 'Failed to rename plan');
+  }
+
+  return response.json();
+}
+
+/**
+ * Get the stylized (display) version of a plan
+ */
+export async function getStylizedThumbnail(planId: string): Promise<{
+  plan_id: string;
+  display_name?: string;
+  stylized: string;
+  has_stylized: boolean;
+}> {
+  const response = await fetch(`${BACKEND_DIRECT}/api/plan/${planId}/stylized`);
+  
+  if (!response.ok) {
+    throw new Error('Failed to fetch stylized thumbnail');
   }
 
   return response.json();

@@ -200,10 +200,12 @@ class GeneratedPlanInfo(BaseModel):
     """Information about a generated plan."""
     plan_id: str
     variation_type: str
+    display_name: Optional[str] = None  # AI-generated descriptive name
     generation_time_ms: float
     success: bool
     error: Optional[str] = None
-    thumbnail: Optional[str] = None  # Base64-encoded thumbnail
+    thumbnail: Optional[str] = None  # Base64-encoded colored thumbnail (for analysis)
+    stylized_thumbnail: Optional[str] = None  # Base64-encoded stylized thumbnail (for display)
 
 
 class GenerationResponse(BaseModel):
@@ -245,4 +247,47 @@ class GenerationOptionsResponse(BaseModel):
     additional_room_options: List[str]
     variation_types: List[str]
     limits: Dict[str, Dict[str, int]]
+
+
+# Edit and Rename schemas
+class EditPlanRequest(BaseModel):
+    """Request to edit a floor plan."""
+    instruction: str = Field(..., description="Edit instruction (e.g., 'Add a pool to the backyard')")
+    
+    class Config:
+        json_schema_extra = {
+            "example": {
+                "instruction": "Add a pool to the backyard"
+            }
+        }
+
+
+class EditPlanResponse(BaseModel):
+    """Response from editing a floor plan."""
+    success: bool
+    original_plan_id: str
+    new_plan_id: str
+    display_name: Optional[str] = None
+    thumbnail: Optional[str] = None
+    stylized_thumbnail: Optional[str] = None
+    message: str
+
+
+class RenamePlanRequest(BaseModel):
+    """Request to rename a floor plan."""
+    name: str = Field(..., min_length=1, max_length=100, description="New name for the plan")
+    
+    class Config:
+        json_schema_extra = {
+            "example": {
+                "name": "My Custom Floor Plan"
+            }
+        }
+
+
+class RenamePlanResponse(BaseModel):
+    """Response from renaming a floor plan."""
+    success: bool
+    plan_id: str
+    new_name: str
 

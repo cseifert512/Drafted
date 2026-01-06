@@ -28,6 +28,10 @@ from .schemas import (
     GeneratedPlanInfo,
     GenerationOptionsResponse,
     StyleOption,
+    EditPlanRequest,
+    EditPlanResponse,
+    RenamePlanRequest,
+    RenamePlanResponse,
 )
 from extractors import (
     ExtractorPipeline,
@@ -463,13 +467,33 @@ async def generate_floor_plans(request: GenerationRequest):
     
     for result in results:
         thumbnail_b64 = None
+        stylized_thumbnail_b64 = None
+        display_name = None
         
         if result.success and result.image_data:
-            # Store generated plan in memory
+            # Generate stylized version
+            stylized_data = None
+            try:
+                print(f"Stylizing plan: {result.plan_id}")
+                stylized_data = await generator.stylize_plan(result.image_data)
+            except Exception as e:
+                print(f"Stylization failed: {e}")
+            
+            # Generate AI name
+            try:
+                print(f"Generating name for: {result.plan_id}")
+                display_name = await generator.generate_plan_name(result.image_data)
+            except Exception as e:
+                print(f"Name generation failed: {e}")
+                display_name = f"{result.variation_type.replace('_', ' ').title()} Layout"
+            
+            # Store generated plan in memory with both versions
             uploaded_plans[result.plan_id] = {
                 "id": result.plan_id,
                 "filename": f"{result.variation_type}_{result.plan_id}.png",
-                "content": result.image_data,
+                "content": result.image_data,  # Colored version for analysis
+                "stylized_content": stylized_data,  # Stylized version for display
+                "display_name": display_name,
                 "content_type": "image/png",
                 "generated": True,
                 "variation_type": result.variation_type,
@@ -483,24 +507,35 @@ async def generate_floor_plans(request: GenerationRequest):
             plan_ids.append(result.plan_id)
             successful_count += 1
             
-            # Generate thumbnail for immediate response
+            # Generate thumbnails for immediate response
+            from utils import resize_image
             try:
                 image = load_image_from_bytes(result.image_data)
-                from utils import resize_image
                 thumb = resize_image(image, max_size=256)
                 thumbnail_b64 = f"data:image/png;base64,{encode_image_to_base64(thumb)}"
             except Exception as e:
                 print(f"Failed to generate thumbnail: {e}")
+            
+            # Generate stylized thumbnail if available
+            if stylized_data:
+                try:
+                    stylized_image = load_image_from_bytes(stylized_data)
+                    stylized_thumb = resize_image(stylized_image, max_size=256)
+                    stylized_thumbnail_b64 = f"data:image/png;base64,{encode_image_to_base64(stylized_thumb)}"
+                except Exception as e:
+                    print(f"Failed to generate stylized thumbnail: {e}")
         else:
             failed_count += 1
         
         plans_info.append(GeneratedPlanInfo(
             plan_id=result.plan_id,
             variation_type=result.variation_type,
+            display_name=display_name,
             generation_time_ms=result.generation_time_ms,
             success=result.success,
             error=result.error,
-            thumbnail=thumbnail_b64
+            thumbnail=thumbnail_b64,
+            stylized_thumbnail=stylized_thumbnail_b64
         ))
     
     total_time = (time.time() - start_time) * 1000
@@ -600,4 +635,141 @@ async def generate_single_plan(
             status_code=500,
             detail=result.error or "Generation failed"
         )
+
+
+# =============================================================================
+# EDIT, RENAME, AND STYLIZED ENDPOINTS
+# =============================================================================
+
+@router.post("/plan/{plan_id}/edit", response_model=EditPlanResponse)
+async def edit_plan(plan_id: str, request: EditPlanRequest):
+    """
+    Edit an existing floor plan using AI image-to-image.
+    
+    Applies the user's instruction to modify the plan and creates a new plan entry.
+    """
+    if plan_id not in uploaded_plans:
+        raise HTTPException(status_code=404, detail="Plan not found")
+    
+    plan_data = uploaded_plans[plan_id]
+    
+    # Import generator
+    try:
+        from generation import GeminiFloorPlanGenerator
+    except ImportError as e:
+        raise HTTPException(status_code=500, detail=f"Generation module not available: {e}")
+    
+    if not os.getenv("GEMINI_API_KEY"):
+        raise HTTPException(status_code=400, detail="GEMINI_API_KEY not set")
+    
+    generator = GeminiFloorPlanGenerator()
+    
+    # Edit the plan
+    edited_data = await generator.edit_plan(plan_data["content"], request.instruction)
+    
+    if not edited_data:
+        raise HTTPException(status_code=500, detail="Edit failed - no image generated")
+    
+    # Generate stylized version
+    stylized_data = await generator.stylize_plan(edited_data)
+    
+    # Generate name for edited plan
+    display_name = await generator.generate_plan_name(edited_data)
+    if not display_name:
+        display_name = f"Edited: {plan_data.get('display_name', 'Floor Plan')}"
+    
+    # Create new plan ID
+    new_plan_id = f"edit_{uuid.uuid4().hex[:8]}"
+    
+    # Store the edited plan
+    uploaded_plans[new_plan_id] = {
+        "id": new_plan_id,
+        "filename": f"edited_{new_plan_id}.png",
+        "content": edited_data,
+        "stylized_content": stylized_data,
+        "display_name": display_name,
+        "content_type": "image/png",
+        "generated": True,
+        "edited_from": plan_id,
+        "edit_instruction": request.instruction,
+    }
+    
+    # Generate thumbnails
+    from utils import resize_image
+    
+    thumbnail_b64 = None
+    stylized_thumbnail_b64 = None
+    
+    try:
+        image = load_image_from_bytes(edited_data)
+        thumb = resize_image(image, max_size=256)
+        thumbnail_b64 = f"data:image/png;base64,{encode_image_to_base64(thumb)}"
+    except Exception as e:
+        print(f"Failed to generate thumbnail: {e}")
+    
+    if stylized_data:
+        try:
+            stylized_image = load_image_from_bytes(stylized_data)
+            stylized_thumb = resize_image(stylized_image, max_size=256)
+            stylized_thumbnail_b64 = f"data:image/png;base64,{encode_image_to_base64(stylized_thumb)}"
+        except Exception as e:
+            print(f"Failed to generate stylized thumbnail: {e}")
+    
+    return EditPlanResponse(
+        success=True,
+        original_plan_id=plan_id,
+        new_plan_id=new_plan_id,
+        display_name=display_name,
+        thumbnail=thumbnail_b64,
+        stylized_thumbnail=stylized_thumbnail_b64,
+        message=f"Successfully edited plan: {request.instruction[:50]}..."
+    )
+
+
+@router.patch("/plan/{plan_id}/rename", response_model=RenamePlanResponse)
+async def rename_plan(plan_id: str, request: RenamePlanRequest):
+    """
+    Rename a floor plan with a custom name.
+    """
+    if plan_id not in uploaded_plans:
+        raise HTTPException(status_code=404, detail="Plan not found")
+    
+    uploaded_plans[plan_id]["display_name"] = request.name
+    
+    return RenamePlanResponse(
+        success=True,
+        plan_id=plan_id,
+        new_name=request.name
+    )
+
+
+@router.get("/plan/{plan_id}/stylized")
+async def get_plan_stylized(plan_id: str):
+    """
+    Get the stylized (display) version of a plan as a base64-encoded image.
+    
+    If no stylized version exists, returns the original colored version.
+    """
+    if plan_id not in uploaded_plans:
+        raise HTTPException(status_code=404, detail="Plan not found")
+    
+    plan_data = uploaded_plans[plan_id]
+    
+    # Prefer stylized version, fall back to original
+    content = plan_data.get("stylized_content") or plan_data.get("content")
+    
+    if not content:
+        raise HTTPException(status_code=404, detail="No image data found")
+    
+    from utils import resize_image
+    image = load_image_from_bytes(content)
+    thumbnail = resize_image(image, max_size=512)  # Larger for display
+    base64_data = encode_image_to_base64(thumbnail)
+    
+    return {
+        "plan_id": plan_id,
+        "display_name": plan_data.get("display_name"),
+        "stylized": f"data:image/png;base64,{base64_data}",
+        "has_stylized": plan_data.get("stylized_content") is not None
+    }
 

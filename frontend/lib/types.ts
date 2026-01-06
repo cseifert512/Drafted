@@ -73,7 +73,9 @@ export interface AnalysisResponse {
 export interface UploadedPlan {
   id: string;
   filename: string;
-  thumbnail?: string;
+  thumbnail?: string;  // Colored version (for analysis)
+  stylized_thumbnail?: string;  // Stylized version (for display)
+  display_name?: string;  // AI-generated or user-set name
 }
 
 export interface UploadResponse {
@@ -108,10 +110,12 @@ export interface GenerationRequest {
 export interface GeneratedPlanInfo {
   plan_id: string;
   variation_type: string;
+  display_name?: string;  // AI-generated descriptive name
   generation_time_ms: number;
   success: boolean;
   error?: string;
-  thumbnail?: string;  // Base64-encoded thumbnail
+  thumbnail?: string;  // Base64-encoded colored thumbnail (for analysis)
+  stylized_thumbnail?: string;  // Base64-encoded stylized thumbnail (for display)
 }
 
 export interface GenerationResponse {
@@ -141,5 +145,26 @@ export interface GenerationOptions {
     sqft: { min: number; max: number };
     count: { min: number; max: number };
   };
+}
+
+// Edit and Rename types
+export interface EditPlanRequest {
+  instruction: string;
+}
+
+export interface EditPlanResponse {
+  success: boolean;
+  original_plan_id: string;
+  new_plan_id: string;
+  display_name?: string;
+  thumbnail?: string;
+  stylized_thumbnail?: string;
+  message: string;
+}
+
+export interface RenamePlanResponse {
+  success: boolean;
+  plan_id: string;
+  new_name: string;
 }
 

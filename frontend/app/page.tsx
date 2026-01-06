@@ -20,6 +20,7 @@ import { GenerationSidebar } from '@/components/sidebar/GenerationSidebar';
 import { DraftGrid } from '@/components/drafts/DraftGrid';
 import { AnalysisPanel } from '@/components/analysis/AnalysisPanel';
 import { DropZone } from '@/components/upload/DropZone';
+import { EditPlanModal } from '@/components/EditPlanModal';
 import { useAnalysis } from '@/hooks/useAnalysis';
 import { useGeneration } from '@/hooks/useGeneration';
 
@@ -28,6 +29,7 @@ type AppMode = 'generate' | 'upload';
 export default function Home() {
   const [mode, setMode] = useState<AppMode>('generate');
   const [showAnalysis, setShowAnalysis] = useState(true);
+  const [editingPlanId, setEditingPlanId] = useState<string | null>(null);
 
   // Upload flow
   const {
@@ -49,25 +51,50 @@ export default function Home() {
     generationResult,
     plans: generatedPlans,
     thumbnails: genThumbnails,
+    stylizedThumbnails: genStylizedThumbnails,
     error: genError,
     isGenerating,
     isAnalyzing,
+    isEditing,
     hasResults,
     analysisResult: genAnalysisResult,
     handleGenerate,
+    handleEditPlan,
+    handleRenamePlan,
     resetGeneration,
   } = useGeneration();
 
   // Determine which data to show
   const currentPlans = mode === 'generate' ? generatedPlans : uploadedPlans;
   const currentThumbnails = mode === 'generate' ? genThumbnails : uploadThumbnails;
+  const currentStylizedThumbnails = mode === 'generate' ? genStylizedThumbnails : {};
   const currentAnalysis = mode === 'generate' ? genAnalysisResult : uploadAnalysisResult;
   const currentError = mode === 'generate' ? genError : uploadError;
   const hasPlans = currentPlans.length > 0;
+  
+  // Find the plan being edited
+  const editingPlan = editingPlanId ? currentPlans.find(p => p.id === editingPlanId) : null;
 
   const handleReset = () => {
     resetAnalysis();
     resetGeneration();
+    setEditingPlanId(null);
+  };
+  
+  const handleOpenEdit = (planId: string) => {
+    setEditingPlanId(planId);
+  };
+  
+  const handleCloseEdit = () => {
+    setEditingPlanId(null);
+  };
+  
+  const handleSubmitEdit = async (instruction: string) => {
+    if (!editingPlanId) return;
+    const result = await handleEditPlan(editingPlanId, instruction);
+    if (result?.success) {
+      setEditingPlanId(null);
+    }
   };
 
   return (
@@ -352,15 +379,28 @@ export default function Home() {
               <DraftGrid
                 plans={currentPlans.map(p => ({
                   ...p,
-                  thumbnail: currentThumbnails[p.id] || p.thumbnail
+                  thumbnail: currentThumbnails[p.id] || p.thumbnail,
+                  stylized_thumbnail: currentStylizedThumbnails[p.id] || p.stylized_thumbnail
                 }))}
                 scatterPoints={currentAnalysis?.visualization.points}
                 onRemove={mode === 'upload' ? handleRemovePlan : undefined}
+                onEdit={mode === 'generate' ? handleOpenEdit : undefined}
+                onRename={mode === 'generate' ? handleRenamePlan : undefined}
+                showStylized={true}
               />
             </div>
           )}
         </main>
       </div>
+      
+      {/* Edit Plan Modal */}
+      <EditPlanModal
+        isOpen={editingPlanId !== null}
+        onClose={handleCloseEdit}
+        onSubmit={handleSubmitEdit}
+        planName={editingPlan?.display_name}
+        isLoading={isEditing}
+      />
     </div>
   );
 }
