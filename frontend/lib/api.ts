@@ -14,8 +14,18 @@ import type {
 // API URL configuration
 // In production: use NEXT_PUBLIC_API_URL (e.g., https://drafted-diversity-api.onrender.com)
 // In development: use localhost directly to avoid Next.js proxy timeout issues
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || '';
-const BACKEND_DIRECT = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+function getApiUrl(): string {
+  const envUrl = process.env.NEXT_PUBLIC_API_URL;
+  if (!envUrl) return '';
+  // Add https:// if not present (Render's fromService gives just the hostname)
+  if (envUrl.startsWith('http://') || envUrl.startsWith('https://')) {
+    return envUrl;
+  }
+  return `https://${envUrl}`;
+}
+
+const API_BASE = getApiUrl();
+const BACKEND_DIRECT = getApiUrl() || 'http://localhost:8000';
 
 /**
  * Upload floor plan images to the backend
