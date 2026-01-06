@@ -148,8 +148,21 @@ export default function Home() {
             )}
           </div>
 
-          {/* Sidebar Footer - Diversity Score Preview */}
-          {currentAnalysis && (
+          {/* Sidebar Footer - Diversity Score Preview or Analyzing State */}
+          {isAnalyzing && (
+            <div className="p-4 border-t border-drafted-border bg-gradient-to-r from-coral-50 to-white">
+              <div className="flex items-center gap-3 mb-2">
+                <div className="w-5 h-5 border-2 border-coral-500 border-t-transparent rounded-full animate-spin" />
+                <span className="text-sm font-medium text-coral-600">
+                  Generating Report...
+                </span>
+              </div>
+              <div className="progress-bar-drafted overflow-hidden">
+                <div className="h-full bg-gradient-to-r from-coral-400 to-coral-500 animate-pulse" style={{ width: '60%' }} />
+              </div>
+            </div>
+          )}
+          {currentAnalysis && !isAnalyzing && (
             <div className="p-4 border-t border-drafted-border bg-white">
               <div className="flex items-center justify-between mb-2">
                 <span className="text-xs font-medium text-drafted-light uppercase tracking-wider">
@@ -274,17 +287,50 @@ export default function Home() {
           {/* Draft Grid - Show while analyzing too */}
           {hasPlans && (
             <div className="p-6">
-              {/* Analysis Loading Indicator */}
+              {/* Analysis Loading Indicator - Prominent Card */}
               {isAnalyzing && (
                 <motion.div
-                  initial={{ opacity: 0, y: -10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  className="mb-6 p-4 bg-drafted-bg border border-drafted-border rounded-drafted flex items-center gap-3"
+                  initial={{ opacity: 0, scale: 0.95 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  className="mb-6 p-6 bg-gradient-to-r from-coral-50 to-amber-50 border-2 border-coral-200 rounded-2xl"
                 >
-                  <div className="w-5 h-5 border-2 border-coral-500 border-t-transparent rounded-full animate-spin" />
-                  <p className="text-sm text-drafted-gray">
-                    Analyzing diversity metrics... This may take a moment.
-                  </p>
+                  <div className="flex items-start gap-4">
+                    {/* Animated Icon */}
+                    <div className="relative flex-shrink-0">
+                      <div className="w-12 h-12 bg-white rounded-xl shadow-sm flex items-center justify-center">
+                        <BarChart3 className="w-6 h-6 text-coral-500" />
+                      </div>
+                      <div className="absolute -top-1 -right-1 w-4 h-4 bg-coral-500 rounded-full flex items-center justify-center">
+                        <div className="w-2 h-2 bg-white rounded-full animate-pulse" />
+                      </div>
+                    </div>
+                    
+                    {/* Content */}
+                    <div className="flex-1">
+                      <h3 className="text-lg font-semibold text-drafted-black mb-1">
+                        Generating Diversity Report
+                      </h3>
+                      <p className="text-sm text-drafted-gray mb-3">
+                        Analyzing spatial patterns, room distributions, and layout variations across your generated plans...
+                      </p>
+                      
+                      {/* Progress Steps */}
+                      <div className="flex items-center gap-6 text-xs">
+                        <div className="flex items-center gap-2">
+                          <CheckCircle2 className="w-4 h-4 text-green-500" />
+                          <span className="text-drafted-gray">Plans Generated</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <div className="w-4 h-4 border-2 border-coral-500 border-t-transparent rounded-full animate-spin" />
+                          <span className="text-coral-600 font-medium">Computing Metrics</span>
+                        </div>
+                        <div className="flex items-center gap-2 opacity-40">
+                          <div className="w-4 h-4 border-2 border-drafted-border rounded-full" />
+                          <span className="text-drafted-light">Results Ready</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
                 </motion.div>
               )}
 
