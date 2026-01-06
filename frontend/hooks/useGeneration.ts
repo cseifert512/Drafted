@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import type { 
   GenerationRequest, 
   GenerationResponse,
@@ -10,6 +10,17 @@ import type {
   EditPlanResponse
 } from '@/lib/types';
 import { generateFloorPlans, analyzePlans, getPlanThumbnail, editPlan, renamePlan } from '@/lib/api';
+
+const STORAGE_KEY = 'drafted_generation_state';
+
+interface PersistedState {
+  generationState: GenerationState;
+  generationResult: GenerationResponse | null;
+  plans: UploadedPlan[];
+  thumbnails: Record<string, string>;
+  stylizedThumbnails: Record<string, string>;
+  analysisResult: AnalysisResponse | null;
+}
 
 interface UseGenerationReturn {
   // State
@@ -44,6 +55,48 @@ export function useGeneration(): UseGenerationReturn {
   const [error, setError] = useState<string | null>(null);
   const [analysisResult, setAnalysisResult] = useState<AnalysisResponse | null>(null);
   const [isEditing, setIsEditing] = useState(false);
+  const [isHydrated, setIsHydrated] = useState(false);
+
+  // Restore state from sessionStorage on mount
+  useEffect(() => {
+    try {
+      const saved = sessionStorage.getItem(STORAGE_KEY);
+      if (saved) {
+        const parsed: PersistedState = JSON.parse(saved);
+        // Only restore if we had completed generation
+        if (parsed.generationState === 'complete' && parsed.plans.length > 0) {
+          setGenerationState(parsed.generationState);
+          setGenerationResult(parsed.generationResult);
+          setPlans(parsed.plans);
+          setThumbnails(parsed.thumbnails);
+          setStylizedThumbnails(parsed.stylizedThumbnails);
+          setAnalysisResult(parsed.analysisResult);
+        }
+      }
+    } catch (e) {
+      console.error('Failed to restore generation state:', e);
+    }
+    setIsHydrated(true);
+  }, []);
+
+  // Save state to sessionStorage when it changes
+  useEffect(() => {
+    if (!isHydrated) return; // Don't save during hydration
+    
+    try {
+      const state: PersistedState = {
+        generationState,
+        generationResult,
+        plans,
+        thumbnails,
+        stylizedThumbnails,
+        analysisResult,
+      };
+      sessionStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    } catch (e) {
+      console.error('Failed to save generation state:', e);
+    }
+  }, [isHydrated, generationState, generationResult, plans, thumbnails, stylizedThumbnails, analysisResult]);
 
   const loadThumbnail = useCallback(async (planId: string) => {
     if (thumbnails[planId]) return;
@@ -187,6 +240,12 @@ export function useGeneration(): UseGenerationReturn {
     setStylizedThumbnails({});
     setError(null);
     setAnalysisResult(null);
+    // Clear persisted state
+    try {
+      sessionStorage.removeItem(STORAGE_KEY);
+    } catch (e) {
+      console.error('Failed to clear generation state:', e);
+    }
   }, []);
 
   return {
