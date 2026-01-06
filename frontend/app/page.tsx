@@ -288,7 +288,7 @@ export default function Home() {
                 <div className="w-16 h-16 border-4 border-drafted-border rounded-full" />
                 <div className="absolute inset-0 w-16 h-16 border-4 border-coral-500 rounded-full border-t-transparent animate-spin" />
               </div>
-              <p className="mt-4 text-drafted-gray font-medium">Generating floor plans...</p>
+              <p className="mt-4 text-drafted-gray font-serif font-semibold">Generating floor plans...</p>
               <p className="text-sm text-drafted-light mt-1">This may take a moment</p>
             </motion.div>
           )}

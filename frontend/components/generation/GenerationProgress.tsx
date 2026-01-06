@@ -48,7 +48,7 @@ export function GenerationProgress({
       </div>
 
       {/* Status text */}
-      <h3 className="text-xl font-bold text-drafted-black mb-2">
+      <h3 className="text-xl font-serif font-bold text-drafted-black mb-2">
         {isComplete 
           ? 'Generation Complete!' 
           : 'Generating Floor Plans...'}
