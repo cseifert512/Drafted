@@ -20,6 +20,9 @@ This tool:
 
 - **AI Generation**: Generate 4-12 diverse floor plans with one click using Gemini 2.0 Flash
 - **10 Layout Variations**: Linear, L-shaped, open concept, split bedroom, and more
+- **Dual Output**: Colored version for analysis + stylized rendered version for display
+- **Edit Plans**: AI-powered image-to-image editing (add pool, open concept, expand rooms, etc.)
+- **Smart Naming**: AI-generated descriptive names like "Spacious Open-Concept Ranch" with rename support
 - **Two-Phase Processing**: Plans display immediately while diversity analysis runs in background
 - **Real-time Progress**: Visual indicators show generation and analysis status
 - **Upload Support**: Analyze your own existing floor plan images
@@ -54,14 +57,15 @@ This tool:
 │   ├── components/           # React components
 │   │   ├── layout/           # Header, Section
 │   │   ├── sidebar/          # GenerationSidebar
-│   │   ├── drafts/           # DraftGrid
+│   │   ├── drafts/           # DraftGrid (stylized display, editable names)
 │   │   ├── upload/           # DropZone
 │   │   ├── visualization/    # ScatterPlot, DiversityScore
 │   │   ├── generation/       # GenerationForm, GenerationProgress
-│   │   └── analysis/         # AnalysisPanel
+│   │   ├── analysis/         # AnalysisPanel
+│   │   └── EditPlanModal.tsx # AI-powered plan editing modal
 │   ├── hooks/                # Custom React hooks
 │   │   ├── useAnalysis.ts    # Upload/analysis state
-│   │   └── useGeneration.ts  # Generation state (two-phase)
+│   │   └── useGeneration.ts  # Generation state (two-phase, edit, rename)
 │   └── lib/                  # API client, types, utilities
 │
 └── render.yaml               # Render deployment blueprint
@@ -165,6 +169,9 @@ Get your Gemini API key from [Google AI Studio](https://aistudio.google.com/app/
 | `/api/plans/{id}` | DELETE | Delete a plan |
 | `/api/analyze` | POST | Run diversity analysis |
 | `/api/plan/{id}/thumbnail` | GET | Get plan thumbnail |
+| `/api/plan/{id}/stylized` | GET | Get stylized (rendered) version of plan |
+| `/api/plan/{id}/edit` | POST | Edit plan with AI (image-to-image) |
+| `/api/plan/{id}/rename` | PATCH | Rename a plan |
 | `/health` | GET | Health check |
 
 ### Generation Request Example
@@ -190,6 +197,17 @@ POST /api/analyze
   "plan_ids": ["gen_abc123", "gen_def456", "gen_ghi789"]
 }
 ```
+
+### Edit Plan Request Example
+
+```json
+POST /api/plan/gen_abc123/edit
+{
+  "instruction": "Add a pool to the backyard"
+}
+```
+
+Response includes a new plan with both colored and stylized versions.
 
 ## Color-Coded Floor Plans
 
@@ -227,6 +245,24 @@ Each generated plan uses a different layout strategy:
 8. **Circular Flow** - Loop circulation
 9. **Front-to-Back** - Public to private gradient
 10. **Offset** - Staggered room positions
+
+### Dual Output Processing
+Each generated plan produces two versions:
+- **Colored Version**: Color-coded rooms for feature extraction and analysis
+- **Stylized Version**: Professional architectural rendering for display
+
+### AI-Powered Editing
+Edit existing plans using natural language instructions:
+- Image-to-image modification via Gemini
+- Quick edits: Add pool, open concept, expand rooms, add office, etc.
+- Custom instructions for any modification
+- Preserves original plan while creating new edited version
+
+### Smart Naming
+AI generates descriptive names for each floor plan:
+- Analyzes layout and features to create names like "Modern L-Shaped with Central Kitchen"
+- Users can rename plans with custom names
+- Names persist across sessions
 
 ### Synthetic Fallback
 If Gemini API fails (rate limits, etc.), the system generates synthetic placeholder images to ensure the prototype always produces output.
