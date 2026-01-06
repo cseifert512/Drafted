@@ -19,7 +19,8 @@ services:
         value: "3.11.4"
       - key: GEMINI_API_KEY
         sync: false  # You'll need to set this manually in Render dashboard
-    healthCheckPath: /health
+    # Health check disabled for now - free tier struggles with compute-intensive operations
+    # healthCheckPath: /health
     autoDeploy: true
 
   # Frontend - Next.js
