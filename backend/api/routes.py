@@ -8,6 +8,7 @@ import time
 from typing import List, Optional
 from fastapi import APIRouter, UploadFile, File, HTTPException, BackgroundTasks
 from fastapi.responses import JSONResponse
+from pydantic import BaseModel
 import numpy as np
 
 from .schemas import (
@@ -142,8 +143,13 @@ async def delete_all_plans():
     return {"success": True, "message": f"Deleted {count} plans"}
 
 
+class AnalyzeRequest(BaseModel):
+    """Request body for analysis."""
+    plan_ids: Optional[List[str]] = None
+
+
 @router.post("/analyze", response_model=AnalysisResponse)
-async def analyze_plans(plan_ids: Optional[List[str]] = None):
+async def analyze_plans(request: Optional[AnalyzeRequest] = None):
     """
     Analyze uploaded floor plans for diversity.
     
@@ -151,6 +157,9 @@ async def analyze_plans(plan_ids: Optional[List[str]] = None):
     Returns diversity score, metrics breakdown, and visualization data.
     """
     start_time = time.time()
+    
+    # Extract plan_ids from request body
+    plan_ids = request.plan_ids if request else None
     
     # Get plans to analyze
     if plan_ids:
