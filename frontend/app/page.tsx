@@ -465,7 +465,10 @@ export default function Home() {
         stylizedThumbnail={selectedPlanId ? currentStylizedThumbnails[selectedPlanId] : undefined}
         onClose={handleCloseDetail}
         onEdit={handleEditFromDetail}
-        onRename={handleRenamePlan}
+        onRename={async (newName) => {
+          if (!selectedPlanId) return false;
+          return handleRenamePlan(selectedPlanId, newName);
+        }}
         isOpen={selectedPlanId !== null}
       />
     </div>
