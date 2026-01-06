@@ -563,7 +563,8 @@ IMPORTANT:
 Output a beautiful, photorealistic rendered floor plan image."""
 
         image_b64 = base64.b64encode(image_data).decode('utf-8')
-        url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent"
+        # Use Gemini 3 Pro Image for better rendering quality
+        url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-3-pro-image-preview:generateContent"
         
         payload = {
             "contents": [{
@@ -662,7 +663,8 @@ Output the modified floor plan image."""
         try:
             image_b64 = base64.b64encode(image_data).decode('utf-8')
             
-            url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent"
+            # Use Gemini 3 Pro Image for better editing quality
+            url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-3-pro-image-preview:generateContent"
             
             payload = {
                 "contents": [{
