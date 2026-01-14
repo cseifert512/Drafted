@@ -1,0 +1,1771 @@
+{
+    "schema": "drafted.room-catalog",
+    "version": "1.0.0",
+    "generated_at": "2025-11-04",
+    "types": {
+      "bedroom": {
+        "key": "bedroom",
+        "display": "Bedroom",
+        "aliases": [],
+        "icon": "BedIcon",
+        "description": null,
+        "colors": {
+          "training_hex": "#C46E72",
+          "plan_hex": "#FFDFD6",
+          "ui_hex": "#FFDFD6",
+          "prompt_color_name": "Dusty Rose"
+        },
+        "sizes": {
+          "S": {
+            "area_min_sqft": 80.0,
+            "area_max_sqft": 128.0,
+            "user_name": "Twin/Full Bedroom",
+            "prompt_name": "Cozy",
+            "descriptive_name": "Twin/Full Bedroom",
+            "description": "Single occupancy bedroom, fits twin or full size bed, night stand and dresser."
+          },
+          "M": {
+            "area_min_sqft": 128.0,
+            "area_max_sqft": 175.5,
+            "user_name": "Queen/King Bedroom",
+            "prompt_name": "Standard",
+            "descriptive_name": "Queen/King Bedroom",
+            "description": "Common secondary bedroom size. Fits queen or King sized bed, nightstands, and dresser."
+          },
+          "L": {
+            "area_min_sqft": 175.5,
+            "area_max_sqft": 223.0,
+            "user_name": "King Bed with Small Flex Space",
+            "prompt_name": "Spacious",
+            "descriptive_name": "King Bed with Small Flex Space",
+            "description": "Primary bedroom size. Fits king sized bed with night stands, plus a small area for sitting, desk, etc."
+          },
+          "XL": {
+            "area_min_sqft": 223.0,
+            "area_max_sqft": 270.0,
+            "user_name": "King Bed with Large Flex Space",
+            "prompt_name": "Grand",
+            "descriptive_name": "King Bed with Large Flex Space",
+            "description": "Grand bedroom size. Comfortably fit king sized bed set with additional generous space for a home office, exercise equipment, sitting area, etc."
+          }
+        },
+        "axon_images": {
+          "S": "/rooms/Axon_Bedroom_S.png",
+          "M": "/rooms/Axon_Bedroom_M.png",
+          "L": "/rooms/Axon_Bedroom_L.png",
+          "XL": "/rooms/Axon_Bedroom_XL.png"
+        },
+        "prompt": {
+          "hidden": false,
+          "name_override": "bedroom + Closet",
+          "priority": 5
+        },
+        "ui_priorities": { "sidebar": 1, "room_list": 1 },
+        "is_auxiliary": false,
+        "auxiliary_role": null,
+        "is_heated": true
+      },
+  
+      "primary_bedroom": {
+        "key": "primary_bedroom",
+        "display": "Primary Bedroom",
+        "aliases": ["primary_bed", "owner_suite", "master_bedroom"],
+        "icon": "BedIcon",
+        "description": null,
+        "colors": {
+          "training_hex": "#FD4041",
+          "plan_hex": "#FFC7B7",
+          "ui_hex": "#FFC7B7",
+          "prompt_color_name": "Red"
+        },
+        "sizes": {
+          "S": {
+            "area_min_sqft": 106.0,
+            "area_max_sqft": 185.0,
+            "user_name": "Primary  |  Queen/King Bedroom",
+            "prompt_name": "Intimate",
+            "descriptive_name": null,
+            "description": null
+          },
+          "M": {
+            "area_min_sqft": 185.0,
+            "area_max_sqft": 264.0,
+            "user_name": "Primary  |  King Bed with Small Flex Space",
+            "prompt_name": "Retreat",
+            "descriptive_name": null,
+            "description": null
+          },
+          "L": {
+            "area_min_sqft": 264.0,
+            "area_max_sqft": 343.0,
+            "user_name": "Primary  |  King Bed with Large Flex Space",
+            "prompt_name": "Suite",
+            "descriptive_name": null,
+            "description": null
+          },
+          "XL": {
+            "area_min_sqft": 343.0,
+            "area_max_sqft": 422.0,
+            "user_name": "Primary  |  Presidential Suite",
+            "prompt_name": "Presidential",
+            "descriptive_name": null,
+            "description": null
+          }
+        },
+        "axon_images": {
+          "S": "/rooms/Axon_Primary Bedroom_S.png",
+          "M": "/rooms/Axon_Primary Bedroom_M.png",
+          "L": "/rooms/Axon_Primary Bedroom_L.png",
+          "XL": "/rooms/Axon_Primary Bedroom_XL.png"
+        },
+        "prompt": { "hidden": false, "name_override": null, "priority": 0 },
+        "ui_priorities": { "sidebar": 0, "room_list": 0 },
+        "is_auxiliary": false,
+        "auxiliary_role": null,
+        "is_heated": true
+      },
+  
+      "bathroom": {
+        "key": "bathroom",
+        "display": "Bathroom",
+        "aliases": [],
+        "icon": "BathIcon",
+        "description": null,
+        "colors": {
+          "training_hex": "#469EFC",
+          "plan_hex": "#D0E5F7",
+          "ui_hex": "#D0E5F7",
+          "prompt_color_name": "Bright Azure"
+        },
+        "sizes": {
+          "S": {
+            "area_min_sqft": 40.0,
+            "area_max_sqft": 45.0,
+            "user_name": "Compact Full Bath",
+            "prompt_name": "Powder",
+            "descriptive_name": "Single Wall Full Bath wth 5' Tub and 3' Vanity",
+            "description": "An efficient and common layout planned around common fixture sizes. A standard 5' tub or shower, toilet, and small vanity along the same wall."
+          },
+          "M": {
+            "area_min_sqft": 45.0,
+            "area_max_sqft": 76.5,
+            "user_name": "Expanded Full Bath",
+            "prompt_name": "Full",
+            "descriptive_name": "Spacious full bath with dual vanity and open toilet layout",
+            "description": "A larger bathroom with small double vanity, shower or tub, and open toilet."
+          },
+          "L": {
+            "area_min_sqft": 76.5,
+            "area_max_sqft": 108.0,
+            "user_name": "Large Full Bath",
+            "prompt_name": "Comfort",
+            "descriptive_name": "Primary bath suite with dedicated toilet room and oversized shower or tub",
+            "description": "An elevated bathroom with double vanity, oversized shower, open toilet and additional circulation."
+          },
+          "XL": {
+            "area_min_sqft": 108.0,
+            "area_max_sqft": 140.0,
+            "user_name": "Extra Large Full Bath",
+            "prompt_name": "Luxe",
+            "descriptive_name": "Powder room with toilet and sink on same wall",
+            "description": "A primary level bathroom with closed toilet room, double vanity, room for both shower and tub."
+          }
+        },
+        "axon_images": {
+          "S": "/rooms/Axon_Bathroom_S.png",
+          "M": "/rooms/Axon_Bathroom_M.png",
+          "L": "/rooms/Axon_Bathroom_L.png",
+          "XL": "/rooms/Axon_Bathroom_XL.png"
+        },
+        "prompt": { "hidden": false, "name_override": null, "priority": 4 },
+        "ui_priorities": { "sidebar": 3, "room_list": 101 },
+        "is_auxiliary": false,
+        "auxiliary_role": null,
+        "is_heated": true
+      },
+  
+      "primary_bathroom": {
+        "key": "primary_bathroom",
+        "display": "Primary Bathroom",
+        "aliases": ["primary_bath", "owner_bath", "master_bathroom"],
+        "icon": "BathIcon",
+        "description": null,
+        "colors": {
+          "training_hex": "#3A6DF8",
+          "plan_hex": "#B1D5F3",
+          "ui_hex": "#B1D5F3",
+          "prompt_color_name": "Azure"
+        },
+        "sizes": {
+          "S": {
+            "area_min_sqft": 13.0,
+            "area_max_sqft": 63.0,
+            "user_name": "Primary  |  Compact Full Bath",
+            "prompt_name": "Ensuite",
+            "descriptive_name": null,
+            "description": null
+          },
+          "M": {
+            "area_min_sqft": 63.0,
+            "area_max_sqft": 112.0,
+            "user_name": "Primary  |  Expanded Full Bath",
+            "prompt_name": "Spa",
+            "descriptive_name": null,
+            "description": null
+          },
+          "L": {
+            "area_min_sqft": 112.0,
+            "area_max_sqft": 162.0,
+            "user_name": "Primary  |  Large Full Bath",
+            "prompt_name": "Oasis",
+            "descriptive_name": null,
+            "description": null
+          },
+          "XL": {
+            "area_min_sqft": 162.0,
+            "area_max_sqft": 211.0,
+            "user_name": "Primary  |  Extra Large Full Bath",
+            "prompt_name": "Sanctuary",
+            "descriptive_name": null,
+            "description": null
+          }
+        },
+        "axon_images": {
+          "S": "/rooms/Axon_Primary Bath_S.png",
+          "M": "/rooms/Axon_Primary Bath_M.png",
+          "L": "/rooms/Axon_Primary Bath_L.png",
+          "XL": "/rooms/Axon_Primary Bath_XL.png"
+        },
+        "prompt": { "hidden": false, "name_override": null, "priority": 1 },
+        "ui_priorities": { "sidebar": 2, "room_list": 100 },
+        "is_auxiliary": false,
+        "auxiliary_role": null,
+        "is_heated": true
+      },
+  
+      "closet": {
+        "key": "closet",
+        "display": "Closet",
+        "aliases": [],
+        "icon": "ClosetIcon",
+        "description": null,
+        "colors": {
+          "training_hex": "#BFB173",
+          "plan_hex": "#FFDBC1",
+          "ui_hex": "#FFDBC1",
+          "prompt_color_name": "Gold"
+        },
+        "sizes": {
+          "S": {
+            "area_min_sqft": 6.0,
+            "area_max_sqft": 15.5,
+            "user_name": "Wall Closet",
+            "prompt_name": "Reach-In",
+            "descriptive_name": null,
+            "description": "Standard depth wall closet with accessed from the attached room."
+          },
+          "M": {
+            "area_min_sqft": 15.5,
+            "area_max_sqft": 30.7,
+            "user_name": "Walk-in Closet",
+            "prompt_name": "Dressing",
+            "descriptive_name": null,
+            "description": null
+          },
+          "L": {
+            "area_min_sqft": 30.7,
+            "area_max_sqft": 46.0,
+            "user_name": "Large Walk-in Closet",
+            "prompt_name": "Wardrobe",
+            "descriptive_name": null,
+            "description": null
+          },
+          "XL": {
+            "area_min_sqft": 46.0,
+            "area_max_sqft": 61.0,
+            "user_name": "Galley Walk-in Closet",
+            "prompt_name": "Boutique",
+            "descriptive_name": null,
+            "description": null
+          }
+        },
+        "axon_images": {
+          "S": "/rooms/Axon_Closet_S.png",
+          "M": "/rooms/Axon_Closet_M.png",
+          "L": "/rooms/Axon_Closet_L.png",
+          "XL": "/rooms/Axon_Closet_XL.png"
+        },
+        "prompt": { "hidden": true, "name_override": null, "priority": 6 },
+        "ui_priorities": { "sidebar": 25, "room_list": 201 },
+        "is_auxiliary": true,
+        "auxiliary_role": null,
+        "is_heated": true
+      },
+  
+      "primary_closet": {
+        "key": "primary_closet",
+        "display": "Primary Closet",
+        "aliases": [],
+        "icon": "ClosetIcon",
+        "description": null,
+        "colors": {
+          "training_hex": "#F8FE36",
+          "plan_hex": "#FFC79C",
+          "ui_hex": "#FFC79C",
+          "prompt_color_name": "Yellow"
+        },
+        "sizes": {
+          "S": {
+            "area_min_sqft": 9.0,
+            "area_max_sqft": 44.0,
+            "user_name": "Primary  |  Compact Walk-in",
+            "prompt_name": "Petite",
+            "descriptive_name": null,
+            "description": null
+          },
+          "M": {
+            "area_min_sqft": 44.0,
+            "area_max_sqft": 79.0,
+            "user_name": "Primary  |  Large Walk-in",
+            "prompt_name": "Gallery",
+            "descriptive_name": null,
+            "description": null
+          },
+          "L": {
+            "area_min_sqft": 79.0,
+            "area_max_sqft": 113.0,
+            "user_name": "Primary  |  Multi-Zone Walk-in",
+            "prompt_name": "Showroom",
+            "descriptive_name": null,
+            "description": null
+          },
+          "XL": {
+            "area_min_sqft": 113.0,
+            "area_max_sqft": 148.0,
+            "user_name": "Primary  |  Dressing Atelier",
+            "prompt_name": "Atelier",
+            "descriptive_name": null,
+            "description": null
+          }
+        },
+        "axon_images": {
+          "S": "/rooms/Axon_Primary Closet_S.png",
+          "M": "/rooms/Axon_Primary Closet_M.png",
+          "L": "/rooms/Axon_Primary Closet_L.png",
+          "XL": "/rooms/Axon_Primary Closet_XL.png"
+        },
+        "prompt": { "hidden": false, "name_override": null, "priority": 2 },
+        "ui_priorities": { "sidebar": 4, "room_list": 200 },
+        "is_auxiliary": false,
+        "auxiliary_role": null,
+        "is_heated": true
+      },
+  
+      "kitchen": {
+        "key": "kitchen",
+        "display": "Kitchen",
+        "aliases": [],
+        "icon": "KitchenIcon",
+        "description": null,
+        "colors": {
+          "training_hex": "#76FF99",
+          "plan_hex": "#FFE08F",
+          "ui_hex": "#FFE08F",
+          "prompt_color_name": "Bright Seafoam"
+        },
+        "sizes": {
+          "S": {
+            "area_min_sqft": 64.0,
+            "area_max_sqft": 147.0,
+            "user_name": "Single Wall Kitchen",
+            "prompt_name": "Compact",
+            "descriptive_name": "A 12-door kitchen over single wall section",
+            "description": "A single-wall kitchen with all the essential appliances - Fridge, sink, dishwasher, range, range hood and counterspace. 12-door cabinets"
+          },
+          "M": {
+            "area_min_sqft": 147.0,
+            "area_max_sqft": 230.0,
+            "user_name": "Single Wall Kitchen w. Island",
+            "prompt_name": "Galley",
+            "descriptive_name": "A 18-door kitchen with single wall section and island",
+            "description": "An open layout kitchen with 18-door cabinetry and appliances between a single wall section and an island."
+          },
+          "L": {
+            "area_min_sqft": 230.0,
+            "area_max_sqft": 313.0,
+            "user_name": "Two Wall Kitchen with Island",
+            "prompt_name": "Island",
+            "descriptive_name": "A 28-door kitchen with two wall sections and island",
+            "description": "An large open layout kitchen with 28-door cabinetry and appliances between two wall sections and an island."
+          },
+          "XL": {
+            "area_min_sqft": 313.0,
+            "area_max_sqft": 396.0,
+            "user_name": "Multi-Section Kitchen with Island",
+            "prompt_name": "Chef's",
+            "descriptive_name": "A 36-door kitchen with three wall sections and oversized island",
+            "description": "An extra large open layout kitchen with 36+ door cabinetry and appliances between 2+ wall sections and an island."
+          }
+        },
+        "axon_images": {
+          "S": "/rooms/Axon_Kitchen_S.png",
+          "M": "/rooms/Axon_Kitchen_M.png",
+          "L": "/rooms/Axon_Kitchen_L.png",
+          "XL": "/rooms/Axon_Kitchen_XL.png"
+        },
+        "prompt": { "hidden": false, "name_override": null, "priority": 14 },
+        "ui_priorities": { "sidebar": 9, "room_list": 304 },
+        "is_auxiliary": false,
+        "auxiliary_role": null,
+        "is_heated": true
+      },
+  
+      "bar": {
+        "key": "bar",
+        "display": "Bar",
+        "aliases": ["wetbar", "wet_bar"],
+        "icon": "BarIcon",
+        "description": null,
+        "colors": {
+          "training_hex": "#E4AE7E",
+          "plan_hex": "#FFE08F",
+          "ui_hex": "#FFE08F",
+          "prompt_color_name": "Latte"
+        },
+        "sizes": {
+          "S": {
+            "area_min_sqft": 9.0,
+            "area_max_sqft": 75.0,
+            "user_name": "Small Wet Bar",
+            "prompt_name": "Niche",
+            "descriptive_name": null,
+            "description": null
+          },
+          "M": {
+            "area_min_sqft": 75.0,
+            "area_max_sqft": 140.0,
+            "user_name": "Wet Bar with Island",
+            "prompt_name": "Wet",
+            "descriptive_name": null,
+            "description": null
+          },
+          "L": {
+            "area_min_sqft": 140.0,
+            "area_max_sqft": 206.0,
+            "user_name": "Full Bar",
+            "prompt_name": "Cellar",
+            "descriptive_name": null,
+            "description": null
+          },
+          "XL": {
+            "area_min_sqft": 206.0,
+            "area_max_sqft": 272.0,
+            "user_name": "Large Full Bar",
+            "prompt_name": "Speakeasy",
+            "descriptive_name": null,
+            "description": null
+          }
+        },
+        "axon_images": {
+          "S": "/rooms/Axon_Bar_S.png",
+          "M": "/rooms/Axon_Bar_M.png",
+          "L": "/rooms/Axon_Bar_L.png",
+          "XL": "/rooms/Axon_Bar_XL.png"
+        },
+        "prompt": { "hidden": false, "name_override": null, "priority": 3 },
+        "ui_priorities": { "sidebar": 20, "room_list": 505 },
+        "is_auxiliary": false,
+        "auxiliary_role": null,
+        "is_heated": true
+      },
+  
+      "dining": {
+        "key": "dining",
+        "display": "Dining",
+        "aliases": [],
+        "icon": "DiningIcon",
+        "description": null,
+        "colors": {
+          "training_hex": "#77758D",
+          "plan_hex": "#FFE08F",
+          "ui_hex": "#FFE08F",
+          "prompt_color_name": "Indigo Gray"
+        },
+        "sizes": {
+          "S": {
+            "area_min_sqft": 60.0,
+            "area_max_sqft": 130.0,
+            "user_name": "4-6 Person Dining",
+            "prompt_name": "Breakfast",
+            "descriptive_name": " A 4-6 person dining area",
+            "description": "A small dining area that fits a 4-6 person dining set."
+          },
+          "M": {
+            "area_min_sqft": 130.0,
+            "area_max_sqft": 204.0,
+            "user_name": "8-10 Person Dining",
+            "prompt_name": "Everyday",
+            "descriptive_name": "A 6-8 person dining area",
+            "description": "A dining area that fits a 6-8 person dining set."
+          },
+          "L": {
+            "area_min_sqft": 204.0,
+            "area_max_sqft": 278.0,
+            "user_name": "12-14 Person Dining",
+            "prompt_name": "Formal",
+            "descriptive_name": "A 8-10 person dining area",
+            "description": "A larger dining area (or room) that fits a 8-10 person dining set."
+          },
+          "XL": {
+            "area_min_sqft": 278.0,
+            "area_max_sqft": 352.0,
+            "user_name": "14-16+ Person Dining",
+            "prompt_name": "Banquet",
+            "descriptive_name": "A 10-12 person dining area",
+            "description": "An extra large dining area (or room) that fits 10-12+ people.  More formal."
+          }
+        },
+        "axon_images": {
+          "S": "/rooms/Axon_Dining_S.png",
+          "M": "/rooms/Axon_Dining_M.png",
+          "L": "/rooms/Axon_Dining_L.png",
+          "XL": "/rooms/Axon_Dining_XL.png"
+        },
+        "prompt": { "hidden": false, "name_override": null, "priority": 8 },
+        "ui_priorities": { "sidebar": 7, "room_list": 302 },
+        "is_auxiliary": false,
+        "auxiliary_role": null,
+        "is_heated": true
+      },
+  
+      "nook": {
+        "key": "nook",
+        "display": "Nook",
+        "aliases": [],
+        "icon": "NookIcon",
+        "description": null,
+        "colors": {
+          "training_hex": "#7A44EE",
+          "plan_hex": "#FFE08F",
+          "ui_hex": "#FFE08F",
+          "prompt_color_name": "Indigo"
+        },
+        "sizes": {
+          "S": {
+            "area_min_sqft": 40.0,
+            "area_max_sqft": 96.0,
+            "user_name": "Compact Wall Nook",
+            "prompt_name": "Café",
+            "descriptive_name": "A 4 person dining nook with wall attached bench",
+            "description": "A small nook area food for a wall mounted bench and casual dining sets."
+          },
+          "M": {
+            "area_min_sqft": 96.0,
+            "area_max_sqft": 152.0,
+            "user_name": "4-6 Person Dining Nook",
+            "prompt_name": "Booth",
+            "descriptive_name": "A 6 person dining nook with wall attached bench",
+            "description": "A small dining area for casual, day-to-day dining."
+          },
+          "L": {
+            "area_min_sqft": 152.0,
+            "area_max_sqft": 208.0,
+            "user_name": "8-10 Person Dining Nook",
+            "prompt_name": "Hearth",
+            "descriptive_name": " A 4-6 person dining nook",
+            "description": "A more spacious nook / morning room for casual, day-to-day dining."
+          },
+          "XL": {
+            "area_min_sqft": 208.0,
+            "area_max_sqft": 265.0,
+            "user_name": "10-12 Person Dining Nook",
+            "prompt_name": "Alcove",
+            "descriptive_name": "A 6-8 person dining nook",
+            "description": "A large nook / morning room for casual, day-to-day dining."
+          }
+        },
+        "axon_images": {
+          "S": "/rooms/Axon_Nook_S.png",
+          "M": "/rooms/Axon_Nook_M.png",
+          "L": "/rooms/Axon_Nook_L.png",
+          "XL": "/rooms/Axon_Nook_XL.png"
+        },
+        "prompt": { "hidden": false, "name_override": null, "priority": 18 },
+        "ui_priorities": { "sidebar": 8, "room_list": 303 },
+        "is_auxiliary": false,
+        "auxiliary_role": null,
+        "is_heated": true
+      },
+  
+      "living": {
+        "key": "living",
+        "display": "Living",
+        "aliases": ["living_room"],
+        "icon": "SofaIcon",
+        "description": null,
+        "colors": {
+          "training_hex": "#E94992",
+          "plan_hex": "#FFEAB2",
+          "ui_hex": "#FFEAB2",
+          "prompt_color_name": "Hot Pink"
+        },
+        "sizes": {
+          "S": {
+            "area_min_sqft": 109.0,
+            "area_max_sqft": 242.0,
+            "user_name": "4-6 Person Living Room",
+            "prompt_name": "Snug",
+            "descriptive_name": "Living Space for 4-6 person lounge set",
+            "description": "An intimate living room area comfortable for a 4-6 person lounge set and circulation"
+          },
+          "M": {
+            "area_min_sqft": 242.0,
+            "area_max_sqft": 375.0,
+            "user_name": "8-10 Person Living Room",
+            "prompt_name": "Lounge",
+            "descriptive_name": "Living Space for 8-10 person lounge set",
+            "description": "A cozy living room area comfortable for a 8-10 person lounge set and circulation"
+          },
+          "L": {
+            "area_min_sqft": 375.0,
+            "area_max_sqft": 508.0,
+            "user_name": "10-12 Person Living Room",
+            "prompt_name": "Great",
+            "descriptive_name": "Living Space for 10-12 person lounge set",
+            "description": "A large living room area comfortable for a 10-12 person lounge set and circulation"
+          },
+          "XL": {
+            "area_min_sqft": 508.0,
+            "area_max_sqft": 641.0,
+            "user_name": "12-14+ Person Living Room",
+            "prompt_name": "Pavilion",
+            "descriptive_name": "Living Space for 12-14+ person lounge set",
+            "description": "A grand living room area comfortable for a 12-14+ person lounge set and circulation"
+          }
+        },
+        "axon_images": {
+          "S": "/rooms/Axon_Living Room_S.png",
+          "M": "/rooms/Axon_Living Room_M.png",
+          "L": "/rooms/Axon_Living Room_L.png",
+          "XL": "/rooms/Axon_Living Room_XL.png"
+        },
+        "prompt": { "hidden": false, "name_override": null, "priority": 16 },
+        "ui_priorities": { "sidebar": 5, "room_list": 300 },
+        "is_auxiliary": false,
+        "auxiliary_role": null,
+        "is_heated": true
+      },
+  
+      "den": {
+        "key": "den",
+        "display": "Den",
+        "aliases": [],
+        "icon": "DenIcon",
+        "description": null,
+        "colors": {
+          "training_hex": "#EA8512",
+          "plan_hex": "#FFEAB2",
+          "ui_hex": "#FFEAB2",
+          "prompt_color_name": "Dark Tangerine"
+        },
+        "sizes": {
+          "S": {
+            "area_min_sqft": 52.0,
+            "area_max_sqft": 152.0,
+            "user_name": "4-6 Person Den",
+            "prompt_name": "Hideaway",
+            "descriptive_name": null,
+            "description": null
+          },
+          "M": {
+            "area_min_sqft": 152.0,
+            "area_max_sqft": 252.0,
+            "user_name": "6-8 Person Den",
+            "prompt_name": "Hollow",
+            "descriptive_name": null,
+            "description": null
+          },
+          "L": {
+            "area_min_sqft": 252.0,
+            "area_max_sqft": 352.0,
+            "user_name": "10-12 Person Den",
+            "prompt_name": "Parlor",
+            "descriptive_name": null,
+            "description": null
+          },
+          "XL": {
+            "area_min_sqft": 352.0,
+            "area_max_sqft": 453.0,
+            "user_name": "12-14+ Person Large Den",
+            "prompt_name": "Retreat",
+            "descriptive_name": null,
+            "description": null
+          }
+        },
+        "axon_images": {
+          "S": "/rooms/Axon_Den_S.png",
+          "M": "/rooms/Axon_Den_M.png",
+          "L": "/rooms/Axon_Den_L.png",
+          "XL": "/rooms/Axon_Den_XL.png"
+        },
+        "prompt": { "hidden": false, "name_override": null, "priority": 7 },
+        "ui_priorities": { "sidebar": 16, "room_list": 501 },
+        "is_auxiliary": false,
+        "auxiliary_role": null,
+        "is_heated": true
+      },
+  
+      "family_room": {
+        "key": "family_room",
+        "display": "Family Room",
+        "aliases": ["family", "great_room"],
+        "icon": "LoungeChairIcon",
+        "description": null,
+        "colors": {
+          "training_hex": "#F79644",
+          "plan_hex": "#FFEAB2",
+          "ui_hex": "#FFEAB2",
+          "prompt_color_name": "Tangerine"
+        },
+        "sizes": {
+          "S": {
+            "area_min_sqft": 108.0,
+            "area_max_sqft": 234.0,
+            "user_name": "4-6 Person Family Room",
+            "prompt_name": "Hearth",
+            "descriptive_name": "Family room for 4-6 person lounge set",
+            "description": "A family room area comfortable for a 4-6 person lounge set and circulation"
+          },
+          "M": {
+            "area_min_sqft": 234.0,
+            "area_max_sqft": 360.0,
+            "user_name": "8-10 Person Family Room",
+            "prompt_name": "Gathering",
+            "descriptive_name": "Family room for 6-8 person lounge set",
+            "description": "A family room area comfortable for a 8-10 person lounge set and circulation"
+          },
+          "L": {
+            "area_min_sqft": 360.0,
+            "area_max_sqft": 486.0,
+            "user_name": "10-12 Person Family Room",
+            "prompt_name": "Commons",
+            "descriptive_name": "Family room for 8-10 person lounge set",
+            "description": "A family room area comfortable for a 10-12 person lounge set and circulation"
+          },
+          "XL": {
+            "area_min_sqft": 486.0,
+            "area_max_sqft": 612.0,
+            "user_name": "12-14+ Person Family Room",
+            "prompt_name": "Lodge",
+            "descriptive_name": "Family room for 10-12+ person lounge set",
+            "description": "A family room area comfortable for a 12-14+ person lounge set and circulation"
+          }
+        },
+        "axon_images": {
+          "S": "/rooms/Axon_Family Room_S.png",
+          "M": "/rooms/Axon_Family Room_M.png",
+          "L": "/rooms/Axon_Family Room_L.png",
+          "XL": "/rooms/Axon_Family Room_XL.png"
+        },
+        "prompt": { "hidden": false, "name_override": null, "priority": 9 },
+        "ui_priorities": { "sidebar": 6, "room_list": 301 },
+        "is_auxiliary": false,
+        "auxiliary_role": null,
+        "is_heated": true
+      },
+  
+      "sunroom": {
+        "key": "sunroom",
+        "display": "Sunroom",
+        "aliases": [],
+        "icon": "SunroomIcon",
+        "description": null,
+        "colors": {
+          "training_hex": "#FFAEFC",
+          "plan_hex": "#FFEAB2",
+          "ui_hex": "#FFEAB2",
+          "prompt_color_name": "Light Magenta"
+        },
+        "sizes": {
+          "S": {
+            "area_min_sqft": 62.0,
+            "area_max_sqft": 200.0,
+            "user_name": "4-6 Person Sunroom",
+            "prompt_name": "Garden",
+            "descriptive_name": "",
+            "description": "An intimate sunroom for a 4-6 person lounge set."
+          },
+          "M": {
+            "area_min_sqft": 200.0,
+            "area_max_sqft": 339.0,
+            "user_name": "6-8 Person Sunroom",
+            "prompt_name": "Solarium",
+            "descriptive_name": "",
+            "description": "An immersive sunroom for a 6-8 person lounge set."
+          },
+          "L": {
+            "area_min_sqft": 339.0,
+            "area_max_sqft": 478.0,
+            "user_name": "10-12 Person Sunroom",
+            "prompt_name": "Atrium",
+            "descriptive_name": "",
+            "description": "Larger sunroom for a 10-12 person lounge set."
+          },
+          "XL": {
+            "area_min_sqft": 478.0,
+            "area_max_sqft": 617.0,
+            "user_name": "12-14+ Person Sunroom",
+            "prompt_name": "Orangery",
+            "descriptive_name": "",
+            "description": "A very large sunroom with room for ample lounge space, planting station, and multiple activities."
+          }
+        },
+        "axon_images": {
+          "S": "/rooms/Axon_Sunroom_S.png",
+          "M": "/rooms/Axon_Sunroom_M.png",
+          "L": "/rooms/Axon_Sunroom_L.png",
+          "XL": "/rooms/Axon_Sunroom_XL.png"
+        },
+        "prompt": { "hidden": false, "name_override": null, "priority": 25 },
+        "ui_priorities": { "sidebar": 19, "room_list": 504 },
+        "is_auxiliary": false,
+        "auxiliary_role": null,
+        "is_heated": true
+      },
+  
+      "pantry": {
+        "key": "pantry",
+        "display": "Pantry",
+        "aliases": [],
+        "icon": "PantryIcon",
+        "description": null,
+        "colors": {
+          "training_hex": "#E034FF",
+          "plan_hex": "#F0DAAF",
+          "ui_hex": "#F0DAAF",
+          "prompt_color_name": "Dark Magenta"
+        },
+        "sizes": {
+          "S": {
+            "area_min_sqft": 4.0,
+            "area_max_sqft": 28.0,
+            "user_name": "Small Closet Pantry",
+            "prompt_name": "Shelf",
+            "descriptive_name": "Wall pantry cabinet",
+            "description": "A small walk-in pantry with simple wall shelf storage."
+          },
+          "M": {
+            "area_min_sqft": 28.0,
+            "area_max_sqft": 53.0,
+            "user_name": "Walk-in Pantry",
+            "prompt_name": "Larder",
+            "descriptive_name": "Walk-in Pantry with 10' Wall Space",
+            "description": "A larger walk-in pantry with expanded or galley wall shelf storage."
+          },
+          "L": {
+            "area_min_sqft": 53.0,
+            "area_max_sqft": 77.0,
+            "user_name": "Butler's Pantry",
+            "prompt_name": "Scullery",
+            "descriptive_name": "Butler's pantry with 10-door cabinetry and 8' wall space",
+            "description": "A galley walk-in pantry with wall storage and 8-10 door cabinetry for countertop appliances"
+          },
+          "XL": {
+            "area_min_sqft": 77.0,
+            "area_max_sqft": 101.0,
+            "user_name": "Scullery",
+            "prompt_name": "Provisions",
+            "descriptive_name": "Scullery wth 14-door cabinetry and 12' wall space",
+            "description": "A generous scullery with wall storage, 14-door cabinetry, large 12-14 door cabinety for appliances and prep work."
+          }
+        },
+        "axon_images": {
+          "S": "/rooms/Axon_Pantry_S.png",
+          "M": "/rooms/Axon_Pantry_M.png",
+          "L": "/rooms/Axon_Pantry_L.png",
+          "XL": "/rooms/Axon_Pantry_XL.png"
+        },
+        "prompt": { "hidden": false, "name_override": null, "priority": 21 },
+        "ui_priorities": { "sidebar": 10, "room_list": 305 },
+        "is_auxiliary": false,
+        "auxiliary_role": null,
+        "is_heated": true
+      },
+  
+      "foyer": {
+        "key": "foyer",
+        "display": "Foyer",
+        "aliases": [],
+        "icon": "FoyerIcon",
+        "description": null,
+        "colors": {
+          "training_hex": "#B0CD3D",
+          "plan_hex": "#FFEAB2",
+          "ui_hex": "#FFEAB2",
+          "prompt_color_name": "Lime Green"
+        },
+        "sizes": {
+          "S": {
+            "area_min_sqft": 14.0,
+            "area_max_sqft": 94.0,
+            "user_name": "Entry Buffer",
+            "prompt_name": "Threshold",
+            "descriptive_name": null,
+            "description": null
+          },
+          "M": {
+            "area_min_sqft": 94.0,
+            "area_max_sqft": 189.0,
+            "user_name": "Small Foyer",
+            "prompt_name": "Vestibule",
+            "descriptive_name": null,
+            "description": null
+          },
+          "L": {
+            "area_min_sqft": 189.0,
+            "area_max_sqft": 283.0,
+            "user_name": "Large Foyer",
+            "prompt_name": "Passage",
+            "descriptive_name": null,
+            "description": null
+          },
+          "XL": {
+            "area_min_sqft": 283.0,
+            "area_max_sqft": 377.0,
+            "user_name": "Grand Foyer",
+            "prompt_name": "Rotunda",
+            "descriptive_name": null,
+            "description": null
+          }
+        },
+        "axon_images": {
+          "S": "/rooms/Axon_Foyer_S.png",
+          "M": "/rooms/Axon_Foyer_M.png",
+          "L": "/rooms/Axon_Foyer_L.png",
+          "XL": "/rooms/Axon_Foyer_XL.png"
+        },
+        "prompt": { "hidden": false, "name_override": null, "priority": 10 },
+        "ui_priorities": { "sidebar": 11, "room_list": 400 },
+        "is_auxiliary": false,
+        "auxiliary_role": "circulation",
+        "is_heated": true
+      },
+  
+      "office": {
+        "key": "office",
+        "display": "Office",
+        "aliases": [],
+        "icon": "OfficeIcon",
+        "description": null,
+        "colors": {
+          "training_hex": "#5BFEF8",
+          "plan_hex": "#FFDBEA",
+          "ui_hex": "#FFDBEA",
+          "prompt_color_name": "Cyan"
+        },
+        "sizes": {
+          "S": {
+            "area_min_sqft": 37.0,
+            "area_max_sqft": 121.0,
+            "user_name": "Pocket Office",
+            "prompt_name": "Study",
+            "descriptive_name": "Pocket office for single desk ",
+            "description": "A small intimate office for single desk.and furniture."
+          },
+          "M": {
+            "area_min_sqft": 121.0,
+            "area_max_sqft": 205.0,
+            "user_name": "Home Office / Flex Bedroom",
+            "prompt_name": "Workroom",
+            "descriptive_name": "Office that can also be twin/full bedroom",
+            "description": "A single person office that can flex as a queen/king bedroom."
+          },
+          "L": {
+            "area_min_sqft": 205.0,
+            "area_max_sqft": 290.0,
+            "user_name": "Two Zone Home Office",
+            "prompt_name": "Atelier",
+            "descriptive_name": "Office that can also be queen/king bedroom",
+            "description": "A generous single or multi-person office that can be broken out to 2-3 zones."
+          },
+          "XL": {
+            "area_min_sqft": 290.0,
+            "area_max_sqft": 375.0,
+            "user_name": "Multi-Zone Workspace",
+            "prompt_name": "Library",
+            "descriptive_name": "Office that can also be primary bedroom",
+            "description": "A grand workspace for multiple zones of activity or for your larger projects."
+          }
+        },
+        "axon_images": {
+          "S": "/rooms/Axon_Office_S.png",
+          "M": "/rooms/Axon_Office_M.png",
+          "L": "/rooms/Axon_Office_L.png",
+          "XL": "/rooms/Axon_Office_XL.png"
+        },
+        "prompt": { "hidden": false, "name_override": null, "priority": 19 },
+        "ui_priorities": { "sidebar": 15, "room_list": 500 },
+        "is_auxiliary": false,
+        "auxiliary_role": null,
+        "is_heated": true
+      },
+  
+      "rec_room": {
+        "key": "rec_room",
+        "display": "Rec Room",
+        "aliases": [],
+        "icon": "RecRoomIcon",
+        "description": null,
+        "colors": {
+          "training_hex": "#FE43D2",
+          "plan_hex": "#FFDBEA",
+          "ui_hex": "#FFDBEA",
+          "prompt_color_name": "fuchsia"
+        },
+        "sizes": {
+          "S": {
+            "area_min_sqft": 85.0,
+            "area_max_sqft": 236.0,
+            "user_name": "Playroom",
+            "prompt_name": "Play",
+            "descriptive_name": "",
+            "description": "An intimate bedroom-sized playroom or small media room."
+          },
+          "M": {
+            "area_min_sqft": 236.0,
+            "area_max_sqft": 387.0,
+            "user_name": "Pool Room",
+            "prompt_name": "Game",
+            "descriptive_name": "",
+            "description": "A recreation room with room for activities like pool and a lounge set."
+          },
+          "L": {
+            "area_min_sqft": 387.0,
+            "area_max_sqft": 538.0,
+            "user_name": "Large Pool Room",
+            "prompt_name": "Club",
+            "descriptive_name": "",
+            "description": "A larger recreation room for multiple zones - with room for activities like pool, lounge set, wet bar, etc."
+          },
+          "XL": {
+            "area_min_sqft": 538.0,
+            "area_max_sqft": 689.0,
+            "user_name": "Multi-Zone Recreation",
+            "prompt_name": "Arena",
+            "descriptive_name": "",
+            "description": "Fit extra large equipment such as golf simulators, or multiple zones of entertainment."
+          }
+        },
+        "axon_images": {
+          "S": "/rooms/Axon_Rec Room_S.png",
+          "M": "/rooms/Axon_Rec Room_M.png",
+          "L": "/rooms/Axon_Rec Room_L.png",
+          "XL": "/rooms/Axon_Rec Room_XL.png"
+        },
+        "prompt": { "hidden": false, "name_override": null, "priority": 23 },
+        "ui_priorities": { "sidebar": 17, "room_list": 502 },
+        "is_auxiliary": false,
+        "auxiliary_role": null,
+        "is_heated": true
+      },
+  
+      "theater": {
+        "key": "theater",
+        "display": "Theater",
+        "aliases": [],
+        "icon": "TheaterIcon",
+        "description": null,
+        "colors": {
+          "training_hex": "#4EB6E6",
+          "plan_hex": "#FFDBEA",
+          "ui_hex": "#FFDBEA",
+          "prompt_color_name": "cerulean"
+        },
+        "sizes": {
+          "S": {
+            "area_min_sqft": 52.0,
+            "area_max_sqft": 404.0,
+            "user_name": "Private Screening Room",
+            "prompt_name": "Media",
+            "descriptive_name": null,
+            "description": null
+          },
+          "M": {
+            "area_min_sqft": 404.0,
+            "area_max_sqft": 757.0,
+            "user_name": "Home Theater",
+            "prompt_name": "Screening",
+            "descriptive_name": null,
+            "description": null
+          },
+          "L": {
+            "area_min_sqft": 757.0,
+            "area_max_sqft": 1110.0,
+            "user_name": "Large Theater",
+            "prompt_name": "Cinema",
+            "descriptive_name": null,
+            "description": null
+          },
+          "XL": {
+            "area_min_sqft": 1110.0,
+            "area_max_sqft": 1462.0,
+            "user_name": "Ultimate Theater",
+            "prompt_name": "Premiere",
+            "descriptive_name": null,
+            "description": null
+          }
+        },
+        "axon_images": {
+          "S": "/rooms/Axon_Theater_S.png",
+          "M": "/rooms/Axon_Theater_M.png",
+          "L": "/rooms/Axon_Theater_L.png",
+          "XL": "/rooms/Axon_Theater_XL.png"
+        },
+        "prompt": { "hidden": false, "name_override": null, "priority": 26 },
+        "ui_priorities": { "sidebar": 21, "room_list": 506 },
+        "is_auxiliary": false,
+        "auxiliary_role": null,
+        "is_heated": true
+      },
+  
+      "gym": {
+        "key": "gym",
+        "display": "Gym",
+        "aliases": [],
+        "icon": "ExerciseIcon",
+        "description": null,
+        "colors": {
+          "training_hex": "#C198D6",
+          "plan_hex": "#FFDBEA",
+          "ui_hex": "#FFDBEA",
+          "prompt_color_name": "Dusty Purple"
+        },
+        "sizes": {
+          "S": {
+            "area_min_sqft": 44.0,
+            "area_max_sqft": 162.0,
+            "user_name": "Exercise Room",
+            "prompt_name": "Corner",
+            "descriptive_name": "",
+            "description": "Room for 1 or 2 exercise equipment.  Can flex as a bedroom."
+          },
+          "M": {
+            "area_min_sqft": 162.0,
+            "area_max_sqft": 281.0,
+            "user_name": "Home Gym",
+            "prompt_name": "Studio",
+            "descriptive_name": "",
+            "description": "Room for equipment and open space for free form workouts."
+          },
+          "L": {
+            "area_min_sqft": 281.0,
+            "area_max_sqft": 400.0,
+            "user_name": "Large Home Gym",
+            "prompt_name": "Fitness",
+            "descriptive_name": "",
+            "description": "A larger fitness room for even more equipment,"
+          },
+          "XL": {
+            "area_min_sqft": 400.0,
+            "area_max_sqft": 518.0,
+            "user_name": "Home Fitness Center",
+            "prompt_name": "Athletic",
+            "descriptive_name": "",
+            "description": "A decked out home fitness center with room for multiple equipment, projection wall space, and room for multiple peopl."
+          }
+        },
+        "axon_images": {
+          "S": "/rooms/Axon_Gym_S.png",
+          "M": "/rooms/Axon_Gym_M.png",
+          "L": "/rooms/Axon_Gym_L.png",
+          "XL": "/rooms/Axon_Gym_XL.png"
+        },
+        "prompt": { "hidden": false, "name_override": null, "priority": 13 },
+        "ui_priorities": { "sidebar": 18, "room_list": 503 },
+        "is_auxiliary": false,
+        "auxiliary_role": null,
+        "is_heated": true
+      },
+  
+      "garage": {
+        "key": "garage",
+        "display": "Garage",
+        "aliases": [],
+        "icon": "CarIcon",
+        "description": null,
+        "colors": {
+          "training_hex": "#C178FC",
+          "plan_hex": "#F1E7EC",
+          "ui_hex": "#F1E7EC",
+          "prompt_color_name": "Purple"
+        },
+        "sizes": {
+          "S": {
+            "area_min_sqft": 240.0,
+            "area_max_sqft": 248.0,
+            "user_name": "1-Car Garage",
+            "prompt_name": "Bay",
+            "descriptive_name": "1 car garage",
+            "description": "Single vehicle garage, extra depth can be introduced for larger vehicles."
+          },
+          "M": {
+            "area_min_sqft": 248.0,
+            "area_max_sqft": 495.0,
+            "user_name": "2-Car Garage",
+            "prompt_name": "Tandem",
+            "descriptive_name": "2 car garage",
+            "description": "2 vehicle garage, extra depth can be introduced for larger vehicles."
+          },
+          "L": {
+            "area_min_sqft": 495.0,
+            "area_max_sqft": 742.0,
+            "user_name": "3-Car Garage",
+            "prompt_name": "Workshop",
+            "descriptive_name": "3 car garage",
+            "description": "3 vehicle garage, extra depth can be introduced for larger vehicles."
+          },
+          "XL": {
+            "area_min_sqft": 742.0,
+            "area_max_sqft": 989.0,
+            "user_name": "4-Car Garage",
+            "prompt_name": "Motor",
+            "descriptive_name": "4 car garage",
+            "description": "4 vehicle garage, extra depth can be introduced for larger vehicles."
+          }
+        },
+        "axon_images": {
+          "S": "/rooms/Axon_Garage_S.png",
+          "M": "/rooms/Axon_Garage_M.png",
+          "L": "/rooms/Axon_Garage_L.png",
+          "XL": "/rooms/Axon_Garage_XL.png"
+        },
+        "prompt": { "hidden": false, "name_override": null, "priority": 12 },
+        "ui_priorities": { "sidebar": 15, "room_list": 306 },
+        "is_auxiliary": false,
+        "auxiliary_role": null,
+        "is_heated": false
+      },
+  
+      "laundry": {
+        "key": "laundry",
+        "display": "Laundry",
+        "aliases": [],
+        "icon": "LaundryIcon",
+        "description": null,
+        "colors": {
+          "training_hex": "#62D9FF",
+          "plan_hex": "#DBFAF2",
+          "ui_hex": "#DBFAF2",
+          "prompt_color_name": "Bright Blue"
+        },
+        "sizes": {
+          "S": {
+            "area_min_sqft": 13.0,
+            "area_max_sqft": 54.0,
+            "user_name": "Compact Laundry",
+            "prompt_name": "Pocket",
+            "descriptive_name": "Single Wall Washer Dryer Only Laundry Room",
+            "description": "Space saving dedicated laundry room that fits washer and dryer side-by-side, with some storage above."
+          },
+          "M": {
+            "area_min_sqft": 54.0,
+            "area_max_sqft": 94.0,
+            "user_name": "Laundry w. Cabinets",
+            "prompt_name": "Hatch",
+            "descriptive_name": "Laundry room with Washer Dryer Set and 5' Cabinets",
+            "description": "Dedicated laundry room that fits washer and dryer side-by-side, with space for 3-4 door cabinetry."
+          },
+          "L": {
+            "area_min_sqft": 94.0,
+            "area_max_sqft": 135.0,
+            "user_name": "Galley Laundry",
+            "prompt_name": "Utility",
+            "descriptive_name": "Laundry room with Washer Dryer Set and 10' Cabinets",
+            "description": "A larger dedicated laundry room that fits both appliances, storage, multi-zone cabinetry, storage."
+          },
+          "XL": {
+            "area_min_sqft": 135.0,
+            "area_max_sqft": 175.0,
+            "user_name": "Multi-Zone Laundry",
+            "prompt_name": "Washhouse",
+            "descriptive_name": "Laundry room with Washer Dryer Set and 15' Cabinets",
+            "description": "An oversized dedicated laundry room that fits all appliances and cabinets, plus room for broom closets, dog showers, etc."
+          }
+        },
+        "axon_images": {
+          "S": "/rooms/Axon_Laundry_S.png",
+          "M": "/rooms/Axon_Laundry_M.png",
+          "L": "/rooms/Axon_Laundry_L.png",
+          "XL": "/rooms/Axon_Laundry_XL.png"
+        },
+        "prompt": { "hidden": false, "name_override": null, "priority": 15 },
+        "ui_priorities": { "sidebar": 22, "room_list": 507 },
+        "is_auxiliary": false,
+        "auxiliary_role": null,
+        "is_heated": true
+      },
+  
+      "mudroom": {
+        "key": "mudroom",
+        "display": "Mudroom",
+        "aliases": [],
+        "icon": "MudroomIcon",
+        "description": null,
+        "colors": {
+          "training_hex": "#F4C1B8",
+          "plan_hex": "#F3F3F3",
+          "ui_hex": "#F3F3F3",
+          "prompt_color_name": "Dusty Pink"
+        },
+        "sizes": {
+          "S": {
+            "area_min_sqft": 18.0,
+            "area_max_sqft": 55.0,
+            "user_name": "Compact Mudroom",
+            "prompt_name": "Drop",
+            "descriptive_name": null,
+            "description": "Just a small buffer space from your garage with some space to place a bench and wall hooks."
+          },
+          "M": {
+            "area_min_sqft": 55.0,
+            "area_max_sqft": 93.0,
+            "user_name": "Classic Mudroom",
+            "prompt_name": "Bench",
+            "descriptive_name": null,
+            "description": null
+          },
+          "L": {
+            "area_min_sqft": 93.0,
+            "area_max_sqft": 131.0,
+            "user_name": "Expanded Mudroom",
+            "prompt_name": "Lockers",
+            "descriptive_name": null,
+            "description": null
+          },
+          "XL": {
+            "area_min_sqft": 131.0,
+            "area_max_sqft": 168.0,
+            "user_name": "Deluxe Mudroom",
+            "prompt_name": "Gear",
+            "descriptive_name": null,
+            "description": null
+          }
+        },
+        "axon_images": {
+          "S": "/rooms/Axon_Mudroom_S.png",
+          "M": "/rooms/Axon_Mudroom_M.png",
+          "L": "/rooms/Axon_Mudroom_L.png",
+          "XL": "/rooms/Axon_Mudroom_XL.png"
+        },
+        "prompt": { "hidden": false, "name_override": null, "priority": 17 },
+        "ui_priorities": { "sidebar": 23, "room_list": 508 },
+        "is_auxiliary": false,
+        "auxiliary_role": null,
+        "is_heated": true
+      },
+  
+      "storage": {
+        "key": "storage",
+        "display": "Storage",
+        "aliases": [],
+        "icon": "StorageIcon",
+        "description": null,
+        "colors": {
+          "training_hex": "#3435FE",
+          "plan_hex": "#E9E9E9",
+          "ui_hex": "#E9E9E9",
+          "prompt_color_name": "Indigo Blue"
+        },
+        "sizes": {
+          "S": {
+            "area_min_sqft": 5.0,
+            "area_max_sqft": 68.0,
+            "user_name": "Small Storage",
+            "prompt_name": "Cubby",
+            "descriptive_name": null,
+            "description": "Perfect for boxes, and seasonal gear - a walk-in closet for your extras."
+          },
+          "M": {
+            "area_min_sqft": 68.0,
+            "area_max_sqft": 130.0,
+            "user_name": "Medium Storage",
+            "prompt_name": "Locker",
+            "descriptive_name": null,
+            "description": null
+          },
+          "L": {
+            "area_min_sqft": 130.0,
+            "area_max_sqft": 192.0,
+            "user_name": "Large Storage",
+            "prompt_name": "Storeroom",
+            "descriptive_name": null,
+            "description": null
+          },
+          "XL": {
+            "area_min_sqft": 192.0,
+            "area_max_sqft": 255.0,
+            "user_name": "Extra Large Storage",
+            "prompt_name": "Vault",
+            "descriptive_name": null,
+            "description": null
+          }
+        },
+        "axon_images": {
+          "S": "/rooms/Axon_Storage_S.png",
+          "M": "/rooms/Axon_Storage_M.png",
+          "L": "/rooms/Axon_Storage_L.png",
+          "XL": "/rooms/Axon_Storage_XL.png"
+        },
+        "prompt": { "hidden": false, "name_override": null, "priority": 24 },
+        "ui_priorities": { "sidebar": 26, "room_list": 510 },
+        "is_auxiliary": false,
+        "auxiliary_role": null,
+        "is_heated": true
+      },
+  
+      "outdoor_living": {
+        "key": "outdoor_living",
+        "display": "Outdoor Living",
+        "aliases": ["patio", "open_patio", "deck", "balcony", "terrace", "lanai"],
+        "icon": "CoveredOutdoorIcon",
+        "description": "",
+        "colors": {
+          "training_hex": "#75C0A2",
+          "plan_hex": "#D9F7DA",
+          "ui_hex": "#D9F7DA",
+          "prompt_color_name": "Dark Seafoam"
+        },
+        "sizes": {
+          "S": {
+            "area_min_sqft": 28.0,
+            "area_max_sqft": 526.0,
+            "user_name": "Small Rear Patio / Deck",
+            "prompt_name": "Patio",
+            "descriptive_name": null,
+            "description": null
+          },
+          "M": {
+            "area_min_sqft": 526.0,
+            "area_max_sqft": 1024.0,
+            "user_name": "Rear Outdoor Living Room",
+            "prompt_name": "Terrace",
+            "descriptive_name": null,
+            "description": null
+          },
+          "L": {
+            "area_min_sqft": 1024.0,
+            "area_max_sqft": 1523.0,
+            "user_name": "Extended Rear Outdoor Living",
+            "prompt_name": "Courtyard",
+            "descriptive_name": null,
+            "description": null
+          },
+          "XL": {
+            "area_min_sqft": 1523.0,
+            "area_max_sqft": 2021.0,
+            "user_name": "Expansive, Multi-Zone Outdoor Living",
+            "prompt_name": "Pergola",
+            "descriptive_name": null,
+            "description": null
+          }
+        },
+        "axon_images": {
+          "S": "/rooms/Axon_Outdoor Living_S.png",
+          "M": "/rooms/Axon_Outdoor Living_M.png",
+          "L": "/rooms/Axon_Outdoor Living_L.png",
+          "XL": "/rooms/Axon_Outdoor Living_XL.png"
+        },
+        "prompt": { "hidden": false, "name_override": null, "priority": 20 },
+        "ui_priorities": { "sidebar": 13, "room_list": 402 },
+        "is_auxiliary": false,
+        "auxiliary_role": null,
+        "is_heated": false
+      },
+  
+      "front_porch": {
+        "key": "front_porch",
+        "display": "Front Porch",
+        "aliases": ["porch", "entry_porch"],
+        "icon": "FrontPorchIcon",
+        "description": "",
+        "colors": {
+          "training_hex": "#57C215",
+          "plan_hex": "#D9F7DA",
+          "ui_hex": "#D9F7DA",
+          "prompt_color_name": "Green"
+        },
+        "sizes": {
+          "S": {
+            "area_min_sqft": 20.0,
+            "area_max_sqft": 159.0,
+            "user_name": "Stoop",
+            "prompt_name": "Stoop",
+            "descriptive_name": null,
+            "description": null
+          },
+          "M": {
+            "area_min_sqft": 159.0,
+            "area_max_sqft": 298.0,
+            "user_name": "Standard Front Porch",
+            "prompt_name": "Verandah",
+            "descriptive_name": null,
+            "description": null
+          },
+          "L": {
+            "area_min_sqft": 298.0,
+            "area_max_sqft": 438.0,
+            "user_name": "Extended Front Porch",
+            "prompt_name": "Wraparound",
+            "descriptive_name": null,
+            "description": null
+          },
+          "XL": {
+            "area_min_sqft": 438.0,
+            "area_max_sqft": 578.0,
+            "user_name": "Extra Large Front Porch",
+            "prompt_name": "Portico",
+            "descriptive_name": null,
+            "description": null
+          }
+        },
+        "axon_images": {
+          "S": "/rooms/Axon_Front Porch_S.png",
+          "M": "/rooms/Axon_Front Porch_M.png",
+          "L": "/rooms/Axon_Front Porch_L.png",
+          "XL": "/rooms/Axon_Front Porch_XL.png"
+        },
+        "prompt": { "hidden": false, "name_override": null, "priority": 11 },
+        "ui_priorities": { "sidebar": 12, "room_list": 401 },
+        "is_auxiliary": false,
+        "auxiliary_role": null,
+        "is_heated": false
+      },
+  
+      "pool": {
+        "key": "pool",
+        "display": "Pool",
+        "aliases": ["swimming_pool"],
+        "icon": "PoolIcon",
+        "description": "",
+        "colors": {
+          "training_hex": "#BED41C",
+          "plan_hex": "#D9F7DA",
+          "ui_hex": "#D9F7DA",
+          "prompt_color_name": "Bright Olive"
+        },
+        "sizes": {
+          "S": {
+            "area_min_sqft": 254.0,
+            "area_max_sqft": 840.0,
+            "user_name": "Outdoor Living with Room for Plunge Pool",
+            "prompt_name": "Plunge",
+            "descriptive_name": null,
+            "description": null
+          },
+          "M": {
+            "area_min_sqft": 840.0,
+            "area_max_sqft": 1426.0,
+            "user_name": "Outdoor Living with Room for Lap Pool",
+            "prompt_name": "Lap",
+            "descriptive_name": null,
+            "description": null
+          },
+          "L": {
+            "area_min_sqft": 1426.0,
+            "area_max_sqft": 2012.0,
+            "user_name": "Resort",
+            "prompt_name": "Resort",
+            "descriptive_name": null,
+            "description": null
+          },
+          "XL": {
+            "area_min_sqft": 2012.0,
+            "area_max_sqft": 2598.0,
+            "user_name": "Lagoon",
+            "prompt_name": "Lagoon",
+            "descriptive_name": null,
+            "description": null
+          }
+        },
+        "axon_images": {
+          "S": "/rooms/Axon_Outdoor Living w Pool_S.png",
+          "M": "/rooms/Axon_Outdoor Living w Pool_M.png",
+          "L": "/rooms/Axon_Outdoor Living w Pool_L.png",
+          "XL": "/rooms/Axon_Outdoor Living w Pool_XL.png"
+        },
+        "prompt": { "hidden": false, "name_override": null, "priority": 22 },
+        "ui_priorities": { "sidebar": 14, "room_list": 403 },
+        "is_auxiliary": false,
+        "auxiliary_role": null,
+        "is_heated": false
+      },
+  
+      "circulation": {
+        "key": "circulation",
+        "display": "CIRCULATION",
+        "aliases": ["hallway", "stair"],
+        "icon": "SpecialtyIcon",
+        "description": "",
+        "colors": {
+          "training_hex": "#C59107",
+          "plan_hex": "#C59107",
+          "ui_hex": "#FFEAB2",
+          "prompt_color_name": "Yellow Ochre"
+        },
+        "sizes": {},
+        "axon_images": {},
+        "prompt": { "hidden": true, "name_override": null, "priority": 90 },
+        "ui_priorities": { "sidebar": 90, "room_list": 900 },
+        "is_auxiliary": true,
+        "auxiliary_role": "circulation",
+        "is_heated": true
+      },
+  
+      "deadspace": {
+        "key": "deadspace",
+        "display": "DEADSPACE",
+        "aliases": ["dead_zone"],
+        "icon": "SpecialtyIcon",
+        "description": "",
+        "colors": {
+          "training_hex": "#FEDD36",
+          "plan_hex": "#FEDD36",
+          "ui_hex": "#FEDD36",
+          "prompt_color_name": "Golden Yellow"
+        },
+        "sizes": {},
+        "axon_images": {},
+        "prompt": { "hidden": true, "name_override": null, "priority": 91 },
+        "ui_priorities": { "sidebar": 91, "room_list": 901 },
+        "is_auxiliary": true,
+        "auxiliary_role": "deadspace",
+        "is_heated": false
+      },
+  
+      "fireplace": {
+        "key": "fireplace",
+        "display": "FIREPLACE",
+        "aliases": [],
+        "icon": "SpecialtyIcon",
+        "description": "",
+        "colors": {
+          "training_hex": "#37FF36",
+          "plan_hex": "#37FF36",
+          "ui_hex": "#37FF36",
+          "prompt_color_name": "Neon Green"
+        },
+        "sizes": {},
+        "axon_images": {},
+        "prompt": { "hidden": true, "name_override": null, "priority": 92 },
+        "ui_priorities": { "sidebar": 92, "room_list": 902 },
+        "is_auxiliary": true,
+        "auxiliary_role": "fireplace",
+        "is_heated": true
+      },
+  
+      "windows": {
+        "key": "windows",
+        "display": "WINDOWS",
+        "aliases": [],
+        "icon": "SpecialtyIcon",
+        "description": "",
+        "colors": {
+          "training_hex": null,
+          "plan_hex": null,
+          "ui_hex": null,
+          "prompt_color_name": null
+        },
+        "sizes": {},
+        "axon_images": {},
+        "prompt": { "hidden": true, "name_override": null, "priority": 95 },
+        "ui_priorities": { "sidebar": 95, "room_list": 903 },
+        "is_auxiliary": true,
+        "auxiliary_role": "windows",
+        "is_heated": false
+      },
+  
+      "doors": {
+        "key": "doors",
+        "display": "DOORS",
+        "aliases": [],
+        "icon": "SpecialtyIcon",
+        "description": "",
+        "colors": {
+          "training_hex": null,
+          "plan_hex": null,
+          "ui_hex": null,
+          "prompt_color_name": null
+        },
+        "sizes": {},
+        "axon_images": {},
+        "prompt": { "hidden": true, "name_override": null, "priority": 95 },
+        "ui_priorities": { "sidebar": 95, "room_list": 904 },
+        "is_auxiliary": true,
+        "auxiliary_role": "doors",
+        "is_heated": false
+      },
+  
+      "yeet": {
+        "key": "yeet",
+        "display": "Yeet",
+        "aliases": [],
+        "icon": "SpecialtyIcon",
+        "description": "Auto-generated (missing in MVP groups): yeet",
+        "colors": {
+          "training_hex": null,
+          "plan_hex": null,
+          "ui_hex": null,
+          "prompt_color_name": null
+        },
+        "sizes": {},
+        "axon_images": {},
+        "prompt": { "hidden": true, "name_override": null, "priority": 99 },
+        "ui_priorities": { "sidebar": 99, "room_list": 999 },
+        "is_auxiliary": true,
+        "auxiliary_role": "drop",
+        "is_heated": false
+      },
+  
+      "window": {
+        "key": "window",
+        "display": "WINDOW",
+        "aliases": [],
+        "icon": "SpecialtyIcon",
+        "description": "",
+        "colors": {
+          "training_hex": "#ff0000",
+          "plan_hex": "#ff0000",
+          "ui_hex": "#ff0000",
+          "prompt_color_name": "Red"
+        },
+        "sizes": {},
+        "axon_images": {},
+        "prompt": { "hidden": true, "name_override": null, "priority": 95 },
+        "ui_priorities": { "sidebar": 95, "room_list": 905 },
+        "is_auxiliary": true,
+        "auxiliary_role": "window",
+        "is_heated": false
+      },
+  
+      "door": {
+        "key": "door",
+        "display": "DOOR",
+        "aliases": ["interior_door", "exterior_door"],
+        "icon": "SpecialtyIcon",
+        "description": "",
+        "colors": {
+          "training_hex": "#0000ff",
+          "plan_hex": "#0000ff",
+          "ui_hex": "#0000ff",
+          "prompt_color_name": "Blue"
+        },
+        "sizes": {},
+        "axon_images": {},
+        "prompt": { "hidden": true, "name_override": null, "priority": 95 },
+        "ui_priorities": { "sidebar": 95, "room_list": 906 },
+        "is_auxiliary": true,
+        "auxiliary_role": "door",
+        "is_heated": false
+      }
+    }
+  }

@@ -1,243 +1,150 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Sparkles, 
-  Upload,
-  ChevronDown,
   Layers,
-  BarChart3,
-  Target,
   RefreshCw,
   AlertCircle,
-  CheckCircle2,
-  X
+  Loader2,
+  X,
+  Maximize2
 } from 'lucide-react';
 
 import { Header } from '@/components/layout/Header';
-import { GenerationSidebar } from '@/components/sidebar/GenerationSidebar';
-import { DraftGrid } from '@/components/drafts/DraftGrid';
-import { AnalysisPanel } from '@/components/analysis/AnalysisPanel';
-import { DropZone } from '@/components/upload/DropZone';
-import { EditPlanModal } from '@/components/EditPlanModal';
-import { PlanDetailPanel } from '@/components/PlanDetailPanel';
-import { CircularProgress, InlineProgress } from '@/components/CircularProgress';
-import { useAnalysis } from '@/hooks/useAnalysis';
-import { useGeneration } from '@/hooks/useGeneration';
-
-type AppMode = 'generate' | 'upload';
+import { DraftedGenerationForm, SeedEditPanel, SVGFloorPlanCard } from '@/components/drafted';
+import { useDraftedGeneration } from '@/hooks/useDraftedGeneration';
+import type { DraftedPlan, DraftedGenerationResult } from '@/lib/drafted-types';
 
 export default function Home() {
-  const [mode, setMode] = useState<AppMode>('generate');
-  const [showAnalysis, setShowAnalysis] = useState(true);
-  const [editingPlanId, setEditingPlanId] = useState<string | null>(null);
-  const [selectedPlanId, setSelectedPlanId] = useState<string | null>(null);
-
-  // Upload flow
   const {
-    plans: uploadedPlans,
-    thumbnails: uploadThumbnails,
-    analysisState,
-    analysisResult: uploadAnalysisResult,
-    error: uploadError,
-    handleFilesSelected,
-    handleRemovePlan,
-    handleClearAll,
-    handleAnalyze,
-    resetAnalysis,
-  } = useAnalysis();
-
-  // Generation flow
-  const {
+    isAvailable,
+    isLoading,
     generationState,
-    generationResult,
-    plans: generatedPlans,
-    thumbnails: genThumbnails,
-    stylizedThumbnails: genStylizedThumbnails,
-    error: genError,
-    progress: genProgress,
-    isGenerating,
-    isAnalyzing,
-    isEditing,
-    hasResults,
-    analysisResult: genAnalysisResult,
-    handleGenerate,
-    handleGenerateStreaming,
-    cancelGeneration,
-    handleEditPlan,
-    handleRenamePlan,
-    resetGeneration,
-  } = useGeneration();
+    roomTypes,
+    plans,
+    selectedPlan,
+    error,
+    progress,
+    addPlans,
+    selectPlan,
+    removePlan,
+    clearPlans,
+    setGenerationState,
+    setProgress,
+    setError,
+  } = useDraftedGeneration();
 
-  // Determine which data to show
-  const currentPlans = mode === 'generate' ? generatedPlans : uploadedPlans;
-  const currentThumbnails = mode === 'generate' ? genThumbnails : uploadThumbnails;
-  const currentStylizedThumbnails = mode === 'generate' ? genStylizedThumbnails : {};
-  const currentAnalysis = mode === 'generate' ? genAnalysisResult : uploadAnalysisResult;
-  const currentError = mode === 'generate' ? genError : uploadError;
-  const hasPlans = currentPlans.length > 0;
-  
-  // Find the plan being edited
-  const editingPlan = editingPlanId ? currentPlans.find(p => p.id === editingPlanId) : null;
-  
-  // Find the selected plan for the detail panel
-  const selectedPlan = selectedPlanId ? currentPlans.find(p => p.id === selectedPlanId) : null;
+  const [editingPlan, setEditingPlan] = useState<DraftedPlan | null>(null);
+  const [expandedPlan, setExpandedPlan] = useState<DraftedPlan | null>(null);
 
+  const isGenerating = generationState === 'generating';
+  const hasPlans = plans.length > 0;
+
+  // Handle generation complete
+  const handleGenerationComplete = (results: DraftedGenerationResult[]) => {
+    addPlans(results);
+  };
+
+  // Handle generation progress
+  const handleProgress = (completed: number, total: number) => {
+    setProgress(completed, total);
+  };
+
+  // Handle edit complete
+  const handleEditComplete = (result: DraftedGenerationResult) => {
+    addPlans([result]);
+    setEditingPlan(null);
+  };
+
+  // Handle reset
   const handleReset = () => {
-    resetAnalysis();
-    resetGeneration();
-    setEditingPlanId(null);
-    setSelectedPlanId(null);
+    clearPlans();
+    setEditingPlan(null);
+    setExpandedPlan(null);
   };
-  
-  const handleSelectPlan = (planId: string) => {
-    setSelectedPlanId(planId);
+
+  // Handle rename
+  const handleRename = async (planId: string, newName: string): Promise<boolean> => {
+    // For now, just update locally (would need backend endpoint for persistence)
+    return true;
   };
-  
-  const handleCloseDetail = () => {
-    setSelectedPlanId(null);
-  };
-  
-  const handleEditFromDetail = () => {
-    if (selectedPlanId) {
-      setEditingPlanId(selectedPlanId);
-      setSelectedPlanId(null);
-    }
-  };
-  
-  const handleOpenEdit = (planId: string) => {
-    setEditingPlanId(planId);
-  };
-  
-  const handleCloseEdit = () => {
-    setEditingPlanId(null);
-  };
-  
-  const handleSubmitEdit = async (instruction: string) => {
-    if (!editingPlanId) return;
-    const result = await handleEditPlan(editingPlanId, instruction);
-    if (result?.success) {
-      setEditingPlanId(null);
-    }
-  };
+
+  // Loading state
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-drafted-cream flex items-center justify-center">
+        <div className="text-center">
+          <Loader2 className="w-8 h-8 text-coral-500 animate-spin mx-auto mb-4" />
+          <p className="text-drafted-gray">Loading Drafted...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Not available state - only show if we also don't have room types
+  if (!isAvailable && !isLoading && roomTypes.length === 0) {
+    return (
+      <div className="min-h-screen bg-drafted-cream">
+        <Header />
+        <div className="flex items-center justify-center min-h-[calc(100vh-56px)]">
+          <div className="text-center max-w-md px-6">
+            <div className="w-16 h-16 bg-amber-100 rounded-full flex items-center justify-center mx-auto mb-4">
+              <AlertCircle className="w-8 h-8 text-amber-500" />
+            </div>
+            <h2 className="text-xl font-serif font-bold text-drafted-black mb-2">
+              Drafted API Not Available
+            </h2>
+            <p className="text-drafted-gray mb-4">
+              Make sure the backend is running and the <code className="px-1.5 py-0.5 bg-drafted-bg rounded text-sm">DRAFTED_API_ENDPOINT</code> environment variable is set.
+            </p>
+            <a
+              href="/api/drafted/status"
+              target="_blank"
+              className="text-coral-500 hover:text-coral-600 text-sm"
+            >
+              Check API Status →
+            </a>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-drafted-cream">
       <Header />
       
       <div className="flex">
-        {/* Left Sidebar */}
-        <aside className="w-80 min-h-[calc(100vh-56px)] bg-drafted-cream border-r border-drafted-border flex flex-col">
-          {/* Mode Toggle */}
-          <div className="p-4 border-b border-drafted-border">
-            <div className="flex bg-white rounded-full p-1 border border-drafted-border">
-              <button
-                onClick={() => setMode('generate')}
-                className={`flex-1 flex items-center justify-center gap-2 py-2 px-3 rounded-full text-sm font-medium transition-all ${
-                  mode === 'generate' 
-                    ? 'bg-drafted-black text-white' 
-                    : 'text-drafted-gray hover:text-drafted-black'
-                }`}
-              >
-                <Sparkles className="w-4 h-4" />
-                Generate
-              </button>
-              <button
-                onClick={() => setMode('upload')}
-                className={`flex-1 flex items-center justify-center gap-2 py-2 px-3 rounded-full text-sm font-medium transition-all ${
-                  mode === 'upload' 
-                    ? 'bg-drafted-black text-white' 
-                    : 'text-drafted-gray hover:text-drafted-black'
-                }`}
-              >
-                <Upload className="w-4 h-4" />
-                Upload
-              </button>
-            </div>
+        {/* Left Sidebar - Generation Form */}
+        <aside className="w-96 min-h-[calc(100vh-56px)] bg-drafted-cream border-r border-drafted-border flex flex-col">
+          <div className="flex-1 overflow-y-auto p-4">
+            <DraftedGenerationForm
+              roomTypes={roomTypes}
+              onGenerate={handleGenerationComplete}
+              onProgress={handleProgress}
+              isGenerating={isGenerating}
+            />
           </div>
 
-          {/* Sidebar Content */}
-          <div className="flex-1 overflow-y-auto">
-            {mode === 'generate' ? (
-              <GenerationSidebar 
-                onGenerate={handleGenerateStreaming}
-                isGenerating={isGenerating}
-                onCancel={cancelGeneration}
-              />
-            ) : (
-              <div className="p-4">
-                <DropZone
-                  onFilesSelected={handleFilesSelected}
-                  isUploading={analysisState === 'uploading'}
-                  maxFiles={30}
-                  compact
-                />
-                
-                {uploadedPlans.length > 0 && (
-                  <div className="mt-4 space-y-3">
-                    <div className="flex items-center justify-between text-sm">
-                      <span className="text-drafted-gray">
-                        {uploadedPlans.length} plans uploaded
-                      </span>
-                      <button
-                        onClick={handleClearAll}
-                        className="text-drafted-gray hover:text-coral-500 transition-colors"
-                      >
-                        Clear all
-                      </button>
-                    </div>
-                    
-                    <button
-                      onClick={handleAnalyze}
-                      disabled={uploadedPlans.length < 2 || analysisState === 'analyzing'}
-                      className="w-full btn-drafted-coral disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                      {analysisState === 'analyzing' ? 'Analyzing...' : 'Analyze Diversity'}
-                    </button>
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
-
-          {/* Sidebar Footer - Progress or Diversity Score */}
-          {genProgress && mode === 'generate' && (
-            <div className="p-4 border-t border-drafted-border">
-              <InlineProgress progress={genProgress} />
-            </div>
-          )}
-          {isAnalyzing && !genProgress && (
-            <div className="p-4 border-t border-drafted-border bg-gradient-to-r from-coral-50 to-white">
-              <div className="flex items-center gap-3 mb-2">
-                <div className="w-5 h-5 border-2 border-coral-500 border-t-transparent rounded-full animate-spin" />
-                <span className="text-sm font-medium text-coral-600">
-                  Generating Report...
-                </span>
-              </div>
-              <div className="progress-bar-drafted overflow-hidden">
-                <div className="h-full bg-gradient-to-r from-coral-400 to-coral-500 animate-pulse" style={{ width: '60%' }} />
-              </div>
-            </div>
-          )}
-          {currentAnalysis && !isAnalyzing && (
+          {/* Progress Footer */}
+          {isGenerating && progress.total > 0 && (
             <div className="p-4 border-t border-drafted-border bg-white">
               <div className="flex items-center justify-between mb-2">
-                <span className="text-xs font-medium text-drafted-light uppercase tracking-wider">
-                  Diversity Score
+                <span className="text-sm font-medium text-drafted-gray">
+                  Generating...
                 </span>
-                <span className={`text-2xl font-bold ${
-                  currentAnalysis.diversity.score >= 0.7 ? 'text-green-600' :
-                  currentAnalysis.diversity.score >= 0.4 ? 'text-amber-500' :
-                  'text-coral-500'
-                }`}>
-                  {(currentAnalysis.diversity.score * 100).toFixed(0)}%
+                <span className="text-sm text-coral-500 font-semibold">
+                  {progress.completed}/{progress.total}
                 </span>
               </div>
-              <div className="progress-bar-drafted">
-                <div 
-                  className="progress-fill-drafted"
-                  style={{ width: `${currentAnalysis.diversity.score * 100}%` }}
+              <div className="h-2 bg-drafted-bg rounded-full overflow-hidden">
+                <motion.div
+                  className="h-full bg-coral-500"
+                  initial={{ width: 0 }}
+                  animate={{ width: `${(progress.completed / progress.total) * 100}%` }}
+                  transition={{ duration: 0.3 }}
                 />
               </div>
             </div>
@@ -250,44 +157,29 @@ export default function Home() {
           <div className="flex items-center justify-between px-6 py-4 border-b border-drafted-border">
             <div className="flex items-center gap-4">
               <h1 className="text-lg font-serif font-bold text-drafted-black">
-                {mode === 'generate' ? 'Generated Drafts' : 'Uploaded Plans'}
+                Generated Floor Plans
               </h1>
               {hasPlans && (
                 <span className="text-sm text-drafted-gray">
-                  {currentPlans.length} {currentPlans.length === 1 ? 'plan' : 'plans'}
+                  {plans.length} {plans.length === 1 ? 'plan' : 'plans'}
                 </span>
               )}
             </div>
 
-            <div className="flex items-center gap-3">
-              {hasPlans && (
-                <button
-                  onClick={handleReset}
-                  className="btn-drafted-outline flex items-center gap-2"
-                >
-                  <RefreshCw className="w-4 h-4" />
-                  Reset
-                </button>
-              )}
-              
-              {currentAnalysis && (
-                <button
-                  onClick={() => setShowAnalysis(!showAnalysis)}
-                  className={`btn-drafted-secondary flex items-center gap-2 ${
-                    showAnalysis ? 'bg-drafted-bg' : ''
-                  }`}
-                >
-                  <BarChart3 className="w-4 h-4" />
-                  Analysis
-                  <ChevronDown className={`w-4 h-4 transition-transform ${showAnalysis ? 'rotate-180' : ''}`} />
-                </button>
-              )}
-            </div>
+            {hasPlans && (
+              <button
+                onClick={handleReset}
+                className="btn-drafted-outline flex items-center gap-2"
+              >
+                <RefreshCw className="w-4 h-4" />
+                Clear All
+              </button>
+            )}
           </div>
 
           {/* Error State */}
           <AnimatePresence>
-            {currentError && (
+            {error && (
               <motion.div
                 initial={{ opacity: 0, y: -10 }}
                 animate={{ opacity: 1, y: 0 }}
@@ -296,181 +188,210 @@ export default function Home() {
               >
                 <div className="flex items-center gap-3">
                   <AlertCircle className="w-5 h-5 text-coral-500" />
-                  <p className="text-sm text-coral-700">{currentError}</p>
+                  <p className="text-sm text-coral-700">{error}</p>
                 </div>
                 <button
-                  onClick={handleReset}
-                  className="text-sm font-medium text-coral-600 hover:text-coral-700"
+                  onClick={() => setError(null)}
+                  className="text-coral-500 hover:text-coral-600"
                 >
-                  Try again
+                  <X className="w-4 h-4" />
                 </button>
               </motion.div>
             )}
           </AnimatePresence>
 
-          {/* Generation Progress - Only show when generating AND no plans yet */}
-          {isGenerating && !hasPlans && genProgress && (
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              className="flex flex-col items-center justify-center py-24"
-            >
-              <CircularProgress progress={genProgress} size={140} strokeWidth={10} />
-              <p className="mt-6 text-sm text-drafted-light">
-                {genProgress.phase === 'generating' ? 'Creating diverse floor plans...' : 
-                 genProgress.phase === 'stylizing' ? 'Rendering architectural views...' :
-                 'Finalizing...'}
-              </p>
-              <button
-                onClick={cancelGeneration}
-                className="mt-4 text-sm text-drafted-gray hover:text-coral-500 transition-colors"
-              >
-                Cancel
-              </button>
-            </motion.div>
-          )}
-          {isGenerating && !hasPlans && !genProgress && (
+          {/* Generation Progress - Center */}
+          {isGenerating && !hasPlans && (
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               className="flex flex-col items-center justify-center py-24"
             >
               <div className="relative">
-                <div className="w-16 h-16 border-4 border-drafted-border rounded-full" />
-                <div className="absolute inset-0 w-16 h-16 border-4 border-coral-500 rounded-full border-t-transparent animate-spin" />
+                <div className="w-20 h-20 border-4 border-drafted-border rounded-full" />
+                <div className="absolute inset-0 w-20 h-20 border-4 border-coral-500 rounded-full border-t-transparent animate-spin" />
               </div>
-              <p className="mt-4 text-drafted-gray font-serif font-semibold">Generating floor plans...</p>
-              <p className="text-sm text-drafted-light mt-1">This may take a moment</p>
+              <p className="mt-6 text-drafted-gray font-serif font-semibold">
+                Generating floor plans...
+              </p>
+              <p className="text-sm text-drafted-light mt-1">
+                {progress.completed > 0 
+                  ? `${progress.completed} of ${progress.total} complete`
+                  : 'This may take a moment'
+                }
+              </p>
             </motion.div>
           )}
 
           {/* Empty State */}
-          {!hasPlans && !isGenerating && !isAnalyzing && !currentError && (
+          {!hasPlans && !isGenerating && (
             <div className="flex flex-col items-center justify-center py-24 px-6">
               <div className="w-20 h-20 bg-drafted-bg rounded-full flex items-center justify-center mb-4">
                 <Layers className="w-10 h-10 text-drafted-muted" />
               </div>
               <h2 className="text-xl font-serif font-bold text-drafted-black mb-2">
-                {mode === 'generate' ? 'Generate Your First Drafts' : 'Upload Floor Plans'}
+                Design Your Floor Plan
               </h2>
               <p className="text-drafted-gray text-center max-w-md">
-                {mode === 'generate' 
-                  ? 'Configure your requirements in the sidebar and click Generate to create diverse floor plans.'
-                  : 'Drag and drop floor plan images to analyze their diversity.'
-                }
+                Configure rooms in the sidebar and click Generate to create 
+                diverse floor plan variations using Drafted's AI model.
               </p>
+              <div className="mt-6 flex items-center gap-2 text-xs text-drafted-light">
+                {isAvailable ? (
+                  <>
+                    <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
+                    <span>Drafted API Connected</span>
+                  </>
+                ) : (
+                  <>
+                    <span className="w-2 h-2 bg-amber-500 rounded-full" />
+                    <span>API endpoint not configured - generation disabled</span>
+                  </>
+                )}
+              </div>
             </div>
           )}
 
-          {/* Draft Grid - Show while analyzing too */}
+          {/* Plans Grid */}
           {hasPlans && (
             <div className="p-6">
-              {/* Analysis Loading Indicator - Prominent Card */}
-              {isAnalyzing && (
-                <motion.div
-                  initial={{ opacity: 0, scale: 0.95 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  className="mb-6 p-6 bg-gradient-to-r from-coral-50 to-amber-50 border-2 border-coral-200 rounded-2xl"
-                >
-                  <div className="flex items-start gap-4">
-                    {/* Animated Icon */}
-                    <div className="relative flex-shrink-0">
-                      <div className="w-12 h-12 bg-white rounded-xl shadow-sm flex items-center justify-center">
-                        <BarChart3 className="w-6 h-6 text-coral-500" />
-                      </div>
-                      <div className="absolute -top-1 -right-1 w-4 h-4 bg-coral-500 rounded-full flex items-center justify-center">
-                        <div className="w-2 h-2 bg-white rounded-full animate-pulse" />
-                      </div>
-                    </div>
-                    
-                    {/* Content */}
-                    <div className="flex-1">
-                      <h3 className="text-lg font-serif font-bold text-drafted-black mb-1">
-                        Generating Diversity Report
-                      </h3>
-                      <p className="text-sm text-drafted-gray mb-3">
-                        Analyzing spatial patterns, room distributions, and layout variations across your generated plans...
-                      </p>
-                      
-                      {/* Progress Steps */}
-                      <div className="flex items-center gap-6 text-xs">
-                        <div className="flex items-center gap-2">
-                          <CheckCircle2 className="w-4 h-4 text-green-500" />
-                          <span className="text-drafted-gray">Plans Generated</span>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <div className="w-4 h-4 border-2 border-coral-500 border-t-transparent rounded-full animate-spin" />
-                          <span className="text-coral-600 font-medium">Computing Metrics</span>
-                        </div>
-                        <div className="flex items-center gap-2 opacity-40">
-                          <div className="w-4 h-4 border-2 border-drafted-border rounded-full" />
-                          <span className="text-drafted-light">Results Ready</span>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </motion.div>
-              )}
-
-              {/* Analysis Panel - Collapsible */}
-              <AnimatePresence>
-                {currentAnalysis && showAnalysis && (
-                  <motion.div
-                    initial={{ opacity: 0, height: 0 }}
-                    animate={{ opacity: 1, height: 'auto' }}
-                    exit={{ opacity: 0, height: 0 }}
-                    className="mb-6"
-                  >
-                    <AnalysisPanel 
-                      result={currentAnalysis}
-                      plans={currentPlans}
-                      thumbnails={currentStylizedThumbnails}
+              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-6">
+                <AnimatePresence mode="popLayout">
+                  {plans.map((plan, index) => (
+                    <SVGFloorPlanCard
+                      key={plan.id}
+                      plan={plan}
+                      index={index}
+                      onEdit={setEditingPlan}
+                      onSelect={setExpandedPlan}
+                      onRename={handleRename}
                     />
-                  </motion.div>
-                )}
-              </AnimatePresence>
-
-              {/* Plans Grid */}
-              <DraftGrid
-                plans={currentPlans.map(p => ({
-                  ...p,
-                  thumbnail: currentThumbnails[p.id] || p.thumbnail,
-                  stylized_thumbnail: currentStylizedThumbnails[p.id] || p.stylized_thumbnail
-                }))}
-                scatterPoints={currentAnalysis?.visualization.points}
-                onRemove={mode === 'upload' ? handleRemovePlan : undefined}
-                onEdit={mode === 'generate' ? handleOpenEdit : undefined}
-                onRename={mode === 'generate' ? handleRenamePlan : undefined}
-                onSelect={handleSelectPlan}
-                showStylized={true}
-              />
+                  ))}
+                </AnimatePresence>
+              </div>
             </div>
           )}
         </main>
       </div>
-      
-      {/* Edit Plan Modal */}
-      <EditPlanModal
-        isOpen={editingPlanId !== null}
-        onClose={handleCloseEdit}
-        onSubmit={handleSubmitEdit}
-        planName={editingPlan?.display_name}
-        isLoading={isEditing}
-      />
-      
-      {/* Plan Detail Panel */}
-      <PlanDetailPanel
-        plan={selectedPlan || null}
-        thumbnail={selectedPlanId ? currentThumbnails[selectedPlanId] : undefined}
-        stylizedThumbnail={selectedPlanId ? currentStylizedThumbnails[selectedPlanId] : undefined}
-        onClose={handleCloseDetail}
-        onEdit={handleEditFromDetail}
-        onRename={async (newName) => {
-          if (!selectedPlanId) return false;
-          return handleRenamePlan(selectedPlanId, newName);
-        }}
-        isOpen={selectedPlanId !== null}
-      />
+
+      {/* Edit Panel */}
+      <AnimatePresence>
+        {editingPlan && (
+          <SeedEditPanel
+            plan={editingPlan}
+            roomTypes={roomTypes}
+            onEditComplete={handleEditComplete}
+            onClose={() => setEditingPlan(null)}
+          />
+        )}
+      </AnimatePresence>
+
+      {/* Expanded SVG Modal */}
+      <AnimatePresence>
+        {expandedPlan && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center p-8 bg-black/70"
+            onClick={() => setExpandedPlan(null)}
+          >
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              className="bg-white rounded-drafted-xl max-w-4xl w-full max-h-[90vh] overflow-hidden"
+              onClick={(e) => e.stopPropagation()}
+            >
+              {/* Modal Header */}
+              <div className="px-6 py-4 border-b border-drafted-border flex items-center justify-between">
+                <div>
+                  <h3 className="font-serif font-bold text-drafted-black">
+                    {expandedPlan.display_name || `Floor Plan`}
+                  </h3>
+                  <p className="text-sm text-drafted-gray">
+                    Seed: {expandedPlan.seed} • {expandedPlan.total_area_sqft.toLocaleString()} sqft • {expandedPlan.rooms.length} rooms
+                  </p>
+                </div>
+                <button
+                  onClick={() => setExpandedPlan(null)}
+                  className="w-10 h-10 flex items-center justify-center hover:bg-drafted-bg rounded-full transition-colors"
+                >
+                  <X className="w-5 h-5 text-drafted-gray" />
+                </button>
+              </div>
+
+              {/* SVG Display */}
+              <div className="p-6 bg-drafted-bg">
+                <div className="bg-white rounded-drafted p-4 aspect-square max-h-[60vh] flex items-center justify-center">
+                  {expandedPlan.svg ? (
+                    <div 
+                      className="w-full h-full"
+                      dangerouslySetInnerHTML={{ __html: expandedPlan.svg }}
+                    />
+                  ) : expandedPlan.image_base64 ? (
+                    <img
+                      src={`data:image/jpeg;base64,${expandedPlan.image_base64}`}
+                      alt="Floor Plan"
+                      className="max-w-full max-h-full object-contain"
+                    />
+                  ) : (
+                    <p className="text-drafted-muted">No preview available</p>
+                  )}
+                </div>
+              </div>
+
+              {/* Room List */}
+              <div className="px-6 py-4 border-t border-drafted-border">
+                <h4 className="text-sm font-medium text-drafted-gray mb-3">Rooms</h4>
+                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2">
+                  {expandedPlan.rooms.map((room, i) => (
+                    <div
+                      key={`${room.room_type}-${i}`}
+                      className="px-3 py-2 bg-drafted-bg rounded-drafted"
+                    >
+                      <div className="text-sm font-medium text-drafted-black">
+                        {room.display_name || room.room_type.replace(/_/g, ' ')}
+                      </div>
+                      <div className="text-xs text-drafted-gray">
+                        {room.area_sqft.toFixed(0)} sqft
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Actions */}
+              <div className="px-6 py-4 border-t border-drafted-border flex gap-3">
+                <button
+                  onClick={() => {
+                    setEditingPlan(expandedPlan);
+                    setExpandedPlan(null);
+                  }}
+                  className="flex-1 btn-drafted-coral py-3"
+                >
+                  Edit This Plan
+                </button>
+                <button
+                  onClick={() => {
+                    if (!expandedPlan.svg) return;
+                    const blob = new Blob([expandedPlan.svg], { type: 'image/svg+xml' });
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = 'floor-plan.svg';
+                    a.click();
+                    URL.revokeObjectURL(url);
+                  }}
+                  className="flex-1 btn-drafted-outline py-3"
+                >
+                  Download SVG
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

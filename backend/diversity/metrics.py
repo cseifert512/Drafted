@@ -1,292 +1,307 @@
 """
-Individual diversity metric calculations.
-Each metric produces a score from 0 (low diversity) to 1 (high diversity).
+Diversity Metrics
+Implements various diversity measures for floor plan comparison.
 """
 
 import numpy as np
-from typing import List, Tuple, Optional
-from scipy.spatial import ConvexHull, distance
+from typing import Dict, List, Optional
+from scipy.spatial import distance
 from scipy.stats import entropy
-from sklearn.cluster import KMeans, DBSCAN
-from sklearn.metrics import silhouette_score
-import warnings
+from sklearn.neighbors import NearestNeighbors
+from sklearn.cluster import KMeans
 
 
 def compute_coverage_score(
-    points: np.ndarray,
-    reference_area: Optional[float] = None
+    reduced_points: np.ndarray,
+    n_bins: int = 10,
+    normalize: bool = True
 ) -> float:
     """
-    Compute diversity based on convex hull coverage in feature space.
+    Compute coverage score: how well the plans cover the feature space.
     
-    Higher coverage = more diverse designs spread across the space.
-    
-    Args:
-        points: N x D array of feature vectors (already reduced to 2D or 3D)
-        reference_area: Optional maximum expected area for normalization
-        
-    Returns:
-        Score from 0 to 1
-    """
-    if len(points) < 3:
-        return 0.0
-    
-    try:
-        # Compute convex hull
-        hull = ConvexHull(points)
-        hull_area = hull.volume  # In 2D, volume gives area
-        
-        if reference_area is None:
-            # Estimate reference as the bounding box area
-            mins = np.min(points, axis=0)
-            maxs = np.max(points, axis=0)
-            reference_area = np.prod(maxs - mins) if np.prod(maxs - mins) > 0 else 1.0
-        
-        # Normalize to 0-1
-        coverage = min(hull_area / reference_area, 1.0)
-        
-        return float(coverage)
-    
-    except Exception:
-        # Hull computation can fail for degenerate cases
-        return 0.0
-
-
-def compute_dispersion_score(points: np.ndarray) -> float:
-    """
-    Compute diversity based on pairwise distances between designs.
-    
-    Higher average distance = more diverse designs.
+    Uses a grid-based approach to measure how many cells are occupied.
+    Higher score = better coverage across the space.
     
     Args:
-        points: N x D array of feature vectors
+        reduced_points: N x 2 array of reduced features
+        n_bins: Number of bins per dimension
+        normalize: Whether to normalize to [0, 1]
         
     Returns:
-        Score from 0 to 1
+        Coverage score
     """
-    if len(points) < 2:
+    if len(reduced_points) < 2:
+        return 0.0
+    
+    # Compute bounds
+    mins = reduced_points.min(axis=0)
+    maxs = reduced_points.max(axis=0)
+    
+    # Handle edge case of zero range
+    ranges = maxs - mins
+    ranges[ranges == 0] = 1
+    
+    # Normalize points to [0, 1]
+    normalized = (reduced_points - mins) / ranges
+    
+    # Create grid and count occupied cells
+    bins = np.floor(normalized * (n_bins - 1e-6)).astype(int)
+    bins = np.clip(bins, 0, n_bins - 1)
+    
+    # Count unique cells
+    cell_ids = bins[:, 0] * n_bins + bins[:, 1]
+    n_occupied = len(np.unique(cell_ids))
+    
+    # Max possible is min(n_samples, n_bins^2)
+    max_occupied = min(len(reduced_points), n_bins * n_bins)
+    
+    if normalize:
+        return n_occupied / max_occupied
+    else:
+        return float(n_occupied)
+
+
+def compute_dispersion_score(
+    feature_vectors: np.ndarray,
+    metric: str = 'euclidean'
+) -> float:
+    """
+    Compute dispersion score: how spread out the plans are.
+    
+    Based on average pairwise distance, normalized by max distance.
+    Higher score = more spread out.
+    
+    Args:
+        feature_vectors: N x D array of feature vectors
+        metric: Distance metric to use
+        
+    Returns:
+        Dispersion score in [0, 1]
+    """
+    if len(feature_vectors) < 2:
         return 0.0
     
     # Compute pairwise distances
-    distances = distance.pdist(points, metric='euclidean')
+    distances = distance.pdist(feature_vectors, metric=metric)
     
-    if len(distances) == 0:
+    if len(distances) == 0 or np.max(distances) == 0:
         return 0.0
     
-    # Statistics
+    # Mean distance relative to max
     mean_dist = np.mean(distances)
     max_dist = np.max(distances)
-    min_dist = np.min(distances)
     
-    # Normalize by max possible distance (diagonal of bounding box)
-    mins = np.min(points, axis=0)
-    maxs = np.max(points, axis=0)
-    max_possible = np.linalg.norm(maxs - mins)
+    # Also consider variance to reward even spread
+    dist_var = np.var(distances)
+    normalized_var = dist_var / (max_dist ** 2 + 1e-6)
     
-    if max_possible == 0:
-        return 0.0
+    # Combine mean distance (wants to be high) and variance (wants to be low)
+    # This rewards even distribution
+    base_score = mean_dist / max_dist
+    variance_penalty = 0.2 * min(normalized_var, 1)
     
-    # Score based on mean distance relative to max possible
-    mean_score = mean_dist / max_possible
-    
-    # Bonus for uniformity (low variance in distances)
-    dist_std = np.std(distances)
-    uniformity = 1 - min(dist_std / (mean_dist + 1e-6), 1)
-    
-    # Combined score (weighted)
-    score = 0.7 * mean_score + 0.3 * uniformity
-    
-    return float(min(score, 1.0))
+    return float(min(max(base_score - variance_penalty, 0), 1))
 
 
 def compute_cluster_entropy(
-    points: np.ndarray,
-    n_clusters: Optional[int] = None,
-    method: str = "kmeans"
+    reduced_points: np.ndarray,
+    n_clusters: int = 3
 ) -> float:
     """
-    Compute diversity based on clustering analysis.
+    Compute cluster entropy: how evenly distributed across clusters.
     
-    Higher entropy (more uniform cluster distribution) = more diverse.
-    Fewer/looser clusters = more diverse.
+    Higher entropy = more even distribution (better diversity).
     
     Args:
-        points: N x D array of feature vectors
-        n_clusters: Number of clusters (auto-detected if None)
-        method: "kmeans" or "dbscan"
+        reduced_points: N x 2 array of reduced features
+        n_clusters: Number of clusters to form
         
     Returns:
-        Score from 0 to 1
+        Normalized entropy score in [0, 1]
     """
-    n_samples = len(points)
+    n_samples = len(reduced_points)
     
-    if n_samples < 3:
+    if n_samples < 2:
         return 0.0
     
-    if method == "kmeans":
-        # Auto-determine number of clusters
-        if n_clusters is None:
-            n_clusters = min(max(2, n_samples // 3), 5)
-        
-        with warnings.catch_warnings():
-            warnings.simplefilter("ignore")
-            kmeans = KMeans(n_clusters=n_clusters, random_state=42, n_init=10)
-            labels = kmeans.fit_predict(points)
+    # Limit clusters to number of samples
+    actual_clusters = min(n_clusters, n_samples)
     
-    elif method == "dbscan":
-        # Use DBSCAN for density-based clustering
-        # Auto-tune eps based on data
-        k_dist = []
-        for i, p in enumerate(points):
-            dists = [np.linalg.norm(p - points[j]) for j in range(len(points)) if i != j]
-            if dists:
-                k_dist.append(sorted(dists)[min(2, len(dists)-1)])
-        
-        eps = np.median(k_dist) if k_dist else 0.5
-        
-        dbscan = DBSCAN(eps=eps, min_samples=2)
-        labels = dbscan.fit_predict(points)
+    if actual_clusters < 2:
+        return 0.0
     
-    else:
-        raise ValueError(f"Unknown clustering method: {method}")
+    # Cluster the points
+    kmeans = KMeans(n_clusters=actual_clusters, random_state=42, n_init=10)
+    labels = kmeans.fit_predict(reduced_points)
     
     # Count samples per cluster
-    unique_labels = set(labels)
-    if -1 in unique_labels:  # DBSCAN noise points
-        unique_labels.remove(-1)
-    
-    if len(unique_labels) == 0:
-        # All noise or single cluster
-        return 0.5
-    
-    cluster_counts = []
-    for label in unique_labels:
-        count = np.sum(labels == label)
-        cluster_counts.append(count)
+    unique, counts = np.unique(labels, return_counts=True)
     
     # Compute entropy of cluster distribution
-    cluster_probs = np.array(cluster_counts) / sum(cluster_counts)
-    cluster_entropy = entropy(cluster_probs)
+    probabilities = counts / counts.sum()
+    cluster_entropy = entropy(probabilities, base=2)
     
-    # Normalize by max possible entropy (uniform distribution)
-    max_entropy = np.log(len(unique_labels)) if len(unique_labels) > 1 else 1
-    normalized_entropy = cluster_entropy / max_entropy if max_entropy > 0 else 0
+    # Normalize by maximum possible entropy (uniform distribution)
+    max_entropy = np.log2(actual_clusters)
     
-    # Also consider silhouette score (lower = more spread out = more diverse)
-    try:
-        if len(unique_labels) > 1 and n_samples > len(unique_labels):
-            silhouette = silhouette_score(points, labels)
-            # Invert: low silhouette (bad clustering) = high diversity
-            silhouette_contrib = (1 - silhouette) / 2
-        else:
-            silhouette_contrib = 0.5
-    except Exception:
-        silhouette_contrib = 0.5
+    if max_entropy == 0:
+        return 0.0
     
-    # Combine metrics
-    # High entropy + low silhouette = high diversity
-    score = 0.6 * normalized_entropy + 0.4 * silhouette_contrib
-    
-    return float(min(score, 1.0))
+    return float(cluster_entropy / max_entropy)
 
 
-def compute_graph_diversity(adjacency_matrices: List[np.ndarray]) -> float:
+def compute_graph_diversity(
+    adjacency_matrices: Optional[List[np.ndarray]] = None,
+    feature_vectors: Optional[np.ndarray] = None
+) -> float:
     """
-    Compute diversity based on graph edit distance between room adjacency graphs.
+    Compute graph diversity: how different the room connectivity patterns are.
     
-    Higher average edit distance = more structurally diverse plans.
+    If adjacency matrices provided, compares graph structures.
+    Otherwise, falls back to a subset of feature-based diversity.
     
     Args:
-        adjacency_matrices: List of N x N adjacency matrices for each plan
+        adjacency_matrices: List of N x N adjacency matrices
+        feature_vectors: Fallback feature vectors if no graphs
         
     Returns:
-        Score from 0 to 1
+        Graph diversity score in [0, 1]
     """
-    if len(adjacency_matrices) < 2:
-        return 0.0
+    # If we have adjacency matrices, compare them
+    if adjacency_matrices and len(adjacency_matrices) >= 2:
+        return _compare_adjacency_matrices(adjacency_matrices)
     
-    # Compute pairwise graph distances
-    distances = []
+    # Fallback: use feature vectors with nearest neighbor distance
+    if feature_vectors is not None and len(feature_vectors) >= 2:
+        return _compute_nn_diversity(feature_vectors)
     
-    for i in range(len(adjacency_matrices)):
-        for j in range(i + 1, len(adjacency_matrices)):
-            dist = _approximate_graph_distance(
-                adjacency_matrices[i],
-                adjacency_matrices[j]
-            )
-            distances.append(dist)
-    
-    if not distances:
-        return 0.0
-    
-    # Normalize by max possible distance
-    max_nodes = max(len(m) for m in adjacency_matrices)
-    max_possible = max_nodes * (max_nodes - 1) / 2  # Max edge differences
-    
-    mean_dist = np.mean(distances)
-    normalized = mean_dist / max_possible if max_possible > 0 else 0
-    
-    return float(min(normalized, 1.0))
+    return 0.0
 
 
-def _approximate_graph_distance(adj1: np.ndarray, adj2: np.ndarray) -> float:
-    """
-    Approximate graph edit distance based on adjacency matrix differences.
+def _compare_adjacency_matrices(matrices: List[np.ndarray]) -> float:
+    """Compare adjacency matrices for structural diversity."""
+    n = len(matrices)
     
-    Uses simple edge difference counting (not optimal alignment).
-    """
-    # Pad to same size
-    n1, n2 = len(adj1), len(adj2)
-    max_n = max(n1, n2)
+    if n < 2:
+        return 0.0
     
-    padded1 = np.zeros((max_n, max_n))
-    padded2 = np.zeros((max_n, max_n))
+    # Compute pairwise graph edit distances (simplified)
+    total_diff = 0
+    count = 0
     
-    padded1[:n1, :n1] = adj1
-    padded2[:n2, :n2] = adj2
+    for i in range(n):
+        for j in range(i + 1, n):
+            # Normalize matrices to same size if needed
+            m1, m2 = matrices[i], matrices[j]
+            
+            # Get max size
+            max_size = max(m1.shape[0], m2.shape[0])
+            
+            # Pad matrices to same size
+            padded1 = np.zeros((max_size, max_size))
+            padded2 = np.zeros((max_size, max_size))
+            
+            padded1[:m1.shape[0], :m1.shape[1]] = m1
+            padded2[:m2.shape[0], :m2.shape[1]] = m2
+            
+            # Compare (binary difference)
+            diff = np.abs(padded1 - padded2)
+            normalized_diff = diff.sum() / (max_size * max_size)
+            
+            total_diff += normalized_diff
+            count += 1
     
-    # Count differing edges
-    diff = np.abs(padded1 - padded2)
+    if count == 0:
+        return 0.0
     
-    # Only count upper triangle (undirected graph)
-    upper_diff = np.triu(diff, k=1)
+    # Average difference
+    avg_diff = total_diff / count
     
-    return float(np.sum(upper_diff))
+    # Convert to diversity score (higher diff = more diverse)
+    return float(min(avg_diff * 2, 1.0))  # Scale up since differences tend to be small
+
+
+def _compute_nn_diversity(feature_vectors: np.ndarray) -> float:
+    """Compute diversity based on nearest neighbor distances."""
+    n = len(feature_vectors)
+    
+    if n < 2:
+        return 0.0
+    
+    # Fit nearest neighbors
+    k = min(3, n - 1)
+    nn = NearestNeighbors(n_neighbors=k + 1)  # +1 because point is its own neighbor
+    nn.fit(feature_vectors)
+    
+    distances, _ = nn.kneighbors(feature_vectors)
+    
+    # Get mean distance to k nearest neighbors (excluding self)
+    nn_distances = distances[:, 1:k+1]  # Skip first column (self)
+    mean_nn_dist = np.mean(nn_distances)
+    
+    # Normalize by dataset spread
+    all_dists = distance.pdist(feature_vectors)
+    max_dist = np.max(all_dists) if len(all_dists) > 0 else 1
+    
+    if max_dist == 0:
+        return 0.0
+    
+    # Higher nearest-neighbor distance = more diversity
+    return float(min(mean_nn_dist / max_dist * 2, 1.0))
 
 
 def compute_all_metrics(
     feature_vectors: np.ndarray,
     reduced_points: np.ndarray,
     adjacency_matrices: Optional[List[np.ndarray]] = None
-) -> dict:
+) -> Dict[str, float]:
     """
-    Compute all diversity metrics.
+    Compute all diversity metrics at once.
     
     Args:
-        feature_vectors: Original high-dimensional feature vectors (N x D)
-        reduced_points: Dimensionality-reduced points for visualization (N x 2)
-        adjacency_matrices: Optional list of graph adjacency matrices
+        feature_vectors: N x D array of feature vectors
+        reduced_points: N x 2 array of reduced features
+        adjacency_matrices: Optional list of adjacency matrices
         
     Returns:
-        Dictionary with all metric scores
+        Dictionary of metric name -> score
     """
-    metrics = {}
-    
-    # Coverage in reduced space
-    metrics["coverage"] = compute_coverage_score(reduced_points)
-    
-    # Dispersion in original feature space
-    metrics["dispersion"] = compute_dispersion_score(feature_vectors)
-    
-    # Cluster entropy
-    metrics["cluster_entropy"] = compute_cluster_entropy(feature_vectors)
-    
-    # Graph diversity (if available)
-    if adjacency_matrices and len(adjacency_matrices) >= 2:
-        metrics["graph_diversity"] = compute_graph_diversity(adjacency_matrices)
-    else:
-        metrics["graph_diversity"] = 0.5  # Neutral score if not available
-    
-    return metrics
+    return {
+        "coverage": compute_coverage_score(reduced_points),
+        "dispersion": compute_dispersion_score(feature_vectors),
+        "cluster_entropy": compute_cluster_entropy(reduced_points),
+        "graph_diversity": compute_graph_diversity(adjacency_matrices, feature_vectors),
+    }
 
 
+def compute_quick_diversity(feature_vectors: np.ndarray) -> float:
+    """
+    Quick diversity estimate for real-time feedback.
+    
+    Uses only dispersion for speed.
+    """
+    return compute_dispersion_score(feature_vectors)
+
+
+# Utility functions for metric interpretation
+
+def get_metric_description(metric_name: str) -> str:
+    """Get human-readable description of a metric."""
+    descriptions = {
+        "coverage": "How well the plans cover the feature space",
+        "dispersion": "How spread out the plans are in feature space",
+        "cluster_entropy": "How evenly distributed across different styles",
+        "graph_diversity": "How different the room connectivity patterns are",
+    }
+    return descriptions.get(metric_name, "Unknown metric")
+
+
+def get_metric_icon(metric_name: str) -> str:
+    """Get icon name for a metric (for frontend)."""
+    icons = {
+        "coverage": "grid",
+        "dispersion": "scatter",
+        "cluster_entropy": "pie",
+        "graph_diversity": "network",
+    }
+    return icons.get(metric_name, "chart")

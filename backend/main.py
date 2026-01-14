@@ -3,10 +3,22 @@ Floor Plan Diversity Analyzer - Backend API
 Main FastAPI application entry point
 """
 
+# Load environment variables from .env file FIRST
+from dotenv import load_dotenv
+load_dotenv()
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from api.routes import router
+
+# Try to import Drafted routes (may fail if editing module not set up)
+try:
+    from api.drafted_routes import router as drafted_router
+    DRAFTED_AVAILABLE = True
+except ImportError as e:
+    print(f"[WARN] Drafted routes not available: {e}")
+    DRAFTED_AVAILABLE = False
 
 app = FastAPI(
     title="Floor Plan Diversity Analyzer",
@@ -32,6 +44,11 @@ app.add_middleware(
 # Include API routes
 app.include_router(router, prefix="/api")
 
+# Include Drafted routes if available
+if DRAFTED_AVAILABLE:
+    app.include_router(drafted_router, prefix="/api")
+    print("[OK] Drafted routes enabled")
+
 
 @app.get("/")
 async def root():
@@ -44,5 +61,8 @@ async def root():
 
 @app.get("/health")
 async def health_check():
-    return {"status": "healthy"}
+    return {
+        "status": "healthy",
+        "drafted_available": DRAFTED_AVAILABLE if 'DRAFTED_AVAILABLE' in dir() else False,
+    }
 
