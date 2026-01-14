@@ -148,9 +148,11 @@ export function SVGFloorPlanCard({
         {plan.svg ? (
           <div 
             className="w-full h-full p-4 flex items-center justify-center"
-            dangerouslySetInnerHTML={{ __html: plan.svg }}
-            style={{
-              // Scale SVG to fit
+            dangerouslySetInnerHTML={{ 
+              __html: plan.svg.replace(
+                /<svg([^>]*)>/,
+                '<svg$1 style="max-width: 100%; max-height: 100%; width: auto; height: auto; display: block;">'
+              )
             }}
           />
         ) : plan.image_base64 ? (

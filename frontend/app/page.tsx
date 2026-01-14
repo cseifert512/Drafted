@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Sparkles, 
@@ -9,7 +9,11 @@ import {
   AlertCircle,
   Loader2,
   X,
-  Maximize2
+  Maximize2,
+  ZoomIn,
+  ZoomOut,
+  Move,
+  RotateCcw
 } from 'lucide-react';
 
 import { Header } from '@/components/layout/Header';
@@ -38,6 +42,57 @@ export default function Home() {
 
   const [editingPlan, setEditingPlan] = useState<DraftedPlan | null>(null);
   const [expandedPlan, setExpandedPlan] = useState<DraftedPlan | null>(null);
+  
+  // Zoom and pan state for expanded SVG view
+  const [zoom, setZoom] = useState(1);
+  const [pan, setPan] = useState({ x: 0, y: 0 });
+  const [isPanning, setIsPanning] = useState(false);
+  const [panStart, setPanStart] = useState({ x: 0, y: 0 });
+  const svgContainerRef = useRef<HTMLDivElement>(null);
+
+  // Reset zoom/pan when modal opens
+  useEffect(() => {
+    if (expandedPlan) {
+      setZoom(1);
+      setPan({ x: 0, y: 0 });
+    }
+  }, [expandedPlan]);
+
+  // Handle mouse wheel zoom
+  const handleWheel = useCallback((e: React.WheelEvent) => {
+    e.preventDefault();
+    const delta = e.deltaY > 0 ? -0.1 : 0.1;
+    setZoom(prev => Math.min(Math.max(0.5, prev + delta), 5));
+  }, []);
+
+  // Handle pan start
+  const handleMouseDown = useCallback((e: React.MouseEvent) => {
+    if (e.button === 0) { // Left click only
+      setIsPanning(true);
+      setPanStart({ x: e.clientX - pan.x, y: e.clientY - pan.y });
+    }
+  }, [pan]);
+
+  // Handle pan move
+  const handleMouseMove = useCallback((e: React.MouseEvent) => {
+    if (isPanning) {
+      setPan({
+        x: e.clientX - panStart.x,
+        y: e.clientY - panStart.y
+      });
+    }
+  }, [isPanning, panStart]);
+
+  // Handle pan end
+  const handleMouseUp = useCallback(() => {
+    setIsPanning(false);
+  }, []);
+
+  // Reset zoom and pan
+  const resetView = useCallback(() => {
+    setZoom(1);
+    setPan({ x: 0, y: 0 });
+  }, []);
 
   const isGenerating = generationState === 'generating';
   const hasPlans = plans.length > 0;
@@ -300,11 +355,11 @@ export default function Home() {
               initial={{ scale: 0.9, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.9, opacity: 0 }}
-              className="bg-white rounded-drafted-xl max-w-4xl w-full max-h-[90vh] overflow-hidden"
+              className="bg-drafted-bg rounded-drafted-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto flex flex-col"
               onClick={(e) => e.stopPropagation()}
             >
               {/* Modal Header */}
-              <div className="px-6 py-4 border-b border-drafted-border flex items-center justify-between">
+              <div className="px-6 py-4 border-b border-drafted-border flex items-center justify-between bg-white sticky top-0 z-10">
                 <div>
                   <h3 className="font-serif font-bold text-drafted-black">
                     {expandedPlan.display_name || `Floor Plan`}
@@ -321,28 +376,100 @@ export default function Home() {
                 </button>
               </div>
 
-              {/* SVG Display */}
-              <div className="p-6 bg-drafted-bg">
-                <div className="bg-white rounded-drafted p-4 aspect-square max-h-[60vh] flex items-center justify-center">
+              {/* SVG Display - White Canvas with Zoom/Pan */}
+              <div className="relative m-4">
+                {/* Zoom Controls */}
+                <div className="absolute top-3 right-3 z-10 flex flex-col gap-1 bg-white/95 backdrop-blur-sm rounded-lg shadow-md p-1">
+                  <button
+                    onClick={() => setZoom(prev => Math.min(prev + 0.25, 5))}
+                    className="w-8 h-8 flex items-center justify-center hover:bg-drafted-bg rounded transition-colors"
+                    title="Zoom In"
+                  >
+                    <ZoomIn className="w-4 h-4 text-drafted-gray" />
+                  </button>
+                  <button
+                    onClick={() => setZoom(prev => Math.max(prev - 0.25, 0.5))}
+                    className="w-8 h-8 flex items-center justify-center hover:bg-drafted-bg rounded transition-colors"
+                    title="Zoom Out"
+                  >
+                    <ZoomOut className="w-4 h-4 text-drafted-gray" />
+                  </button>
+                  <div className="w-full h-px bg-drafted-border" />
+                  <button
+                    onClick={resetView}
+                    className="w-8 h-8 flex items-center justify-center hover:bg-drafted-bg rounded transition-colors"
+                    title="Reset View"
+                  >
+                    <RotateCcw className="w-4 h-4 text-drafted-gray" />
+                  </button>
+                </div>
+
+                {/* Zoom level indicator */}
+                <div className="absolute top-3 left-3 z-10 bg-white/95 backdrop-blur-sm rounded-lg shadow-md px-3 py-1.5 text-xs font-medium text-drafted-gray">
+                  {Math.round(zoom * 100)}%
+                </div>
+
+                {/* Pan hint */}
+                {zoom > 1 && (
+                  <div className="absolute bottom-3 left-1/2 -translate-x-1/2 z-10 bg-black/70 text-white rounded-full px-3 py-1 text-xs flex items-center gap-1.5">
+                    <Move className="w-3 h-3" />
+                    Drag to pan
+                  </div>
+                )}
+
+                {/* Canvas */}
+                <div 
+                  ref={svgContainerRef}
+                  className="bg-white rounded-drafted shadow-sm overflow-hidden"
+                  style={{ minHeight: '450px', cursor: zoom > 1 ? (isPanning ? 'grabbing' : 'grab') : 'default' }}
+                  onWheel={handleWheel}
+                  onMouseDown={handleMouseDown}
+                  onMouseMove={handleMouseMove}
+                  onMouseUp={handleMouseUp}
+                  onMouseLeave={handleMouseUp}
+                >
                   {expandedPlan.svg ? (
                     <div 
-                      className="w-full h-full"
-                      dangerouslySetInnerHTML={{ __html: expandedPlan.svg }}
+                      className="w-full h-full flex items-center justify-center p-8 select-none"
+                      style={{
+                        transform: `scale(${zoom}) translate(${pan.x / zoom}px, ${pan.y / zoom}px)`,
+                        transformOrigin: 'center center',
+                        transition: isPanning ? 'none' : 'transform 0.1s ease-out',
+                        minHeight: '450px',
+                      }}
+                      dangerouslySetInnerHTML={{ 
+                        __html: expandedPlan.svg.replace(
+                          /<svg([^>]*)>/,
+                          '<svg$1 style="max-width: 100%; max-height: 450px; width: auto; height: auto; display: block; margin: auto; pointer-events: none;">'
+                        )
+                      }}
                     />
                   ) : expandedPlan.image_base64 ? (
-                    <img
-                      src={`data:image/jpeg;base64,${expandedPlan.image_base64}`}
-                      alt="Floor Plan"
-                      className="max-w-full max-h-full object-contain"
-                    />
+                    <div
+                      className="w-full h-full flex items-center justify-center p-8 select-none"
+                      style={{
+                        transform: `scale(${zoom}) translate(${pan.x / zoom}px, ${pan.y / zoom}px)`,
+                        transformOrigin: 'center center',
+                        transition: isPanning ? 'none' : 'transform 0.1s ease-out',
+                        minHeight: '450px',
+                      }}
+                    >
+                      <img
+                        src={`data:image/jpeg;base64,${expandedPlan.image_base64}`}
+                        alt="Floor Plan"
+                        className="max-w-full max-h-[450px] object-contain pointer-events-none"
+                      />
+                    </div>
                   ) : (
-                    <p className="text-drafted-muted">No preview available</p>
+                    <div className="w-full h-full flex items-center justify-center" style={{ minHeight: '450px' }}>
+                      <p className="text-drafted-muted">No preview available</p>
+                    </div>
                   )}
                 </div>
               </div>
 
               {/* Room List */}
-              <div className="px-6 py-4 border-t border-drafted-border">
+              <div className="px-6 py-4 border-t border-drafted-border bg-white">
                 <h4 className="text-sm font-medium text-drafted-gray mb-3">Rooms</h4>
                 <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2">
                   {expandedPlan.rooms.map((room, i) => (
@@ -362,7 +489,7 @@ export default function Home() {
               </div>
 
               {/* Actions */}
-              <div className="px-6 py-4 border-t border-drafted-border flex gap-3">
+              <div className="px-6 py-4 border-t border-drafted-border flex gap-3 bg-white">
                 <button
                   onClick={() => {
                     setEditingPlan(expandedPlan);
