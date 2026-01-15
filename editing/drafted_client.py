@@ -196,8 +196,28 @@ class RoomsCatalog:
         return int(total * markup)
     
     def sort_rooms_by_priority(self, rooms: List[RoomSpec]) -> List[RoomSpec]:
-        """Sort rooms by prompt priority (required ordering)."""
-        return sorted(rooms, key=lambda r: self.get_priority(r.room_type))
+        """
+        Sort rooms by prompt priority (required ordering).
+        
+        Strict ordering:
+        1. primary_bedroom - priority 0
+        2. bedroom (bed + closet) - priority 1
+        3. primary_bathroom - priority 2
+        4. everything else alphabetically by prompt key - priority 99
+        """
+        # Strict priority mapping for required ordering
+        strict_priorities = {
+            "primary_bedroom": 0,    # Primary bedroom first
+            "bedroom": 1,            # Secondary bedrooms second
+            "primary_bathroom": 2,   # Primary bathroom third
+        }
+        
+        def get_sort_key(room: RoomSpec) -> tuple:
+            priority = strict_priorities.get(room.room_type, 99)
+            prompt_key = self.get_prompt_key(room.room_type)
+            return (priority, prompt_key)
+        
+        return sorted(rooms, key=get_sort_key)
     
     def get_all_room_types(self, include_hidden: bool = False) -> List[str]:
         """Get list of all available room types."""
@@ -321,28 +341,39 @@ class DraftedPromptBuilder:
         
         print(f"[DEBUG] Parsed {len(room_lines)} room lines from original prompt")
         
-        # Adjust sqft
-        if adjust_sqft is not None:
-            current_sqft = int(sqft_line.split("=")[1].strip().replace("sqft", "").strip())
-            new_sqft = adjust_sqft if adjust_sqft > 0 else current_sqft + adjust_sqft
-            sqft_line = f"area = {new_sqft} sqft"
+        # Parse current sqft for auto-adjustment
+        current_sqft = int(sqft_line.split("=")[1].strip().replace("sqft", "").strip())
+        sqft_delta = 0  # Track sqft changes from room modifications
         
-        # Remove rooms
+        # Remove rooms and track sqft delta
         if remove_rooms:
             before_count = len(room_lines)
-            room_lines = [
-                l for l in room_lines 
-                if not any(r.lower() in l.lower() for r in remove_rooms)
-            ]
-            print(f"[DEBUG] Removed {before_count - len(room_lines)} rooms")
+            new_room_lines = []
+            for line in room_lines:
+                should_remove = any(r.lower() in line.lower() for r in remove_rooms)
+                if should_remove:
+                    # Estimate sqft reduction for removed room
+                    room_type, size = self._parse_room_line(line)
+                    if room_type and size:
+                        sqft_delta -= self.catalog.get_sqft_midpoint(room_type, size)
+                else:
+                    new_room_lines.append(line)
+            room_lines = new_room_lines
+            print(f"[DEBUG] Removed {before_count - len(room_lines)} rooms, sqft_delta={sqft_delta}")
         
-        # Resize rooms
+        # Resize rooms and track sqft delta
         if resize_rooms:
             new_room_lines = []
             for line in room_lines:
                 modified = False
                 for room_type, new_size in resize_rooms.items():
                     if room_type.lower().replace("_", " ") in line.lower():
+                        # Get old size sqft
+                        _, old_size = self._parse_room_line(line)
+                        old_sqft = self.catalog.get_sqft_midpoint(room_type, old_size) if old_size else 0
+                        new_sqft = self.catalog.get_sqft_midpoint(room_type, new_size)
+                        sqft_delta += (new_sqft - old_sqft)
+                        
                         prompt_key = line.split("=")[0].strip()
                         prompt_name = self.catalog.get_prompt_name(room_type, new_size)
                         if prompt_name:
@@ -353,14 +384,27 @@ class DraftedPromptBuilder:
                     new_room_lines.append(line)
             room_lines = new_room_lines
         
-        # Add rooms
+        # Add rooms and track sqft delta
         if add_rooms:
             for room in add_rooms:
                 prompt_key = self.catalog.get_prompt_key(room.room_type)
                 prompt_name = self.catalog.get_prompt_name(room.room_type, room.size)
                 if prompt_name:
                     room_lines.append(f"{prompt_key} = {prompt_name.lower()}")
+                    # Add sqft for new room
+                    sqft_delta += self.catalog.get_sqft_midpoint(room.room_type, room.size)
                     print(f"[DEBUG] Added room: {prompt_key} = {prompt_name.lower()}")
+        
+        # Calculate final sqft
+        if adjust_sqft is not None:
+            # Explicit sqft adjustment overrides auto-calculation
+            new_sqft = adjust_sqft if adjust_sqft > 0 else current_sqft + adjust_sqft
+        else:
+            # Auto-adjust based on room changes (apply 15% markup for walls/hallways)
+            new_sqft = current_sqft + int(sqft_delta * 1.15)
+        
+        sqft_line = f"area = {new_sqft} sqft"
+        print(f"[DEBUG] Sqft: {current_sqft} -> {new_sqft} (delta: {sqft_delta})")
         
         # RE-SORT rooms by priority to maintain correct ordering
         # This is critical for model adherence!
@@ -371,39 +415,87 @@ class DraftedPromptBuilder:
         
         return final_prompt
     
+    def _parse_room_line(self, line: str) -> Tuple[Optional[str], Optional[str]]:
+        """
+        Parse a room line back to room_type and size.
+        
+        Args:
+            line: Prompt line like "primary bed = suite"
+            
+        Returns:
+            Tuple of (room_type, size) or (None, None) if not parseable
+        """
+        if "=" not in line:
+            return None, None
+        
+        prompt_key = line.split("=")[0].strip().lower()
+        prompt_name = line.split("=")[1].strip().lower()
+        
+        # Map prompt keys back to room types
+        key_to_type = {
+            "primary bed": "primary_bedroom",
+            "primary bath": "primary_bathroom",
+            "primary closet": "primary_closet",
+            "bed + closet": "bedroom",
+            "bedroom + closet": "bedroom",
+        }
+        
+        # Try exact match first
+        room_type = key_to_type.get(prompt_key)
+        
+        if not room_type:
+            # Try to find matching room type from catalog
+            for rt_key in self.catalog.get_all_room_types(include_hidden=True):
+                rt_prompt_key = self.catalog.get_prompt_key(rt_key)
+                if rt_prompt_key.lower() == prompt_key:
+                    room_type = rt_key
+                    break
+        
+        if not room_type:
+            return None, None
+        
+        # Find size from prompt_name
+        room_def = self.catalog.get_room_type(room_type)
+        if not room_def:
+            return room_type, None
+        
+        for size_key, size_def in room_def.get("sizes", {}).items():
+            if size_def.get("prompt_name", "").lower() == prompt_name:
+                return room_type, size_key
+        
+        return room_type, None
+    
     def _sort_room_lines_by_priority(self, room_lines: List[str]) -> List[str]:
         """
         Sort room lines by priority based on prompt key.
         
-        Priority order: primary bed → primary bath → primary closet → bed + closet → rest alphabetically
+        Strict ordering:
+        1. primary bed (primary_bedroom) - priority 0
+        2. bedrooms (bed + closet) - priority 1  
+        3. primary bath (primary_bathroom) - priority 2
+        4. everything else alphabetically - priority 99
         """
         def get_priority(line: str) -> tuple:
             prompt_key = line.split("=")[0].strip().lower()
             
-            # Map prompt keys to room types for priority lookup
-            key_to_type = {
-                "primary bed": "primary_bedroom",
-                "primary bath": "primary_bathroom", 
-                "primary closet": "primary_closet",
-                "bed + closet": "bedroom",
-                "bed": "bedroom",
+            # Strict priority mapping for required ordering
+            # Order: primary bed → bedrooms → primary bath → rest alphabetically
+            strict_priorities = {
+                "primary bed": 0,           # Primary bedroom first
+                "bed + closet": 1,          # Secondary bedrooms second
+                "bedroom + closet": 1,      # Alternative format
+                "primary bath": 2,          # Primary bathroom third
             }
             
-            # Check for exact matches first
-            room_type = key_to_type.get(prompt_key)
-            if room_type:
-                priority = self.catalog.get_priority(room_type)
+            # Check for strict priority match
+            if prompt_key in strict_priorities:
+                priority = strict_priorities[prompt_key]
             else:
-                # Try to find a matching room type
-                for rt_key in self.catalog.get_all_room_types(include_hidden=True):
-                    rt_prompt_key = self.catalog.get_prompt_key(rt_key)
-                    if rt_prompt_key.lower() == prompt_key:
-                        priority = self.catalog.get_priority(rt_key)
-                        break
-                else:
-                    priority = 99  # Default for unknown
+                # Everything else goes alphabetically after the prioritized rooms
+                priority = 99
             
             # Return tuple of (priority, alphabetical key) for stable sorting
+            # For priority 99 items, sort alphabetically
             return (priority, prompt_key)
         
         return sorted(room_lines, key=get_priority)
