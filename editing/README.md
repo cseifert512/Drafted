@@ -272,3 +272,4 @@ Complete catalog of room types with:
 3. **Canvas Editor**: Interactive room manipulation (drag, resize)
 4. **Batch Diversity**: Generate multiple plans with different seeds
 
+

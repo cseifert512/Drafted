@@ -117,6 +117,9 @@ export interface DraftedPlan {
   parent_id?: string; // If this was edited from another plan
   edit_instruction?: string;
   created_at: number;
+  // Rendered (staged) image from Gemini
+  rendered_image_base64?: string;
+  is_rendering?: boolean;
 }
 
 // Edit history entry

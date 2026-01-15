@@ -60,6 +60,11 @@ export interface BatchConfig {
   target_sqft?: number;
 }
 
+export interface RenderSettings {
+  autoRender: boolean;  // Automatically render new generations
+  showSchematic: boolean;  // Show schematic by default (in dev mode)
+}
+
 export interface DevModeContextValue extends DevModeState {
   toggleDevMode: () => void;
   setDevMode: (enabled: boolean) => void;
@@ -75,6 +80,8 @@ export interface DevModeContextValue extends DevModeState {
   clearHistory: () => void;
   batchConfig: BatchConfig | null;
   setBatchConfig: (config: BatchConfig | null) => void;
+  renderSettings: RenderSettings;
+  setRenderSettings: (settings: Partial<RenderSettings>) => void;
 }
 
 // ============================================================================
@@ -85,6 +92,12 @@ const DevModeContext = createContext<DevModeContextValue | null>(null);
 
 const DEV_MODE_STORAGE_KEY = 'drafted_dev_mode';
 const DEV_HISTORY_STORAGE_KEY = 'drafted_dev_history';
+const RENDER_SETTINGS_STORAGE_KEY = 'drafted_render_settings';
+
+const DEFAULT_RENDER_SETTINGS: RenderSettings = {
+  autoRender: false,
+  showSchematic: false,
+};
 
 // ============================================================================
 // Provider
@@ -100,6 +113,7 @@ export function DevModeProvider({ children }: DevModeProviderProps) {
   const [currentComparison, setCurrentComparison] = useState<ComparisonData | null>(null);
   const [history, setHistory] = useState<ComparisonData[]>([]);
   const [batchConfig, setBatchConfig] = useState<BatchConfig | null>(null);
+  const [renderSettings, setRenderSettingsState] = useState<RenderSettings>(DEFAULT_RENDER_SETTINGS);
 
   // Load state from localStorage on mount
   useEffect(() => {
@@ -116,6 +130,12 @@ export function DevModeProvider({ children }: DevModeProviderProps) {
           // Only keep last 20 comparisons to avoid storage bloat
           setHistory(parsed.slice(-20));
         }
+      }
+
+      const savedRenderSettings = localStorage.getItem(RENDER_SETTINGS_STORAGE_KEY);
+      if (savedRenderSettings) {
+        const parsed = JSON.parse(savedRenderSettings);
+        setRenderSettingsState({ ...DEFAULT_RENDER_SETTINGS, ...parsed });
       }
     } catch (e) {
       console.error('[DevMode] Failed to load from localStorage:', e);
@@ -224,6 +244,18 @@ export function DevModeProvider({ children }: DevModeProviderProps) {
     }
   }, []);
 
+  const setRenderSettings = useCallback((settings: Partial<RenderSettings>) => {
+    setRenderSettingsState(prev => {
+      const newSettings = { ...prev, ...settings };
+      try {
+        localStorage.setItem(RENDER_SETTINGS_STORAGE_KEY, JSON.stringify(newSettings));
+      } catch (e) {
+        console.error('[DevMode] Failed to save render settings:', e);
+      }
+      return newSettings;
+    });
+  }, []);
+
   const value: DevModeContextValue = {
     isEnabled,
     currentComparison,
@@ -238,6 +270,8 @@ export function DevModeProvider({ children }: DevModeProviderProps) {
     clearHistory,
     batchConfig,
     setBatchConfig,
+    renderSettings,
+    setRenderSettings,
   };
 
   return (

@@ -1,0 +1,650 @@
+import sharp from "sharp";
+import { GoogleGenAI } from "@google/genai";
+import type { Env } from "../../../index";
+import {
+  createProcessedSvg,
+  createCroppedSvg,
+  preprocessSvgForGemini,
+} from "../../../utils/svg-processing";
+import { geminiDuration } from "../../../metrics";
+
+/*
+SVG UTILS:
+SVG Scale: Input is 1px = 2 inches, output is 2px = 1 inch (4x scale)
+Padding: 45px at input scale = 7.5 feet of real-world breathing room
+Aspect Ratios: 1:1, 4:3, 3:4, 16:9, 9:16 (best fit to minimize padding)
+*/
+
+// Padding in SVG units (45px at 1px = 2 inches = 7.5 feet)
+const SVG_PADDING = 24;
+
+// Scale factor: from 1px = 2 inches to 2px = 1 inch
+const SVG_SCALE_FACTOR = 4;
+
+// Standard aspect ratios (width:height)
+const ASPECT_RATIOS: Record<string, [number, number]> = {
+  "1:1": [1, 1],
+  "4:3": [4, 3],
+  "3:4": [3, 4],
+  "16:9": [16, 9],
+  "9:16": [9, 16],
+};
+
+/**
+ * Parse polyline/polygon points attribute and return bounds.
+ * Matches Python's parse_polyline_points() function.
+ * Points format: "x1,y1 x2,y2 x3,y3 ..."
+ */
+function parsePolygonPoints(
+  pointsStr: string
+): { minX: number; minY: number; maxX: number; maxY: number } | null {
+  if (!pointsStr) return null;
+
+  // Parse "x1,y1 x2,y2 x3,y3 ..." format
+  const coordRegex = /([+-]?[\d.]+)[,\s]+([+-]?[\d.]+)/g;
+  const xs: number[] = [];
+  const ys: number[] = [];
+
+  let match: RegExpExecArray | null;
+  while ((match = coordRegex.exec(pointsStr)) !== null) {
+    const x = match[1];
+    const y = match[2];
+    if (x !== undefined && y !== undefined) {
+      xs.push(parseFloat(x));
+      ys.push(parseFloat(y));
+    }
+  }
+
+  if (xs.length === 0) return null;
+
+  return {
+    minX: Math.min(...xs),
+    minY: Math.min(...ys),
+    maxX: Math.max(...xs),
+    maxY: Math.max(...ys),
+  };
+}
+
+/**
+ * Extract floorplan bounds from SVG by parsing polygon points.
+ * Matches Python's get_floorplan_bounds_from_svg() function exactly.
+ *
+ * Sources (in order of priority):
+ * 1. #walls-exterior polyline/polygon
+ * 2. ALL polygons with data-room-id attributes
+ * 3. Fallback: #walls group polylines
+ * 4. Final fallback: viewBox
+ */
+function getFloorplanBounds(
+  svg: string
+): { minX: number; minY: number; maxX: number; maxY: number } | null {
+  const allBounds: { minX: number; minY: number; maxX: number; maxY: number }[] = [];
+
+  // Source 1: Look for #walls-exterior polyline/polygon
+  // Match: id="walls-exterior"...>...<polyline points="..."/> or <polygon points="..."/>
+  const wallsExteriorMatch = svg.match(/<g[^>]*id="walls-exterior"[^>]*>([\s\S]*?)<\/g>/i);
+  if (wallsExteriorMatch) {
+    const groupContent = wallsExteriorMatch[1];
+    // Find all polyline/polygon points within this group
+    const pointsMatches = groupContent.matchAll(/points="([^"]+)"/g);
+    for (const m of pointsMatches) {
+      const bounds = parsePolygonPoints(m[1]);
+      if (bounds) allBounds.push(bounds);
+    }
+  }
+
+  // Source 2: Look for ALL polygons with data-room-id
+  const roomPolygonMatches = svg.matchAll(
+    /<polygon[^>]*data-room-id="[^"]*"[^>]*points="([^"]+)"[^>]*\/?>/g
+  );
+  for (const m of roomPolygonMatches) {
+    const bounds = parsePolygonPoints(m[1]);
+    if (bounds) allBounds.push(bounds);
+  }
+
+  // Also check for points before data-room-id
+  const roomPolygonMatches2 = svg.matchAll(
+    /<polygon[^>]*points="([^"]+)"[^>]*data-room-id="[^"]*"[^>]*\/?>/g
+  );
+  for (const m of roomPolygonMatches2) {
+    const bounds = parsePolygonPoints(m[1]);
+    if (bounds) allBounds.push(bounds);
+  }
+
+  // Combine all bounds found
+  if (allBounds.length > 0) {
+    return {
+      minX: Math.min(...allBounds.map((b) => b.minX)),
+      minY: Math.min(...allBounds.map((b) => b.minY)),
+      maxX: Math.max(...allBounds.map((b) => b.maxX)),
+      maxY: Math.max(...allBounds.map((b) => b.maxY)),
+    };
+  }
+
+  // Source 3: Fallback to #walls group
+  const wallsMatch = svg.match(/<g[^>]*id="walls"[^>]*>([\s\S]*?)<\/g>/i);
+  if (wallsMatch) {
+    const groupContent = wallsMatch[1];
+    const pointsMatches = groupContent.matchAll(/points="([^"]+)"/g);
+    for (const m of pointsMatches) {
+      const bounds = parsePolygonPoints(m[1]);
+      if (bounds) allBounds.push(bounds);
+    }
+    if (allBounds.length > 0) {
+      return {
+        minX: Math.min(...allBounds.map((b) => b.minX)),
+        minY: Math.min(...allBounds.map((b) => b.minY)),
+        maxX: Math.max(...allBounds.map((b) => b.maxX)),
+        maxY: Math.max(...allBounds.map((b) => b.maxY)),
+      };
+    }
+  }
+
+  // Final fallback: parse viewBox
+  const viewBoxMatch = svg.match(/viewBox="([^"]+)"/);
+  if (viewBoxMatch) {
+    const parts = viewBoxMatch[1].split(/\s+/).map(parseFloat);
+    if (parts.length === 4) {
+      return {
+        minX: parts[0],
+        minY: parts[1],
+        maxX: parts[0] + parts[2],
+        maxY: parts[1] + parts[3],
+      };
+    }
+  }
+
+  return null;
+}
+
+/**
+ * Find the best aspect ratio that minimizes padding.
+ * This matches the Python find_best_aspect_ratio() function.
+ */
+function findBestAspectRatio(width: number, height: number): string {
+  if (width <= 0 || height <= 0) {
+    return "1:1";
+  }
+
+  const contentRatio = width / height;
+  let bestRatio = "1:1";
+  let bestScore = Infinity;
+
+  for (const [name, [w, h]] of Object.entries(ASPECT_RATIOS)) {
+    const targetRatio = w / h;
+
+    // Calculate how much padding would be needed
+    let paddingAmount: number;
+    if (contentRatio > targetRatio) {
+      // Content is wider - will add vertical padding
+      const newHeight = width / targetRatio;
+      paddingAmount = (newHeight - height) / height;
+    } else {
+      // Content is taller - will add horizontal padding
+      const newWidth = height * targetRatio;
+      paddingAmount = (newWidth - width) / width;
+    }
+
+    // Score is just the padding amount (we want to minimize this)
+    if (paddingAmount < bestScore) {
+      bestScore = paddingAmount;
+      bestRatio = name;
+    }
+  }
+
+  return bestRatio;
+}
+
+/**
+ * Calculate output dimensions with padding, fitted to best aspect ratio.
+ * This matches the Python calculate_output_dimensions() function.
+ */
+function calculateOutputDimensions(
+  contentWidth: number,
+  contentHeight: number,
+  paddingPx: number = SVG_PADDING
+): { newWidth: number; newHeight: number; aspectRatio: string } {
+  // Add padding to content
+  const paddedWidth = contentWidth + paddingPx * 2;
+  const paddedHeight = contentHeight + paddingPx * 2;
+
+  // Find best aspect ratio
+  const aspectRatio = findBestAspectRatio(paddedWidth, paddedHeight);
+  const [targetW, targetH] = ASPECT_RATIOS[aspectRatio];
+  const targetRatio = targetW / targetH;
+
+  // Calculate new dimensions to fit content in chosen aspect ratio
+  const currentRatio = paddedWidth / paddedHeight;
+
+  let newWidth: number;
+  let newHeight: number;
+
+  if (currentRatio > targetRatio) {
+    // Content is wider than target - fit to width, add vertical space
+    newWidth = paddedWidth;
+    newHeight = paddedWidth / targetRatio;
+  } else {
+    // Content is taller than target - fit to height, add horizontal space
+    newHeight = paddedHeight;
+    newWidth = paddedHeight * targetRatio;
+  }
+
+  return { newWidth, newHeight, aspectRatio };
+}
+
+/**
+ * SVG to PNG conversion matching the Python process_svg_to_png() function.
+ *
+ * Process:
+ * 1. Get floorplan bounds from SVG content
+ * 2. Calculate output dimensions with padding (45px = 7.5 feet)
+ * 3. Find best aspect ratio that minimizes wasted space
+ * 4. Calculate pixel dimensions (4x scale: 2px = 1 inch)
+ * 5. Calculate viewBox to center content
+ * 6. Modify SVG with new viewBox and dimensions
+ * 7. Render to PNG with sharp
+ *
+ * @param svg - The SVG content
+ * @returns PNG buffer, cropped SVG string, and aspect ratio
+ */
+async function preprocessSvgSimple(svg: string): Promise<{
+  pngBuffer: Buffer;
+  croppedSvg: string;
+  aspectRatio: string;
+}> {
+  // Step 0: Pre-process SVG for proper scaling
+  // Uses Gemini-specific preprocessing (includes kitchen polygon recoloring)
+  let processedSvg = preprocessSvgForGemini(svg);
+
+  // Step 1: Get floorplan bounds
+  const bounds = getFloorplanBounds(processedSvg);
+  if (!bounds) {
+    throw new Error("Could not determine floorplan bounds from SVG");
+  }
+
+  const { minX, minY, maxX, maxY } = bounds;
+  const contentWidth = maxX - minX;
+  const contentHeight = maxY - minY;
+
+  // Step 2: Calculate output dimensions with padding
+  const { newWidth, newHeight, aspectRatio } = calculateOutputDimensions(
+    contentWidth,
+    contentHeight,
+    SVG_PADDING
+  );
+
+  // Step 3: Calculate final pixel dimensions (4x scale)
+  const outputWidth = Math.round(newWidth * SVG_SCALE_FACTOR);
+  const outputHeight = Math.round(newHeight * SVG_SCALE_FACTOR);
+
+  // Step 4: Calculate viewBox to center content in new dimensions
+  const xPadding = (newWidth - contentWidth) / 2;
+  const yPadding = (newHeight - contentHeight) / 2;
+  const viewBoxX = minX - xPadding;
+  const viewBoxY = minY - yPadding;
+
+  // Step 5: Modify SVG with new viewBox and pixel dimensions
+  // Use regex that matches any width/height value (not just integers)
+  processedSvg = processedSvg.replace(
+    /viewBox="[^"]+"/,
+    `viewBox="${viewBoxX} ${viewBoxY} ${newWidth} ${newHeight}"`
+  );
+  processedSvg = processedSvg.replace(/(<svg[^>]*)\swidth="[^"]+"/, `$1 width="${outputWidth}"`);
+  processedSvg = processedSvg.replace(/(<svg[^>]*)\sheight="[^"]+"/, `$1 height="${outputHeight}"`);
+
+  // Store the cropped SVG before rendering to PNG
+  const croppedSvg = processedSvg;
+
+  // Step 6: Render SVG to PNG using sharp
+  // Sharp uses librsvg internally. Use high density (300 DPI) to ensure
+  // embedded SVG images (doors, windows) are rasterized at high resolution.
+  // The SVG will render at ~4x size, then resize down for supersampling.
+  const pngBuffer = await sharp(Buffer.from(processedSvg), { density: 300 })
+    .resize(outputWidth, outputHeight, { fit: "fill" })
+    .flatten({ background: { r: 255, g: 255, b: 255 } })
+    .png()
+    .toBuffer();
+
+  return { pngBuffer, croppedSvg, aspectRatio };
+}
+
+/**
+ * Error and retry handling for Gemini API on dynamic shared quota (vertex ai)
+ * https://docs.cloud.google.com/vertex-ai/generative-ai/docs/dynamic-shared-quota
+ *
+ * Default retry configuration with exponential backoff + jitter.
+ * Wait time formula: delay = min(initial * 2^attempt, max) + random(0, delay)
+ * With these defaults, wait times per retry attempt:
+ *   Attempt 0:  1s base →  1-2s   (1000 + rand(0,1000))
+ *   Attempt 1:  2s base →  2-4s   (2000 + rand(0,2000))
+ *   Attempt 2:  4s base →  4-8s   (4000 + rand(0,4000))
+ *   Attempt 3:  8s base →  8-16s  (8000 + rand(0,8000))
+ *   Attempt 4: 16s base → 16-32s  (16000 + rand(0,16000))
+ *
+ * Total wait before giving up: ~31-62 seconds
+ */
+
+interface RetryConfig {
+  maxRetries: number;
+  initialDelayMs: number;
+  maxDelayMs: number;
+  multiplier: number;
+}
+
+const DEFAULT_RETRY_CONFIG: RetryConfig = {
+  maxRetries: 100000, // effectively infinite
+  initialDelayMs: 5000, // 5 seconds
+  maxDelayMs: 5000, // stay at 5 seconds
+  multiplier: 1, // constant delay (no exponential growth)
+};
+
+/**
+ * Check if the error is retryable
+ * @param error - The error
+ * @returns True if the error is retryable, false otherwise
+ */
+function isRetryableError(error: unknown): boolean {
+  if (error instanceof Error) {
+    const message = error.message.toLowerCase();
+    // Retry on rate limits (429), server errors (5xx), timeouts, and connection issues
+    if (
+      message.includes("429") ||
+      message.includes("resource_exhausted") ||
+      message.includes("500") ||
+      message.includes("502") ||
+      message.includes("503") ||
+      message.includes("504")
+    ) {
+      return true;
+    }
+  }
+  return false;
+}
+
+/**
+ * Calculate the delay with jitter
+ * @param attempt - The attempt number
+ * @param config - The retry configuration
+ * @returns The delay with jitter
+ */
+function calculateDelayWithJitter(attempt: number, config: RetryConfig): number {
+  const exponentialDelay = config.initialDelayMs * Math.pow(config.multiplier, attempt);
+  const cappedDelay = Math.min(exponentialDelay, config.maxDelayMs);
+  return cappedDelay;
+}
+
+/**
+ * Sleep for a given number of milliseconds
+ * @param ms - The number of milliseconds to sleep
+ * @returns A promise that resolves when the sleep is complete
+ */
+async function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+/**
+ * With exponential backoff retry
+ * @param operation - The operation to retry
+ * @param config - The retry configuration
+ * @returns The result of the operation
+ * @throws Error if the operation fails after all retries
+ */
+async function withExponentialBackoff<T>(
+  operation: () => Promise<T>,
+  config: RetryConfig = DEFAULT_RETRY_CONFIG
+): Promise<T> {
+  let lastError: Error | undefined;
+
+  for (let attempt = 0; attempt <= config.maxRetries; attempt++) {
+    try {
+      return await operation();
+    } catch (error) {
+      lastError = error instanceof Error ? error : new Error(String(error));
+
+      if (attempt === config.maxRetries || !isRetryableError(error)) {
+        throw lastError;
+      }
+
+      const delay = calculateDelayWithJitter(attempt, config);
+      console.warn(
+        JSON.stringify({
+          level: "warn",
+          msg: "gemini-staging: retrying after transient error",
+          attempt: attempt + 1,
+          maxRetries: config.maxRetries,
+          delayMs: delay,
+          error: lastError.message,
+        })
+      );
+      await sleep(delay);
+    }
+  }
+
+  throw lastError;
+}
+
+/**
+ * GEMINI CONFIG
+ * Past seeds: 138721212, 827100976
+ */
+
+const GEMINI_CONFIG = {
+  model: "gemini-3-pro-image-preview",
+  temperature: 0.2,
+  topK: 30,
+  topP: 0.8,
+  seed: 935981412,
+  responseModalities: ["IMAGE"],
+  imageSize: "2K",
+};
+
+/**
+ * PROMPTS
+ */
+
+const SYSTEM_PROMPT = `
+You are an expert architectural rendering engine converting schematic floor plans into photorealistic, text-free, top-down visualizations.
+
+###CRITICAL RENDERING RULES
+
+1. PERSPECTIVE: Strictly 90-degree top-down orthographic. No isometry or tilt.
+2. GEOMETRY & TRAFFIC LOCK:
+ - The wall layout, windows, doors, openings are immutable constraints.
+ - **Solid Black Wall Constraints:** Objects must never overlap the solid black wall lines from the input. Render walls as solid black cuts.
+ - **Circulation Preservation:** You must identify all gaps in walls (doors/openings) and preserve a clear "walking path" through them.
+ - Clearly outline floor edges.
+ - **Do not generate staircases.** 
+3. TEXT ANNIHILATION:
+ - The input contains text labels. You must "paint over" these labels with the floor material of that specific room.
+4. BACKGROUND: The canvas must be **RGB(255, 255, 255) Pure White**. No shadows or vignetting outside the floor plan.
+5. OBJECT OUTLINES: All objects have gray outlines.
+`;
+
+const PROMPT = `
+Task: Render the provided image with the following instructions. Cover all text in the final output.
+
+### Lighting
+- Soft northern daylight, ambient occlusion shadows for depth, warm cozy atmosphere
+
+### Staging and Materials
+- All hallway, living spaces: lighter white oak floors
+- Wood tables. vibrant coffee table books, wool rugs on lounge sets
+- Bedroom: **Must preserve original doorways.**. white oak floor, white linen beds, tan rugs
+[RoomSpecifics]
+
+### FINAL POLISH
+**Remove all cabinets or furniture that block doors or openings.**
+**Ensure all bathrooms have exactly one toilet.**
+**Ensure all bedrooms can be accessed.**
+**Pure white background. Gray object outlines. Black walls. Cover ALL text labels.**
+`;
+
+const KITCHEN_PROMPT = `- Kitchen: White oak floor. Put white cabinets, white marble countertops and appliances against black walls only. **Leave all doorways and wall openings completely empty.**`;
+
+const BATHROOM_PROMPT = `- Primary Bathroom & Bathrooms: Light blue-gray marble tile floor. **Only one toilet allowed per labeled bathroom.** Size and add vanity, tub/shower.`;
+
+const DINING_PROMPT = `- Dining: wood dining table and white chairs.`;
+
+const GARAGE_PROMPT = `- Garage: Warm gray concrete flooring, add true to scale vehicles oriented to garage door.`;
+
+const CLOSET_PROMPT = `- Closets: White oak floor. Preserve original door. White shelves.`;
+
+const OFFICE_PROMPT = `- Office: desk and plants.`;
+
+const POOL_PROMPT = `- Pool: light gray textured concrete floor, add pool and pool furniture.`;
+
+const SUNROOM_PROMPT = `- Sunroom: rattan furniture and lots of plants.`;
+
+const GYM_PROMPT = `- Gym: dark rubber floor,add fitness equipment.`;
+
+const THEATER_PROMPT = `- Theater: tan carpet floor, projector screen, lounge set, indirect lighting.`;
+
+const RECROOM_PROMPT = `- Rec room: pool table, toys, or other recreational equipment.`;
+
+const DEN_PROMPT = `- Den: bookcases, floor lamp, lounge set, dark tan rug.`;
+
+const BAR_PROMPT = `- Bar:  bar counter, wine and furniture.`;
+
+const OUTDOOR_LIVING_PROMPT = `- Outdoor Living: light gray textured concrete floor, add outdoor furniture and plants.`;
+
+const FRONT_PORCH_PROMPT = `- Front Porch: Light gray textured concrete. **Fill the exact polygon of the existing porch.**`;
+
+const LAUNDRY_PROMPT = `- Laundry: warm gray marble tile floor, cabinets, washer and dryer.`;
+
+//const FAMILY_ROOM_PROMPT = `- Family Room: lounge set coffee table, tan rug, floor lamp,tv`;
+
+const FOYER_PROMPT = `- Foyer: add credenza against black walls only.`;
+
+/**
+ * IMPORTANT: the keys here MUST must match the canonical room keys used to vectorize the floorplan
+ */
+const ROOM_PROMPTS: Record<string, string> = {
+  kitchen: KITCHEN_PROMPT,
+  bathroom: BATHROOM_PROMPT,
+  laundry: LAUNDRY_PROMPT,
+  dining: DINING_PROMPT,
+  primary_closet: CLOSET_PROMPT,
+  garage: GARAGE_PROMPT,
+  foyer: FOYER_PROMPT,
+  front_porch: FRONT_PORCH_PROMPT,
+  outdoor_living: OUTDOOR_LIVING_PROMPT,
+  den: DEN_PROMPT,
+  gym: GYM_PROMPT,
+  office: OFFICE_PROMPT,
+  pool: POOL_PROMPT,
+  rec_room: RECROOM_PROMPT,
+  sunroom: SUNROOM_PROMPT,
+  theater: THEATER_PROMPT,
+  bar: BAR_PROMPT,
+  //family_room: FAMILY_ROOM_PROMPT,
+};
+
+/**
+ * Construct a prompt for the given metadata
+ * @param rooms - The rooms for the floorplan
+ * @returns The prompt for the floorplan, ready to be used with Gemini
+ *
+ * Room-specific prompts are inserted in the order defined in ROOM_PROMPTS,
+ * not the order of the input keys.
+ */
+function constructPrompt(canonical_room_keys: string[]): string {
+  const uniqueKeys = new Set(canonical_room_keys);
+  const roomSpecificPrompts: string[] = [];
+
+  // Iterate over ROOM_PROMPTS keys in their defined order
+  for (const key of Object.keys(ROOM_PROMPTS)) {
+    if (uniqueKeys.has(key)) {
+      roomSpecificPrompts.push(ROOM_PROMPTS[key]);
+    }
+  }
+
+  // Replace [RoomSpecifics] placeholder with the room-specific prompts
+  return PROMPT.replace("[RoomSpecifics]", roomSpecificPrompts.join("\n"));
+}
+
+/**
+ * Send the cropped image to Gemini with exponential backoff retry
+ * @param svg - The vectorized floorplan svg
+ * @param canonical_room_keys - The canonical room keys
+ * @param env - The environment variables
+ * @returns The staged image buffer, raw PNG buffer, cropped SVG string, and processed SVG string
+ * @throws Error - Retryable errors (429, 5xx) after exhausting all retries (~31-62s)
+ * @throws Error - Non-retryable API errors immediately (400, 403, 404)
+ * @throws Error - "No staged image returned from Gemini" if response lacks image data
+ */
+export async function stageFloorPlan(
+  svg: string,
+  canonical_room_keys: string[],
+  env: Pick<Env, "GEMINI_API_KEY">
+): Promise<{ staged: Buffer; raw: Buffer; croppedSvg: string; processedSvg: string }> {
+  const ai = new GoogleGenAI({
+    apiKey: env.GEMINI_API_KEY,
+  });
+
+  const { pngBuffer, croppedSvg, aspectRatio } = await preprocessSvgSimple(svg);
+  const pngBase64 = pngBuffer.toString("base64");
+  const prompt = constructPrompt(canonical_room_keys);
+  const contents = [
+    {
+      text: prompt,
+    },
+    {
+      inlineData: {
+        mimeType: "image/png",
+        data: pngBase64,
+      },
+    },
+  ];
+  const config = {
+    responseModalities: GEMINI_CONFIG.responseModalities,
+    imageConfig: {
+      aspectRatio: aspectRatio,
+      imageSize: GEMINI_CONFIG.imageSize,
+    },
+    systemInstruction: SYSTEM_PROMPT,
+    temperature: GEMINI_CONFIG.temperature,
+    topK: GEMINI_CONFIG.topK,
+    topP: GEMINI_CONFIG.topP,
+    seed: GEMINI_CONFIG.seed,
+  };
+
+  // Start Gemini staging and SVG processing in parallel
+  // The processed SVG is used for the interactive overlay (wall-subtracted room polygons)
+  const [stagedImageBuffer, processedSvg] = await Promise.all([
+    withExponentialBackoff(async () => {
+      const startTime = Date.now();
+      const response = await ai.models.generateContent({
+        model: GEMINI_CONFIG.model,
+        contents,
+        config,
+      });
+      const durationSecs = (Date.now() - startTime) / 1000;
+
+      for (const part of response.candidates?.[0]?.content?.parts ?? []) {
+        if (part.inlineData?.data) {
+          geminiDuration.record(durationSecs, { status: "success" });
+          return Buffer.from(part.inlineData.data, "base64");
+        }
+      }
+      geminiDuration.record(durationSecs, { status: "error" });
+      throw new Error("No staged image returned from Gemini");
+    }),
+    // Process SVG for interactive overlay (runs in parallel with Gemini call)
+    Promise.resolve().then(() => {
+      try {
+        return createProcessedSvg(svg);
+      } catch (e) {
+        // If processing fails, fall back to the cropped SVG
+        console.warn("SVG processing failed, falling back to cropped SVG:", e);
+        return createCroppedSvg(svg);
+      }
+    }),
+  ]);
+
+  return {
+    staged: stagedImageBuffer,
+    raw: pngBuffer,
+    croppedSvg,
+    processedSvg,
+  };
+}

@@ -332,3 +332,4 @@ export const CANVAS_SIZE = 768;
 /** Pixels per inch (for dimension calculations) */
 export const PIXELS_PER_INCH = 1; // Adjust based on actual SVG scale
 
+

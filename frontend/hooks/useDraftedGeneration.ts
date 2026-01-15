@@ -74,6 +74,7 @@ interface UseDraftedGenerationReturn {
   // Actions
   loadRoomTypes: () => Promise<void>;
   addPlans: (results: DraftedGenerationResult[]) => void;
+  updatePlan: (plan: DraftedPlan) => void;
   selectPlan: (planId: string | null) => void;
   removePlan: (planId: string) => void;
   clearPlans: () => void;
@@ -178,6 +179,13 @@ export function useDraftedGeneration(): UseDraftedGenerationReturn {
     setGenerationState('complete');
   }, []);
 
+  // Update a plan (e.g., after rendering)
+  const updatePlan = useCallback((updatedPlan: DraftedPlan) => {
+    setPlans((prev) => 
+      prev.map((p) => p.id === updatedPlan.id ? updatedPlan : p)
+    );
+  }, []);
+
   // Select a plan
   const selectPlan = useCallback((planId: string | null) => {
     setSelectedPlanId(planId);
@@ -224,6 +232,7 @@ export function useDraftedGeneration(): UseDraftedGenerationReturn {
     progress,
     loadRoomTypes,
     addPlans,
+    updatePlan,
     selectPlan,
     removePlan,
     clearPlans,

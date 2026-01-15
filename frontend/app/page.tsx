@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Sparkles, 
@@ -21,6 +21,8 @@ import {
 import { Header } from '@/components/layout/Header';
 import { DraftedGenerationForm, SeedEditPanel, SVGFloorPlanCard } from '@/components/drafted';
 import { useDraftedGeneration } from '@/hooks/useDraftedGeneration';
+import { useDevModeOptional } from '@/contexts/DevModeContext';
+import { stageFloorPlan } from '@/lib/drafted-api';
 import type { DraftedPlan, DraftedGenerationResult } from '@/lib/drafted-types';
 
 export default function Home() {
@@ -34,6 +36,7 @@ export default function Home() {
     error,
     progress,
     addPlans,
+    updatePlan,
     selectPlan,
     removePlan,
     clearPlans,
@@ -45,6 +48,10 @@ export default function Home() {
   const [editingPlan, setEditingPlan] = useState<DraftedPlan | null>(null);
   const [expandedPlan, setExpandedPlan] = useState<DraftedPlan | null>(null);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [autoRenderQueue, setAutoRenderQueue] = useState<Set<string>>(new Set());
+  
+  // Dev mode context for auto-render setting
+  const devMode = useDevModeOptional();
   
   // Zoom and pan state for expanded SVG view
   const [zoom, setZoom] = useState(1);
@@ -136,6 +143,51 @@ export default function Home() {
     // For now, just update locally (would need backend endpoint for persistence)
     return true;
   };
+
+  // Handle plan update (e.g., after rendering)
+  const handleUpdatePlan = useCallback((updatedPlan: DraftedPlan) => {
+    updatePlan(updatedPlan);
+  }, [updatePlan]);
+
+  // Auto-render effect: when new plans are added and auto-render is enabled
+  useEffect(() => {
+    if (!devMode?.renderSettings?.autoRender) return;
+    
+    // Find plans that need auto-rendering (have SVG, no rendered image, not in queue)
+    const plansToRender = plans.filter(
+      p => p.svg && !p.rendered_image_base64 && !autoRenderQueue.has(p.id)
+    );
+    
+    if (plansToRender.length === 0) return;
+    
+    // Add to queue to prevent double-rendering
+    setAutoRenderQueue(prev => {
+      const next = new Set(prev);
+      plansToRender.forEach(p => next.add(p.id));
+      return next;
+    });
+    
+    // Auto-render each plan
+    plansToRender.forEach(async (plan) => {
+      try {
+        console.log(`[Auto-render] Rendering plan ${plan.id}...`);
+        const roomKeys = plan.rooms.map(r => r.canonical_key || r.room_type);
+        const result = await stageFloorPlan(plan.svg!, roomKeys);
+        
+        if (result.success && result.staged_image_base64) {
+          updatePlan({
+            ...plan,
+            rendered_image_base64: result.staged_image_base64,
+          });
+          console.log(`[Auto-render] Plan ${plan.id} rendered successfully`);
+        } else {
+          console.warn(`[Auto-render] Failed to render plan ${plan.id}:`, result.error);
+        }
+      } catch (e) {
+        console.error(`[Auto-render] Error rendering plan ${plan.id}:`, e);
+      }
+    });
+  }, [plans, devMode?.renderSettings?.autoRender, autoRenderQueue, updatePlan]);
 
   // Loading state
   if (isLoading) {
@@ -372,6 +424,7 @@ export default function Home() {
                       onEdit={setEditingPlan}
                       onSelect={setExpandedPlan}
                       onRename={handleRename}
+                      onUpdatePlan={handleUpdatePlan}
                     />
                   ))}
                 </AnimatePresence>

@@ -155,6 +155,76 @@ export async function editDraftedPlan(
 }
 
 /**
+ * Stage a floor plan SVG into a photorealistic render using Gemini Flash 3.0
+ */
+export async function stageFloorPlan(
+  svg: string,
+  roomKeys?: string[]
+): Promise<{
+  success: boolean;
+  staged_image_base64?: string;
+  staged_image_mime?: string;
+  raw_png_base64?: string;
+  cropped_svg?: string;
+  aspect_ratio?: string;
+  elapsed_seconds?: number;
+  error?: string;
+}> {
+  console.log('Staging floor plan with Gemini...');
+  
+  const response = await fetch(`${BACKEND_URL}/api/drafted/stage`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      svg,
+      room_keys: roomKeys,
+    }),
+  });
+  
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({ detail: 'Staging failed' }));
+    return {
+      success: false,
+      error: error.detail || error.error || 'Failed to stage floor plan',
+    };
+  }
+  
+  return response.json();
+}
+
+/**
+ * Generate AND stage a floor plan in one call
+ */
+export async function generateAndStagePlan(
+  request: DraftedGenerationRequest
+): Promise<DraftedGenerationResult & { 
+  staged?: {
+    success: boolean;
+    image_base64?: string;
+    image_mime?: string;
+    cropped_svg?: string;
+    aspect_ratio?: string;
+    elapsed_seconds?: number;
+    error?: string;
+  }
+}> {
+  console.log('Generating and staging Drafted plan:', request);
+  
+  const response = await fetch(`${BACKEND_URL}/api/drafted/generate-and-stage`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(request),
+  });
+  
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({ detail: 'Generation failed' }));
+    throw new Error(error.detail || error.error || 'Failed to generate floor plan');
+  }
+  
+  return response.json();
+}
+
+/**
  * Streaming generation with SSE progress updates
  */
 export function generateDraftedStreaming(

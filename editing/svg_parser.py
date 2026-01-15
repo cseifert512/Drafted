@@ -349,3 +349,4 @@ if __name__ == "__main__":
     for room in result.rooms:
         print(f"    {room.room_type}: {room.fill_color}")
 
+

@@ -385,6 +385,209 @@ async def edit_drafted_plan(request: DraftedEditRequest):
 
 
 # =============================================================================
+# STAGING ENDPOINT (Gemini Flash 3.0 Photorealistic Rendering)
+# =============================================================================
+
+class StageRequest(BaseModel):
+    """Request to stage a floor plan into a photorealistic render."""
+    svg: str  # The floor plan SVG
+    room_keys: Optional[List[str]] = None  # Canonical room keys for prompt customization
+
+
+@router.post("/stage")
+async def stage_floor_plan(request: StageRequest):
+    """
+    Stage a floor plan SVG into a photorealistic render using Gemini.
+    
+    This uses img2img to transform the schematic SVG into a photorealistic
+    top-down visualization with furniture, flooring, and materials.
+    
+    Returns:
+    - staged_image_base64: The photorealistic rendered image
+    - elapsed_seconds: Time taken for the operation
+    """
+    import base64
+    import sys
+    from pathlib import Path
+    
+    # Add generation module to path
+    gen_dir = Path(__file__).parent.parent / "generation"
+    if str(gen_dir) not in sys.path:
+        sys.path.insert(0, str(gen_dir))
+    
+    try:
+        from gemini_staging import stage_floor_plan as do_stage
+        
+        print(f"[INFO] Staging floor plan with {len(request.room_keys or [])} room keys...")
+        
+        result = await do_stage(
+            svg=request.svg,
+            canonical_room_keys=request.room_keys,
+        )
+        
+        if result.success:
+            response = {
+                "success": True,
+                "staged_image_mime": "image/png",
+                "elapsed_seconds": result.elapsed_seconds,
+                "aspect_ratio": result.aspect_ratio,
+            }
+            
+            if result.staged_image:
+                response["staged_image_base64"] = base64.b64encode(result.staged_image).decode('utf-8')
+            
+            if result.raw_png:
+                response["raw_png_base64"] = base64.b64encode(result.raw_png).decode('utf-8')
+            
+            if result.cropped_svg:
+                response["cropped_svg"] = result.cropped_svg
+            
+            print(f"[OK] Staging complete in {result.elapsed_seconds:.1f}s")
+            return response
+        else:
+            print(f"[WARN] Staging returned error: {result.error}")
+            # If Gemini staging failed but we have raw PNG, return that as fallback
+            if result.raw_png:
+                return {
+                    "success": True,
+                    "staged_image_base64": base64.b64encode(result.raw_png).decode('utf-8'),
+                    "staged_image_mime": "image/png",
+                    "elapsed_seconds": result.elapsed_seconds,
+                    "note": f"Returning schematic PNG (Gemini staging failed: {result.error})",
+                }
+            raise HTTPException(status_code=500, detail=f"Staging failed: {result.error}")
+            
+    except HTTPException:
+        raise
+    except ValueError as e:
+        # Common error: GEMINI_API_KEY not set
+        error_msg = str(e)
+        print(f"[WARN] Staging config error: {error_msg}")
+        
+        # Fallback: just convert SVG to PNG without Gemini
+        try:
+            from gemini_staging import process_svg_to_png
+            import time
+            start_time = time.time()
+            
+            result = process_svg_to_png(request.svg)
+            elapsed = time.time() - start_time
+            
+            return {
+                "success": True,
+                "staged_image_base64": base64.b64encode(result["png_buffer"]).decode('utf-8'),
+                "staged_image_mime": "image/png",
+                "elapsed_seconds": elapsed,
+                "aspect_ratio": result["aspect_ratio"],
+                "cropped_svg": result.get("cropped_svg"),
+                "note": f"Returning schematic PNG ({error_msg})",
+            }
+        except Exception as fallback_error:
+            print(f"[ERROR] Fallback PNG conversion also failed: {fallback_error}")
+            raise HTTPException(status_code=500, detail=f"Staging failed: {error_msg}")
+            
+    except Exception as e:
+        import traceback
+        print(f"[ERROR] Staging failed: {e}")
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=f"Staging failed: {e}")
+
+
+@router.post("/generate-and-stage")
+async def generate_and_stage_plan(request: DraftedGenerateRequest):
+    """
+    Generate a floor plan AND stage it in one call.
+    
+    This combines:
+    1. Floor plan generation via Drafted's model
+    2. Photorealistic staging via Gemini Flash 3.0
+    
+    Returns all data from both steps.
+    """
+    # First, generate the floor plan
+    integration = get_integration()
+    
+    if not integration.is_available:
+        raise HTTPException(
+            status_code=503,
+            detail="Drafted API not configured. Set DRAFTED_API_ENDPOINT environment variable."
+        )
+    
+    try:
+        config = integration.build_config_from_request(
+            rooms=[{"room_type": r.room_type, "size": r.size} for r in request.rooms],
+            target_sqft=request.target_sqft,
+            num_steps=request.num_steps,
+            guidance_scale=request.guidance_scale,
+            seed=request.seed,
+        )
+        
+        # Validate first
+        validation = integration.validate_config(config)
+        if not validation["valid"]:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Invalid configuration: {', '.join(validation['warnings'])}"
+            )
+        
+        # Generate
+        gen_result = await integration.generate(config)
+        
+        if not gen_result.get("success") or not gen_result.get("svg"):
+            return gen_result  # Return generation result even if no SVG
+        
+        # Extract room keys for staging prompt
+        room_keys = [r.room_type for r in request.rooms]
+        
+        # Now stage the SVG
+        import sys
+        from pathlib import Path
+        
+        gen_dir = Path(__file__).parent.parent / "generation"
+        if str(gen_dir) not in sys.path:
+            sys.path.insert(0, str(gen_dir))
+        
+        from gemini_staging import stage_floor_plan as do_stage
+        
+        stage_result = await do_stage(
+            svg=gen_result["svg"],
+            canonical_room_keys=room_keys,
+        )
+        
+        # Add staging results to response
+        import base64
+        
+        if stage_result.success:
+            gen_result["staged"] = {
+                "success": True,
+                "elapsed_seconds": stage_result.elapsed_seconds,
+                "aspect_ratio": stage_result.aspect_ratio,
+            }
+            
+            if stage_result.staged_image:
+                gen_result["staged"]["image_base64"] = base64.b64encode(stage_result.staged_image).decode('utf-8')
+                gen_result["staged"]["image_mime"] = "image/png"
+            
+            if stage_result.cropped_svg:
+                gen_result["staged"]["cropped_svg"] = stage_result.cropped_svg
+        else:
+            gen_result["staged"] = {
+                "success": False,
+                "error": stage_result.error,
+            }
+        
+        return gen_result
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        import traceback
+        print(f"[ERROR] Generate and stage failed: {e}")
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# =============================================================================
 # ROOMS DATA ENDPOINT
 # =============================================================================
 

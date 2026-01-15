@@ -22,8 +22,10 @@ import {
   FlameKindling,
   Target,
   HelpCircle,
+  Settings,
+  Image,
 } from 'lucide-react';
-import { useDevMode, ComparisonData } from '@/contexts/DevModeContext';
+import { useDevMode, ComparisonData, RenderSettings } from '@/contexts/DevModeContext';
 import { useTutorialOptional } from '@/contexts/TutorialContext';
 import { DevCompareView } from './DevCompareView';
 import { RoomDeltaView } from './RoomDeltaView';
@@ -55,6 +57,8 @@ export function DevModePanel({ className = '' }: DevModePanelProps) {
     setCurrentComparison,
     clearHistory,
     batchConfig,
+    renderSettings,
+    setRenderSettings,
   } = useDevMode();
   
   const tutorial = useTutorialOptional();
@@ -212,6 +216,26 @@ export function DevModePanel({ className = '' }: DevModePanelProps) {
             </div>
             
             <div className="flex items-center gap-2">
+              {/* Render Settings */}
+              <div className="flex items-center gap-2 px-3 py-1.5 bg-drafted-bg rounded-lg border border-drafted-border">
+                <Image className="w-4 h-4 text-drafted-gray" />
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <span className="text-xs text-drafted-gray">Auto-render</span>
+                  <div 
+                    className={`relative w-8 h-4 rounded-full transition-colors ${
+                      renderSettings.autoRender ? 'bg-coral-500' : 'bg-drafted-border'
+                    }`}
+                    onClick={() => setRenderSettings({ autoRender: !renderSettings.autoRender })}
+                  >
+                    <div 
+                      className={`absolute top-0.5 w-3 h-3 bg-white rounded-full shadow transition-transform ${
+                        renderSettings.autoRender ? 'translate-x-4' : 'translate-x-0.5'
+                      }`}
+                    />
+                  </div>
+                </label>
+              </div>
+              
               {history.length > 0 && (
                 <button
                   onClick={clearHistory}
