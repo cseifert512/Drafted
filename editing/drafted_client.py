@@ -200,16 +200,18 @@ class RoomsCatalog:
         Sort rooms by prompt priority (required ordering).
         
         STRICT ordering (critical for model adherence):
-        1. primary_bedroom (primary bed) - priority 0
-        2. primary_bathroom (primary bath) - priority 1
-        3. primary_closet - priority 2
-        4. EVERYTHING ELSE ALPHABETICALLY by prompt key - priority 99
+        1. primary bed
+        2. primary bath
+        3. primary closet
+        4. bed + closet (secondary bedrooms)
+        5. everything else alphabetically
         """
-        # Strict priority mapping - PRIMARY rooms first, then alphabetical
+        # Strict priority mapping per editing.md
         strict_priorities = {
-            "primary_bedroom": 0,    # Primary bed FIRST
-            "primary_bathroom": 1,   # Primary bath SECOND
-            "primary_closet": 2,     # Primary closet THIRD
+            "primary_bedroom": 0,    # primary bed FIRST
+            "primary_bathroom": 1,   # primary bath SECOND
+            "primary_closet": 2,     # primary closet THIRD
+            "bedroom": 3,            # bed + closet FOURTH
         }
         
         def get_sort_key(room: RoomSpec) -> tuple:
@@ -470,26 +472,29 @@ class DraftedPromptBuilder:
         Sort room lines by priority based on prompt key.
         
         STRICT ordering (critical for model adherence):
-        1. primary bed - priority 0
-        2. primary bath - priority 1
-        3. primary closet - priority 2
-        4. EVERYTHING ELSE ALPHABETICALLY - priority 99
+        1. primary bed
+        2. primary bath
+        3. primary closet
+        4. bed + closet (secondary bedrooms)
+        5. everything else alphabetically
         """
         def get_priority(line: str) -> tuple:
             prompt_key = line.split("=")[0].strip().lower()
             
-            # STRICT priority mapping - PRIMARY rooms first, then alphabetical
+            # STRICT priority mapping per editing.md
             strict_priorities = {
-                "primary bed": 0,           # Primary bed FIRST
-                "primary bath": 1,          # Primary bath SECOND
-                "primary closet": 2,        # Primary closet THIRD
+                "primary bed": 0,           # primary bed FIRST
+                "primary bath": 1,          # primary bath SECOND
+                "primary closet": 2,        # primary closet THIRD
+                "bed + closet": 3,          # bed + closet FOURTH
+                "bedroom + closet": 3,      # alternative format
             }
             
             # Check for strict priority match
             if prompt_key in strict_priorities:
                 priority = strict_priorities[prompt_key]
             else:
-                # EVERYTHING ELSE goes alphabetically after primary rooms
+                # everything else alphabetically
                 priority = 99
             
             # Return tuple of (priority, alphabetical key) for stable sorting
