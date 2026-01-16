@@ -12,4 +12,12 @@ export { RoomPropertiesPanel } from './RoomPropertiesPanel';
 export { RegeneratePanel, RegenerateButton } from './RegeneratePanel';
 export { CompareView } from './CompareView';
 
+// Door/Window Opening Components
+export { WallHighlightLayer, WallTooltip } from './WallHighlightLayer';
+export { OpeningPlacementModal } from './OpeningPlacementModal';
+export { OpeningPreviewOverlay, RenderProgress } from './OpeningPreviewOverlay';
+
+
+
+
 

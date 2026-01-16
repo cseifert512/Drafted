@@ -111,6 +111,8 @@ export interface DraftedPlan {
   prompt: string;
   image_base64?: string;
   svg?: string;
+  // Cropped SVG with viewBox matching the rendered image (for overlay alignment)
+  cropped_svg?: string;
   rooms: GeneratedRoom[];
   total_area_sqft: number;
   display_name?: string;
@@ -178,4 +180,28 @@ export const SIZE_COLORS: Record<RoomSize, string> = {
   L: '#6EE7B7',
   XL: '#FCD34D',
 };
+
+// Re-export opening types for convenience
+export type {
+  OpeningType,
+  OpeningCategory,
+  WallSegment,
+  OpeningPlacement,
+  OpeningJob,
+  OpeningJobStatus,
+  AddOpeningRequest,
+  AddOpeningResponse,
+  OpeningStatusResponse,
+  OpeningTypeDefinition,
+} from './editor/openingTypes';
+
+export {
+  OPENING_TYPES,
+  getOpeningDefinition,
+  affectsLighting,
+  getOpeningCategory,
+  SVG_INCHES_PER_PIXEL,
+  inchesToSvgPixels,
+  svgPixelsToInches,
+} from './editor/openingTypes';
 

@@ -247,6 +247,242 @@ function calculateOutputDimensions(
  * @param svg - The SVG content
  * @returns PNG buffer, cropped SVG string, and aspect ratio
  */
+/**
+ * Color-to-room-type mapping based on SVG fill colors.
+ * These match the training colors used in floor plan generation.
+ */
+const COLOR_TO_ROOM_TYPE: Record<string, string> = {
+  // Primary suite
+  'f4a460': 'Primary Bedroom',
+  'ffd700': 'Primary Bathroom', 
+  'daa520': 'Primary Closet',
+  // Bedrooms & baths
+  'ff8c00': 'Bedroom',
+  'ff69b4': 'Bathroom',
+  // Living spaces
+  '87ceeb': 'Living Room',
+  'add8e6': 'Family Room',
+  'b0e0e6': 'Den',
+  // Kitchen & dining
+  '98fb98': 'Kitchen',
+  '90ee90': 'Kitchen',
+  'dda0dd': 'Dining Room',
+  'ee82ee': 'Nook',
+  // Utility
+  'd3d3d3': 'Laundry',
+  'c0c0c0': 'Garage',
+  'a9a9a9': 'Storage',
+  'bc8f8f': 'Mudroom',
+  // Flex spaces
+  'f0e68c': 'Office',
+  'fafad2': 'Rec Room',
+  'ffe4c4': 'Theater',
+  'ffdead': 'Gym',
+  'ffe4b5': 'Foyer',
+  // Outdoor
+  '7cfc00': 'Outdoor Living',
+  '9acd32': 'Front Porch',
+  '00ced1': 'Pool',
+  '40e0d0': 'Sunroom',
+  // Pantry & bar
+  'deb887': 'Pantry',
+  'f5deb3': 'Bar',
+};
+
+/**
+ * Get room type from fill color.
+ */
+function getRoomTypeFromFill(fill: string | null): string | null {
+  if (!fill) return null;
+  
+  // Normalize: remove # and lowercase
+  const normalized = fill.replace('#', '').toLowerCase();
+  
+  // Direct match
+  if (COLOR_TO_ROOM_TYPE[normalized]) {
+    return COLOR_TO_ROOM_TYPE[normalized];
+  }
+  
+  // Try fuzzy matching for close colors
+  const r = parseInt(normalized.slice(0, 2), 16);
+  const g = parseInt(normalized.slice(2, 4), 16);
+  const b = parseInt(normalized.slice(4, 6), 16);
+  
+  if (isNaN(r) || isNaN(g) || isNaN(b)) return null;
+  
+  let bestMatch: string | null = null;
+  let bestDist = 100; // Max color distance threshold
+  
+  for (const [colorHex, roomType] of Object.entries(COLOR_TO_ROOM_TYPE)) {
+    const cr = parseInt(colorHex.slice(0, 2), 16);
+    const cg = parseInt(colorHex.slice(2, 4), 16);
+    const cb = parseInt(colorHex.slice(4, 6), 16);
+    
+    // Euclidean distance in RGB space
+    const dist = Math.sqrt((r - cr) ** 2 + (g - cg) ** 2 + (b - cb) ** 2);
+    if (dist < bestDist) {
+      bestDist = dist;
+      bestMatch = roomType;
+    }
+  }
+  
+  return bestMatch;
+}
+
+/**
+ * Add room labels to SVG so Gemini knows room types.
+ * Labels are added at the centroid of each room polygon.
+ * Room types are determined by: 1) data-room-type, 2) fill color, 3) data-room-id
+ */
+function addRoomLabelsToSvg(svg: string): string {
+  // Find all room polygons
+  const roomPolygons: { name: string; centroid: { x: number; y: number } }[] = [];
+  
+  const polygonRegex = /<polygon([^>]*)points="([^"]+)"([^>]*)\/?>/g;
+  let match: RegExpExecArray | null;
+  
+  while ((match = polygonRegex.exec(svg)) !== null) {
+    const attrsBefore = match[1] || "";
+    const pointsStr = match[2];
+    const attrsAfter = match[3] || "";
+    const fullAttrs = attrsBefore + attrsAfter;
+    
+    // Skip if no room-related data
+    const hasRoomId = fullAttrs.includes('data-room-id');
+    const fillMatch = fullAttrs.match(/fill="([^"]+)"/);
+    const fill = fillMatch ? fillMatch[1] : null;
+    
+    // Skip polygons that are likely walls or decoration (black, white, none)
+    if (fill && (fill === 'none' || fill === '#ffffff' || fill === 'white' || fill === '#000000' || fill === 'black')) {
+      continue;
+    }
+    
+    // Determine room name (priority: data-room-type > fill color > data-room-id)
+    let roomName: string | null = null;
+    
+    // 1. Check for explicit room type attribute
+    const roomTypeMatch = fullAttrs.match(/data-room-type="([^"]+)"/);
+    if (roomTypeMatch) {
+      roomName = formatRoomName(roomTypeMatch[1]);
+    }
+    
+    // 2. Try to determine from fill color
+    if (!roomName && fill) {
+      roomName = getRoomTypeFromFill(fill);
+    }
+    
+    // 3. Fall back to room ID (but skip generic IDs like R001)
+    if (!roomName && hasRoomId) {
+      const roomIdMatch = fullAttrs.match(/data-room-id="([^"]+)"/);
+      if (roomIdMatch) {
+        const roomId = roomIdMatch[1];
+        // Skip generic IDs like R001, R002, etc.
+        if (!/^R\d+$/i.test(roomId)) {
+          roomName = formatRoomName(roomId);
+        }
+      }
+    }
+    
+    // Skip if we couldn't determine a meaningful room name
+    if (!roomName) continue;
+    
+    // Parse polygon points to find centroid
+    const centroid = calculatePolygonCentroid(pointsStr);
+    if (!centroid) continue;
+    
+    roomPolygons.push({
+      name: roomName,
+      centroid,
+    });
+  }
+  
+  if (roomPolygons.length === 0) {
+    console.log('[addRoomLabelsToSvg] No room polygons found to label');
+    return svg;
+  }
+  
+  console.log(`[addRoomLabelsToSvg] Adding labels for ${roomPolygons.length} rooms:`, roomPolygons.map(r => r.name));
+  
+  // Generate text labels SVG
+  let labelsSvg = '\n  <!-- Room Labels for Gemini -->\n  <g id="room-labels" font-family="Arial, sans-serif" font-weight="bold" text-anchor="middle" dominant-baseline="middle">\n';
+  
+  for (const room of roomPolygons) {
+    const { x: cx, y: cy } = room.centroid;
+    const name = room.name;
+    
+    // Calculate font size based on name length (larger fonts for visibility)
+    const fontSize = Math.max(10, Math.min(16, Math.floor(140 / Math.max(name.length, 1))));
+    
+    // Add text with white outline for visibility
+    labelsSvg += `    <text x="${cx.toFixed(1)}" y="${cy.toFixed(1)}" font-size="${fontSize}" fill="#333333" stroke="white" stroke-width="4" paint-order="stroke">${name}</text>\n`;
+  }
+  
+  labelsSvg += '  </g>\n';
+  
+  // Insert labels before closing </svg> tag
+  if (svg.includes('</svg>')) {
+    svg = svg.replace('</svg>', labelsSvg + '</svg>');
+  }
+  
+  return svg;
+}
+
+/**
+ * Calculate the centroid of a polygon from its points string.
+ */
+function calculatePolygonCentroid(pointsStr: string): { x: number; y: number } | null {
+  const coordRegex = /([+-]?[\d.]+)[,\s]+([+-]?[\d.]+)/g;
+  const xs: number[] = [];
+  const ys: number[] = [];
+  
+  let coordMatch: RegExpExecArray | null;
+  while ((coordMatch = coordRegex.exec(pointsStr)) !== null) {
+    xs.push(parseFloat(coordMatch[1]));
+    ys.push(parseFloat(coordMatch[2]));
+  }
+  
+  if (xs.length < 3) return null;
+  
+  const n = xs.length;
+  
+  // Polygon centroid formula
+  let area = 0;
+  let cx = 0;
+  let cy = 0;
+  
+  for (let i = 0; i < n; i++) {
+    const j = (i + 1) % n;
+    const cross = xs[i] * ys[j] - xs[j] * ys[i];
+    area += cross;
+    cx += (xs[i] + xs[j]) * cross;
+    cy += (ys[i] + ys[j]) * cross;
+  }
+  
+  area *= 0.5;
+  
+  if (Math.abs(area) < 1e-10) {
+    // Fallback to simple average
+    return { x: xs.reduce((a, b) => a + b, 0) / n, y: ys.reduce((a, b) => a + b, 0) / n };
+  }
+  
+  cx /= (6 * area);
+  cy /= (6 * area);
+  
+  return { x: cx, y: cy };
+}
+
+/**
+ * Format a room key into a readable name.
+ */
+function formatRoomName(roomKey: string): string {
+  return roomKey
+    .replace(/_/g, ' ')
+    .replace(/-/g, ' ')
+    .split(' ')
+    .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+    .join(' ');
+}
+
 async function preprocessSvgSimple(svg: string): Promise<{
   pngBuffer: Buffer;
   croppedSvg: string;
@@ -255,6 +491,9 @@ async function preprocessSvgSimple(svg: string): Promise<{
   // Step 0: Pre-process SVG for proper scaling
   // Uses Gemini-specific preprocessing (includes kitchen polygon recoloring)
   let processedSvg = preprocessSvgForGemini(svg);
+  
+  // Step 0.5: Add room labels so Gemini knows room types
+  processedSvg = addRoomLabelsToSvg(processedSvg);
 
   // Step 1: Get floorplan bounds
   const bounds = getFloorplanBounds(processedSvg);
@@ -641,10 +880,201 @@ export async function stageFloorPlan(
     }),
   ]);
 
+  // Get actual render dimensions and update cropped SVG to match
+  // This ensures the SVG overlay aligns perfectly with the rendered image
+  let finalCroppedSvg = croppedSvg;
+  try {
+    const metadata = await sharp(stagedImageBuffer).metadata();
+    if (metadata.width && metadata.height) {
+      const actualWidth = metadata.width;
+      const actualHeight = metadata.height;
+      console.log(`[stageFloorPlan] Render dimensions: ${actualWidth}x${actualHeight}`);
+      
+      // Update SVG width/height to match actual render (keeping viewBox intact)
+      finalCroppedSvg = croppedSvg
+        .replace(/(<svg[^>]*)\swidth="[^"]+"/, `$1 width="${actualWidth}"`)
+        .replace(/(<svg[^>]*)\sheight="[^"]+"/, `$1 height="${actualHeight}"`);
+    }
+  } catch (e) {
+    console.warn('[stageFloorPlan] Could not get render dimensions:', e);
+  }
+
   return {
     staged: stagedImageBuffer,
     raw: pngBuffer,
-    croppedSvg,
+    croppedSvg: finalCroppedSvg,
     processedSvg,
   };
+}
+
+/**
+ * Opening placement specification for door/window editing
+ */
+interface OpeningPlacement {
+  id: string;
+  type: string; // interior_door, exterior_door, sliding_door, french_door, window, picture_window, bay_window
+  wallId: string;
+  positionOnWall: number; // 0-1 along wall
+  widthInches: number;
+  swingDirection?: "left" | "right";
+}
+
+/**
+ * Stage a floor plan with an opening (door/window) modification.
+ * 
+ * This function:
+ * 1. Re-renders the modified SVG with Gemini (same seed for consistency)
+ * 2. Returns both the new render and metadata for surgical blending
+ * 
+ * @param svg - The modified SVG with opening symbols
+ * @param canonical_room_keys - Room keys for prompt construction
+ * @param opening - The opening specification
+ * @param env - Environment with GEMINI_API_KEY
+ * @returns Staged image buffer and metadata
+ */
+export async function stageFloorPlanWithOpening(
+  svg: string,
+  canonical_room_keys: string[],
+  opening: OpeningPlacement,
+  env: Pick<Env, "GEMINI_API_KEY">
+): Promise<{
+  staged: Buffer;
+  raw: Buffer;
+  croppedSvg: string;
+  processedSvg: string;
+  openingType: string;
+  affectsLighting: boolean;
+}> {
+  // Determine if this opening affects lighting
+  const affectsLighting = 
+    opening.type.includes("window") ||
+    opening.type === "sliding_door" ||
+    opening.type === "french_door";
+
+  // Build enhanced prompt with opening instructions
+  const openingPrompt = constructPromptWithOpening(canonical_room_keys, opening);
+
+  const ai = new GoogleGenAI({
+    apiKey: env.GEMINI_API_KEY,
+  });
+
+  const { pngBuffer, croppedSvg, aspectRatio } = await preprocessSvgSimple(svg);
+  const pngBase64 = pngBuffer.toString("base64");
+
+  const contents = [
+    {
+      text: openingPrompt,
+    },
+    {
+      inlineData: {
+        mimeType: "image/png",
+        data: pngBase64,
+      },
+    },
+  ];
+
+  const config = {
+    responseModalities: GEMINI_CONFIG.responseModalities,
+    imageConfig: {
+      aspectRatio: aspectRatio,
+      imageSize: GEMINI_CONFIG.imageSize,
+    },
+    systemInstruction: SYSTEM_PROMPT,
+    temperature: GEMINI_CONFIG.temperature,
+    topK: GEMINI_CONFIG.topK,
+    topP: GEMINI_CONFIG.topP,
+    seed: GEMINI_CONFIG.seed, // Same seed for visual consistency
+  };
+
+  const [stagedImageBuffer, processedSvg] = await Promise.all([
+    withExponentialBackoff(async () => {
+      const startTime = Date.now();
+      const response = await ai.models.generateContent({
+        model: GEMINI_CONFIG.model,
+        contents,
+        config,
+      });
+      const durationSecs = (Date.now() - startTime) / 1000;
+
+      for (const part of response.candidates?.[0]?.content?.parts ?? []) {
+        if (part.inlineData?.data) {
+          geminiDuration.record(durationSecs, { status: "success" });
+          return Buffer.from(part.inlineData.data, "base64");
+        }
+      }
+      geminiDuration.record(durationSecs, { status: "error" });
+      throw new Error("No staged image returned from Gemini");
+    }),
+    Promise.resolve().then(() => {
+      try {
+        return createProcessedSvg(svg);
+      } catch (e) {
+        console.warn("SVG processing failed, falling back to cropped SVG:", e);
+        return createCroppedSvg(svg);
+      }
+    }),
+  ]);
+
+  // Get actual render dimensions and update cropped SVG to match
+  let finalCroppedSvg = croppedSvg;
+  try {
+    const metadata = await sharp(stagedImageBuffer).metadata();
+    if (metadata.width && metadata.height) {
+      const actualWidth = metadata.width;
+      const actualHeight = metadata.height;
+      console.log(`[stageFloorPlanWithOpening] Render dimensions: ${actualWidth}x${actualHeight}`);
+      
+      // Update SVG width/height to match actual render (keeping viewBox intact)
+      finalCroppedSvg = croppedSvg
+        .replace(/(<svg[^>]*)\swidth="[^"]+"/, `$1 width="${actualWidth}"`)
+        .replace(/(<svg[^>]*)\sheight="[^"]+"/, `$1 height="${actualHeight}"`);
+    }
+  } catch (e) {
+    console.warn('[stageFloorPlanWithOpening] Could not get render dimensions:', e);
+  }
+
+  return {
+    staged: stagedImageBuffer,
+    raw: pngBuffer,
+    croppedSvg: finalCroppedSvg,
+    processedSvg,
+    openingType: opening.type,
+    affectsLighting,
+  };
+}
+
+/**
+ * Construct a prompt that includes opening-specific instructions.
+ * This helps Gemini render doors and windows correctly.
+ */
+function constructPromptWithOpening(
+  canonical_room_keys: string[],
+  opening: OpeningPlacement
+): string {
+  const basePrompt = constructPrompt(canonical_room_keys);
+
+  // Add opening-specific instructions
+  let openingInstruction = "";
+
+  if (opening.type.includes("door")) {
+    openingInstruction = `
+### Door Rendering
+- Render the ${opening.type.replace("_", " ")} as a realistic architectural opening
+- Door should have proper frame, threshold, and realistic proportions
+- ${opening.type === "sliding_door" ? "Glass panels with metal frame" : ""}
+- ${opening.type === "french_door" ? "Double doors with glass panels" : ""}
+- Ensure clear walking path through the doorway
+`;
+  } else if (opening.type.includes("window")) {
+    openingInstruction = `
+### Window Rendering
+- Render the ${opening.type.replace("_", " ")} with realistic glass and frame
+- Window should cast natural light into adjacent room
+- ${opening.type === "picture_window" ? "Large fixed glass panel" : ""}
+- ${opening.type === "bay_window" ? "Projecting window with angled sides" : ""}
+- Show subtle light rays or brightness increase near the window
+`;
+  }
+
+  return basePrompt + openingInstruction;
 }

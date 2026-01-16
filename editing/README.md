@@ -273,3 +273,6 @@ Complete catalog of room types with:
 4. **Batch Diversity**: Generate multiple plans with different seeds
 
 
+
+
+

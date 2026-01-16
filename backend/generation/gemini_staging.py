@@ -348,6 +348,7 @@ def preprocess_svg(svg: str) -> str:
     """
     Pre-process SVG for Gemini rendering.
     - Ensure proper stroke widths
+    - Add room labels so Gemini knows room types
     - Recolor kitchen polygons if needed (matching helpers.tts)
     """
     # Ensure wall strokes are visible
@@ -360,7 +361,145 @@ def preprocess_svg(svg: str) -> str:
             'stroke="black" stroke-width="2"'
         )
     
+    # Add room labels to help Gemini identify room types
+    processed = add_room_labels_to_svg(processed)
+    
     return processed
+
+
+def add_room_labels_to_svg(svg: str) -> str:
+    """
+    Add text labels to each room in the SVG.
+    This helps Gemini identify room types and render appropriate furniture/materials.
+    
+    Labels are added at the centroid of each room polygon.
+    """
+    import re
+    
+    # Find all room polygons with data-room-id or data-room-type
+    room_polygons = []
+    
+    # Pattern to match room polygons with their attributes
+    polygon_pattern = re.compile(
+        r'<polygon([^>]*)points="([^"]+)"([^>]*)/?>'
+    )
+    
+    for match in polygon_pattern.finditer(svg):
+        attrs_before = match.group(1)
+        points_str = match.group(2)
+        attrs_after = match.group(3)
+        full_attrs = attrs_before + attrs_after
+        
+        # Extract room-id or room-type
+        room_id_match = re.search(r'data-room-id="([^"]+)"', full_attrs)
+        room_type_match = re.search(r'data-room-type="([^"]+)"', full_attrs)
+        
+        room_name = None
+        if room_type_match:
+            room_name = room_type_match.group(1)
+        elif room_id_match:
+            room_name = room_id_match.group(1)
+        
+        if not room_name:
+            continue
+        
+        # Parse polygon points to find centroid
+        centroid = calculate_polygon_centroid(points_str)
+        if not centroid:
+            continue
+        
+        # Format the room name for display (e.g., "primary_bedroom" -> "Primary Bedroom")
+        display_name = format_room_name(room_name)
+        
+        room_polygons.append({
+            'name': display_name,
+            'centroid': centroid,
+        })
+    
+    if not room_polygons:
+        return svg
+    
+    # Generate text labels SVG
+    labels_svg = '\n  <!-- Room Labels for Gemini -->\n  <g id="room-labels" font-family="Arial, sans-serif" font-weight="bold" text-anchor="middle" dominant-baseline="middle">\n'
+    
+    for room in room_polygons:
+        cx, cy = room['centroid']
+        name = room['name']
+        
+        # Calculate font size based on name length (smaller for longer names)
+        font_size = max(8, min(14, 120 // max(len(name), 1)))
+        
+        # Add text with black outline for visibility
+        labels_svg += f'''    <text x="{cx:.1f}" y="{cy:.1f}" font-size="{font_size}" fill="#333333" stroke="white" stroke-width="3" paint-order="stroke">{name}</text>
+'''
+    
+    labels_svg += '  </g>\n'
+    
+    # Insert labels before closing </svg> tag
+    if '</svg>' in svg:
+        svg = svg.replace('</svg>', labels_svg + '</svg>')
+    
+    return svg
+
+
+def calculate_polygon_centroid(points_str: str) -> Optional[Tuple[float, float]]:
+    """Calculate the centroid of a polygon from its points string."""
+    import re
+    
+    coord_regex = re.compile(r'([+-]?[\d.]+)[,\s]+([+-]?[\d.]+)')
+    xs = []
+    ys = []
+    
+    for match in coord_regex.finditer(points_str):
+        x, y = match.groups()
+        xs.append(float(x))
+        ys.append(float(y))
+    
+    if not xs:
+        return None
+    
+    # Simple centroid (average of vertices)
+    # For more accuracy, use the polygon centroid formula
+    n = len(xs)
+    if n < 3:
+        return None
+    
+    # Polygon centroid formula
+    area = 0.0
+    cx = 0.0
+    cy = 0.0
+    
+    for i in range(n):
+        j = (i + 1) % n
+        cross = xs[i] * ys[j] - xs[j] * ys[i]
+        area += cross
+        cx += (xs[i] + xs[j]) * cross
+        cy += (ys[i] + ys[j]) * cross
+    
+    area *= 0.5
+    
+    if abs(area) < 1e-10:
+        # Fallback to simple average if area is too small
+        return (sum(xs) / n, sum(ys) / n)
+    
+    cx /= (6 * area)
+    cy /= (6 * area)
+    
+    return (cx, cy)
+
+
+def format_room_name(room_key: str) -> str:
+    """Format a room key into a readable name (e.g., 'primary_bedroom' -> 'Primary Bedroom')."""
+    # Remove common prefixes/suffixes and format
+    name = room_key.replace('_', ' ').replace('-', ' ')
+    
+    # Capitalize each word
+    name = ' '.join(word.capitalize() for word in name.split())
+    
+    # Handle common abbreviations
+    name = name.replace('Primary ', 'Primary ')  # Keep as-is
+    
+    return name
 
 
 def svg_to_png(

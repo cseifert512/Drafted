@@ -21,7 +21,7 @@ export function CircularProgress({
   
   const phaseLabels: Record<string, string> = {
     generating: 'Generating',
-    stylizing: 'Rendering',
+    stylizing: 'Drafting',
     analyzing: 'Analyzing',
     complete: 'Complete',
   };
@@ -97,7 +97,7 @@ export function InlineProgress({
 }) {
   const phaseLabels: Record<string, string> = {
     generating: 'Generating plans',
-    stylizing: 'Rendering views',
+    stylizing: 'Drafting views',
     analyzing: 'Running analysis',
     complete: 'Complete',
   };
@@ -141,6 +141,9 @@ export function InlineProgress({
     </div>
   );
 }
+
+
+
 
 
 

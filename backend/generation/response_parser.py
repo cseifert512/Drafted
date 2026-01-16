@@ -310,3 +310,4 @@ def extract_adjacency_graph(parsed_data: ParsedFloorPlanData) -> Dict[str, List[
 
 
 
+

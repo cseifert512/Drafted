@@ -53,6 +53,9 @@ function editorReducer(state: EditorState, action: EditorAction): EditorState {
     case 'SET_MODE':
       return { ...state, mode: action.mode };
     
+    case 'SET_RENDERED_OVERLAY':
+      return { ...state, showRenderedOverlay: action.show };
+    
     case 'LOAD_PLAN':
       return {
         ...state,
@@ -354,6 +357,14 @@ export function useFloorPlanEditor(options: UseFloorPlanEditorOptions = {}) {
     dispatch({ type: 'SET_MODE', mode: state.mode === 'direct' ? 'hybrid' : 'direct' });
   }, [state.mode]);
   
+  const setShowRenderedOverlay = useCallback((show: boolean) => {
+    dispatch({ type: 'SET_RENDERED_OVERLAY', show });
+  }, []);
+  
+  const toggleRenderedOverlay = useCallback(() => {
+    dispatch({ type: 'SET_RENDERED_OVERLAY', show: !state.showRenderedOverlay });
+  }, [state.showRenderedOverlay]);
+  
   // ============================================================================
   // Plan Actions
   // ============================================================================
@@ -638,6 +649,7 @@ export function useFloorPlanEditor(options: UseFloorPlanEditorOptions = {}) {
     // State
     state,
     mode: state.mode,
+    showRenderedOverlay: state.showRenderedOverlay,
     rooms: state.rooms,
     selectedRoom,
     selectedRoomId: state.selectedRoomId,
@@ -674,6 +686,8 @@ export function useFloorPlanEditor(options: UseFloorPlanEditorOptions = {}) {
     // Mode actions
     setMode,
     toggleMode,
+    setShowRenderedOverlay,
+    toggleRenderedOverlay,
     
     // Plan actions
     loadPlan,

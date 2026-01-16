@@ -58,7 +58,14 @@ export default function EditorPage() {
         const savedPlan = localStorage.getItem('editor_plan');
         if (!initialPlan && savedPlan) {
           try {
-            setInitialPlan(JSON.parse(savedPlan));
+            const parsed = JSON.parse(savedPlan);
+            console.log('[Editor] Loaded plan from localStorage:', {
+              id: parsed.id,
+              hasSvg: !!parsed.svg,
+              hasCroppedSvg: !!parsed.cropped_svg,
+              hasRenderedImage: !!parsed.rendered_image_base64,
+            });
+            setInitialPlan(parsed);
           } catch (e) {
             console.error('Failed to parse saved plan:', e);
           }

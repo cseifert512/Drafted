@@ -7,7 +7,7 @@ import type {
   RoomTypeDefinition,
   DraftedGenerationState,
 } from '@/lib/drafted-types';
-import { getDraftedRoomOptions, checkDraftedAvailable } from '@/lib/drafted-api';
+import { getDraftedRoomOptions, checkDraftedAvailable, stageFloorPlan } from '@/lib/drafted-api';
 
 const STORAGE_KEY = 'drafted_plans';
 
@@ -149,7 +149,36 @@ export function useDraftedGeneration(): UseDraftedGenerationReturn {
     }
   }, []);
 
-  // Add new plans from generation results
+  // Auto-render a single plan
+  const autoRenderPlan = useCallback(async (plan: DraftedPlan): Promise<DraftedPlan> => {
+    if (!plan.svg || plan.rendered_image_base64) {
+      return plan; // No SVG to render or already rendered
+    }
+    
+    try {
+      console.log('[DEBUG] Auto-rendering plan:', plan.id);
+      const roomKeys = plan.rooms.map(r => r.canonical_key || r.room_type);
+      const result = await stageFloorPlan(plan.svg, roomKeys);
+      
+      if (result.success && result.staged_image_base64) {
+        return {
+          ...plan,
+          rendered_image_base64: result.staged_image_base64,
+          // Store cropped_svg for proper overlay alignment
+          cropped_svg: result.cropped_svg || plan.svg,
+          is_rendering: false,
+        };
+      } else {
+        console.warn('[WARN] Auto-render failed for plan:', plan.id, result.error);
+        return { ...plan, is_rendering: false };
+      }
+    } catch (e) {
+      console.error('[ERROR] Auto-render exception for plan:', plan.id, e);
+      return { ...plan, is_rendering: false };
+    }
+  }, []);
+
+  // Add new plans from generation results and auto-render them
   const addPlans = useCallback((results: DraftedGenerationResult[]) => {
     console.log('[DEBUG] Received generation results:', results);
     
@@ -172,12 +201,22 @@ export function useDraftedGeneration(): UseDraftedGenerationReturn {
         total_area_sqft: r.total_area_sqft || 0,
         display_name: undefined,
         created_at: Date.now(),
+        is_rendering: true, // Mark as rendering
       }));
 
     console.log('[DEBUG] Adding plans:', newPlans.length);
     setPlans((prev) => [...prev, ...newPlans]);
     setGenerationState('complete');
-  }, []);
+    
+    // Auto-render all new plans in the background
+    newPlans.forEach(async (plan) => {
+      const renderedPlan = await autoRenderPlan(plan);
+      // Update the plan with rendered result
+      setPlans((prev) => 
+        prev.map((p) => p.id === renderedPlan.id ? renderedPlan : p)
+      );
+    });
+  }, [autoRenderPlan]);
 
   // Update a plan (e.g., after rendering)
   const updatePlan = useCallback((updatedPlan: DraftedPlan) => {

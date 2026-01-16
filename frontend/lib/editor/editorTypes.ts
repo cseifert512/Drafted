@@ -124,6 +124,9 @@ export interface EditorState {
   // Mode
   mode: EditorMode;
   
+  // View mode - show rendered overlay on top of SVG
+  showRenderedOverlay: boolean;
+  
   // Rooms
   rooms: EditorRoom[];
   selectedRoomId: string | null;
@@ -173,6 +176,7 @@ export interface EditorHistoryEntry {
 
 export const DEFAULT_EDITOR_STATE: EditorState = {
   mode: 'direct',
+  showRenderedOverlay: false,  // Default to showing just the SVG
   rooms: [],
   selectedRoomId: null,
   hoveredRoomId: null,
@@ -203,6 +207,7 @@ export const DEFAULT_EDITOR_STATE: EditorState = {
 
 export type EditorAction =
   | { type: 'SET_MODE'; mode: EditorMode }
+  | { type: 'SET_RENDERED_OVERLAY'; show: boolean }
   | { type: 'LOAD_PLAN'; plan: DraftedPlan }
   | { type: 'SET_ROOMS'; rooms: EditorRoom[] }
   | { type: 'SELECT_ROOM'; roomId: string | null }
@@ -331,5 +336,7 @@ export const CANVAS_SIZE = 768;
 
 /** Pixels per inch (for dimension calculations) */
 export const PIXELS_PER_INCH = 1; // Adjust based on actual SVG scale
+
+
 
 

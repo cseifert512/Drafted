@@ -11,4 +11,13 @@ export * from './editorUtils';
 // Layout Analysis
 export * from './layoutAnalyzer';
 
+// Door/Window Opening Types and Utilities
+export * from './openingTypes';
+export * from './wallDetection';
+export * from './coordinateMapping';
+export * from './svgOpenings';
+
+
+
+
 

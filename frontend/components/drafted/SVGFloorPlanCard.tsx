@@ -61,10 +61,11 @@ export function SVGFloorPlanCard({
       const result = await stageFloorPlan(plan.svg, roomKeys);
       
       if (result.success && result.staged_image_base64) {
-        // Update the plan with the rendered image
+        // Update the plan with the rendered image AND cropped SVG for proper overlay alignment
         const updatedPlan: DraftedPlan = {
           ...plan,
           rendered_image_base64: result.staged_image_base64,
+          cropped_svg: result.cropped_svg || plan.svg,
         };
         onUpdatePlan?.(updatedPlan);
       } else {
@@ -79,6 +80,12 @@ export function SVGFloorPlanCard({
 
   const handleOpenInEditor = () => {
     // Save plan to localStorage for the editor to pick up
+    console.log('[SVGFloorPlanCard] Opening plan in editor:', {
+      id: plan.id,
+      hasSvg: !!plan.svg,
+      hasCroppedSvg: !!plan.cropped_svg,
+      hasRenderedImage: !!plan.rendered_image_base64,
+    });
     localStorage.setItem('editor_plan', JSON.stringify(plan));
     router.push('/editor');
   };
@@ -222,11 +229,11 @@ export function SVGFloorPlanCard({
           </div>
         )}
 
-        {/* Rendering overlay */}
-        {isRendering && (
+        {/* Drafting overlay - show for both manual and auto-drafting */}
+        {(isRendering || plan.is_rendering) && (
           <div className="absolute inset-0 bg-white/80 flex flex-col items-center justify-center">
             <Loader2 className="w-8 h-8 text-coral-500 animate-spin mb-2" />
-            <span className="text-sm text-drafted-gray">Rendering with Gemini...</span>
+            <span className="text-sm text-drafted-gray">Drafting floor plan...</span>
           </div>
         )}
 
@@ -264,8 +271,8 @@ export function SVGFloorPlanCard({
           )}
         </div>
 
-        {/* Render button - show if not rendered yet and SVG exists */}
-        {!hasRenderedImage && plan.svg && (
+        {/* Render button - show if not rendered yet, not auto-rendering, and SVG exists */}
+        {!hasRenderedImage && !plan.is_rendering && plan.svg && (
           <button
             onClick={(e) => {
               e.stopPropagation();

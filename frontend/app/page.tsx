@@ -178,6 +178,7 @@ export default function Home() {
           updatePlan({
             ...plan,
             rendered_image_base64: result.staged_image_base64,
+            cropped_svg: result.cropped_svg || plan.svg, // Include cropped SVG for proper overlay alignment
           });
           console.log(`[Auto-render] Plan ${plan.id} rendered successfully`);
         } else {

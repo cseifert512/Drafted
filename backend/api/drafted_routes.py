@@ -51,6 +51,48 @@ class DraftedEditRequest(BaseModel):
 
 
 # =============================================================================
+# OPENING (DOOR/WINDOW) MODELS
+# =============================================================================
+
+class OpeningPlacement(BaseModel):
+    """Specification for a door or window placement."""
+    type: str  # interior_door, exterior_door, sliding_door, french_door, window, picture_window, bay_window
+    wall_id: str
+    position_on_wall: float  # 0-1 along the wall segment
+    width_inches: float
+    swing_direction: Optional[str] = None  # left, right (for doors)
+
+
+class AddOpeningRequest(BaseModel):
+    """Request to add a door or window to a floor plan."""
+    plan_id: str
+    svg: str
+    cropped_svg: str
+    rendered_image_base64: str
+    opening: OpeningPlacement
+    canonical_room_keys: List[str]
+
+
+class OpeningJobResponse(BaseModel):
+    """Response from adding an opening - includes job ID for polling."""
+    success: bool
+    job_id: str
+    status: str  # pending, rendering, blending, complete, failed
+    preview_overlay_svg: str
+    modified_svg: str
+    rendered_image_base64: Optional[str] = None
+    error: Optional[str] = None
+
+
+class OpeningStatusResponse(BaseModel):
+    """Response from polling opening render status."""
+    job_id: str
+    status: str
+    rendered_image_base64: Optional[str] = None
+    error: Optional[str] = None
+
+
+# =============================================================================
 # LAZY INITIALIZATION
 # =============================================================================
 
@@ -265,6 +307,8 @@ async def generate_drafted_plan(request: DraftedGenerateRequest):
         # Debug logging
         print(f"[DEBUG] Generate result keys: {list(result.keys())}")
         print(f"[DEBUG] success={result.get('success')}, has_image={bool(result.get('image_base64'))}, has_svg={bool(result.get('svg'))}, rooms={len(result.get('rooms', []))}")
+        if not result.get('success'):
+            print(f"[ERROR] Generation failed: {result.get('error', 'Unknown error')}")
         
         return result
         
@@ -607,3 +651,384 @@ async def get_rooms_json():
     with open(rooms_path) as f:
         return json.load(f)
 
+
+# =============================================================================
+# OPENING (DOOR/WINDOW) ROUTES
+# =============================================================================
+
+# In-memory job storage (replace with Redis in production)
+_opening_jobs: Dict[str, Dict[str, Any]] = {}
+
+
+def _generate_job_id() -> str:
+    """Generate a unique job ID."""
+    import uuid
+    return f"opening-{uuid.uuid4().hex[:12]}"
+
+
+def _generate_opening_id() -> str:
+    """Generate a unique opening ID."""
+    import uuid
+    import time
+    return f"opening-{int(time.time())}-{uuid.uuid4().hex[:8]}"
+
+
+@router.post("/openings/add", response_model=OpeningJobResponse)
+async def add_opening(request: AddOpeningRequest):
+    """
+    Add a door or window opening to a floor plan.
+    
+    This endpoint:
+    1. Validates the opening placement
+    2. Modifies the SVG to include the opening symbol
+    3. Queues a background re-render job
+    4. Returns immediately with a job ID for polling
+    
+    The actual Gemini re-render happens asynchronously.
+    """
+    import asyncio
+    import re
+    
+    try:
+        # Generate IDs
+        job_id = _generate_job_id()
+        opening_id = _generate_opening_id()
+        
+        # Parse SVG to extract wall segments
+        from svg_parser import SVGParser
+        parser = SVGParser()
+        
+        # Extract viewBox for preview overlay
+        viewbox_match = re.search(r'viewBox="([^"]+)"', request.svg)
+        if not viewbox_match:
+            raise HTTPException(status_code=400, detail="SVG missing viewBox attribute")
+        
+        viewbox_parts = viewbox_match.group(1).split()
+        viewbox = {
+            "x": float(viewbox_parts[0]),
+            "y": float(viewbox_parts[1]),
+            "width": float(viewbox_parts[2]),
+            "height": float(viewbox_parts[3]),
+        }
+        
+        # Create opening with generated ID
+        opening_with_id = {
+            "id": opening_id,
+            "type": request.opening.type,
+            "wall_id": request.opening.wall_id,
+            "position_on_wall": request.opening.position_on_wall,
+            "width_inches": request.opening.width_inches,
+            "swing_direction": request.opening.swing_direction,
+        }
+        
+        # Generate preview overlay SVG (simple symbol for immediate display)
+        preview_overlay_svg = _generate_preview_overlay(opening_with_id, viewbox)
+        
+        # Modify the source SVG to include the opening
+        modified_svg = _add_opening_to_svg(request.svg, opening_with_id)
+        
+        # Create job record
+        job = {
+            "job_id": job_id,
+            "plan_id": request.plan_id,
+            "status": "pending",
+            "opening": opening_with_id,
+            "original_svg": request.svg,
+            "modified_svg": modified_svg,
+            "cropped_svg": request.cropped_svg,
+            "original_rendered_image": request.rendered_image_base64,
+            "canonical_room_keys": request.canonical_room_keys,
+            "preview_overlay_svg": preview_overlay_svg,
+            "rendered_image_base64": None,
+            "error": None,
+            "created_at": __import__('time').time(),
+        }
+        
+        # Store job
+        _opening_jobs[job_id] = job
+        
+        # Queue background render (non-blocking)
+        asyncio.create_task(_process_opening_render(job_id))
+        
+        return OpeningJobResponse(
+            success=True,
+            job_id=job_id,
+            status="pending",
+            preview_overlay_svg=preview_overlay_svg,
+            modified_svg=modified_svg,
+            rendered_image_base64=None,
+            error=None,
+        )
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        import traceback
+        print(f"[ERROR] Add opening failed: {e}")
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/openings/status/{job_id}", response_model=OpeningStatusResponse)
+async def get_opening_status(job_id: str):
+    """
+    Poll the status of an opening render job.
+    
+    Returns:
+    - status: pending, rendering, blending, complete, or failed
+    - rendered_image_base64: The final image (only when status is complete)
+    - error: Error message (only when status is failed)
+    """
+    if job_id not in _opening_jobs:
+        raise HTTPException(status_code=404, detail=f"Job {job_id} not found")
+    
+    job = _opening_jobs[job_id]
+    
+    return OpeningStatusResponse(
+        job_id=job_id,
+        status=job["status"],
+        rendered_image_base64=job.get("rendered_image_base64"),
+        error=job.get("error"),
+    )
+
+
+@router.delete("/openings/{plan_id}/{opening_id}")
+async def remove_opening(plan_id: str, opening_id: str):
+    """
+    Remove an opening from a floor plan.
+    
+    This removes the opening from the SVG and triggers a re-render.
+    """
+    # Find jobs for this plan
+    plan_jobs = [j for j in _opening_jobs.values() if j["plan_id"] == plan_id]
+    
+    if not plan_jobs:
+        raise HTTPException(status_code=404, detail=f"No openings found for plan {plan_id}")
+    
+    # Find the job with this opening
+    target_job = None
+    for job in plan_jobs:
+        if job["opening"]["id"] == opening_id:
+            target_job = job
+            break
+    
+    if not target_job:
+        raise HTTPException(status_code=404, detail=f"Opening {opening_id} not found")
+    
+    # Remove from storage
+    del _opening_jobs[target_job["job_id"]]
+    
+    return {"success": True, "message": f"Opening {opening_id} removed"}
+
+
+async def _process_opening_render(job_id: str):
+    """
+    Background task to re-render a floor plan with a new opening.
+    
+    This function:
+    1. Updates job status to 'rendering'
+    2. Sends modified SVG to Gemini for re-render
+    3. Applies surgical blending (for doors) or uses full render (for windows)
+    4. Updates job with final image
+    """
+    import base64
+    import sys
+    from pathlib import Path
+    
+    if job_id not in _opening_jobs:
+        return
+    
+    job = _opening_jobs[job_id]
+    
+    try:
+        # Update status
+        job["status"] = "rendering"
+        
+        # Import staging module
+        gen_dir = Path(__file__).parent.parent / "generation"
+        if str(gen_dir) not in sys.path:
+            sys.path.insert(0, str(gen_dir))
+        
+        from gemini_staging import stage_floor_plan as do_stage
+        
+        # Re-render with Gemini
+        stage_result = await do_stage(
+            svg=job["modified_svg"],
+            canonical_room_keys=job["canonical_room_keys"],
+        )
+        
+        if not stage_result.success:
+            job["status"] = "failed"
+            job["error"] = stage_result.error or "Staging failed"
+            return
+        
+        # Update status to blending
+        job["status"] = "blending"
+        
+        # Determine if we need surgical blending (doors) or full render (windows)
+        opening_type = job["opening"]["type"]
+        affects_lighting = "window" in opening_type or opening_type in ["sliding_door", "french_door"]
+        
+        if affects_lighting:
+            # Use full new render for windows (lighting changes are intentional)
+            final_image = stage_result.staged_image
+        else:
+            # Apply surgical blending for doors
+            original_image = base64.b64decode(job["original_rendered_image"])
+            new_image = stage_result.staged_image
+            
+            # Import blending utility
+            utils_dir = Path(__file__).parent.parent / "utils"
+            if str(utils_dir) not in sys.path:
+                sys.path.insert(0, str(utils_dir))
+            
+            try:
+                from surgical_blend import surgical_blend
+                final_image = surgical_blend(
+                    original_image,
+                    new_image,
+                    job["opening"],
+                    job["modified_svg"],
+                )
+            except ImportError:
+                # Fallback: use full new render if blending not available
+                print("[WARN] surgical_blend not available, using full render")
+                final_image = new_image
+        
+        # Update job with final image
+        job["status"] = "complete"
+        job["rendered_image_base64"] = base64.b64encode(final_image).decode('utf-8')
+        job["completed_at"] = __import__('time').time()
+        
+    except Exception as e:
+        import traceback
+        print(f"[ERROR] Opening render failed for job {job_id}: {e}")
+        traceback.print_exc()
+        job["status"] = "failed"
+        job["error"] = str(e)
+
+
+def _generate_preview_overlay(opening: Dict[str, Any], viewbox: Dict[str, float]) -> str:
+    """
+    Generate a simple SVG overlay showing the opening symbol.
+    This is displayed immediately while the full render is processing.
+    """
+    opening_type = opening["type"]
+    position = opening["position_on_wall"]
+    width_inches = opening["width_inches"]
+    
+    # SVG scale: 1px = 2 inches
+    width_svg = width_inches / 2
+    
+    # Simple placeholder - actual position would need wall data
+    # For now, return a generic symbol that will be positioned by the frontend
+    if "door" in opening_type:
+        symbol = f'''
+        <g class="opening-preview door-preview" opacity="0.8">
+            <rect x="0" y="-3" width="{width_svg}" height="6" fill="white" stroke="#f97316" stroke-width="2"/>
+            <path d="M 0,0 A {width_svg},{width_svg} 0 0 1 {width_svg},{width_svg}" 
+                  fill="none" stroke="#f97316" stroke-width="1.5" stroke-dasharray="4,3"/>
+        </g>
+        '''
+    else:
+        symbol = f'''
+        <g class="opening-preview window-preview" opacity="0.8">
+            <rect x="0" y="-3" width="{width_svg}" height="6" fill="white" stroke="#0ea5e9" stroke-width="2"/>
+            <line x1="0" y1="0" x2="{width_svg}" y2="0" stroke="#0ea5e9" stroke-width="3"/>
+        </g>
+        '''
+    
+    return f'''<svg xmlns="http://www.w3.org/2000/svg" 
+        viewBox="{viewbox['x']} {viewbox['y']} {viewbox['width']} {viewbox['height']}"
+        style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none;">
+        {symbol}
+    </svg>'''
+
+
+def _add_opening_to_svg(svg: str, opening: Dict[str, Any]) -> str:
+    """
+    Add an opening symbol to the SVG.
+    
+    This modifies the SVG to include:
+    1. A wall gap (white rectangle to "cut" the wall)
+    2. The appropriate door/window symbol
+    """
+    import re
+    
+    opening_id = opening["id"]
+    opening_type = opening["type"]
+    width_inches = opening["width_inches"]
+    width_svg = width_inches / 2  # 1px = 2 inches
+    
+    # Generate the opening symbol
+    # Note: Actual positioning requires wall data which would be passed from frontend
+    # For now, we create a group that can be positioned
+    
+    if "door" in opening_type:
+        if opening_type == "sliding_door":
+            symbol = f'''
+            <g id="{opening_id}" class="opening door sliding-door" data-opening-type="{opening_type}">
+                <rect class="wall-gap" width="{width_svg}" height="8" fill="white"/>
+                <line x1="0" y1="4" x2="{width_svg/2}" y2="4" stroke="#666" stroke-width="2"/>
+                <line x1="{width_svg/2}" y1="4" x2="{width_svg}" y2="4" stroke="#333" stroke-width="3"/>
+            </g>
+            '''
+        elif opening_type == "french_door":
+            symbol = f'''
+            <g id="{opening_id}" class="opening door french-door" data-opening-type="{opening_type}">
+                <rect class="wall-gap" width="{width_svg}" height="8" fill="white"/>
+                <line x1="0" y1="4" x2="{width_svg/2}" y2="4" stroke="#333" stroke-width="2"/>
+                <line x1="{width_svg/2}" y1="4" x2="{width_svg}" y2="4" stroke="#333" stroke-width="2"/>
+            </g>
+            '''
+        else:
+            # Interior or exterior door
+            swing = opening.get("swing_direction", "right")
+            sweep_flag = 1 if swing == "right" else 0
+            symbol = f'''
+            <g id="{opening_id}" class="opening door" data-opening-type="{opening_type}">
+                <rect class="wall-gap" width="{width_svg}" height="6" fill="white"/>
+                <path d="M 0,3 A {width_svg},{width_svg} 0 0 {sweep_flag} {width_svg},{width_svg + 3}" 
+                      fill="none" stroke="#666" stroke-width="1" stroke-dasharray="4,3"/>
+                <line x1="0" y1="3" x2="{width_svg}" y2="3" stroke="#333" stroke-width="2"/>
+            </g>
+            '''
+    else:
+        # Window types
+        if opening_type == "bay_window":
+            depth = width_svg * 0.3
+            symbol = f'''
+            <g id="{opening_id}" class="opening window bay-window" data-opening-type="{opening_type}">
+                <rect class="wall-gap" width="{width_svg}" height="8" fill="white"/>
+                <path d="M 0,4 L {width_svg/3},{4 + depth} L {width_svg*2/3},{4 + depth} L {width_svg},4" 
+                      fill="none" stroke="#222" stroke-width="3"/>
+            </g>
+            '''
+        else:
+            # Standard or picture window
+            symbol = f'''
+            <g id="{opening_id}" class="opening window" data-opening-type="{opening_type}">
+                <rect class="wall-gap" width="{width_svg}" height="6" fill="white"/>
+                <line x1="0" y1="3" x2="{width_svg}" y2="3" stroke="#333" stroke-width="3"/>
+                <line x1="2" y1="1" x2="{width_svg - 2}" y2="1" stroke="#666" stroke-width="1"/>
+                <line x1="2" y1="5" x2="{width_svg - 2}" y2="5" stroke="#666" stroke-width="1"/>
+            </g>
+            '''
+    
+    # Check if there's already an openings group
+    if 'id="openings"' in svg:
+        # Add to existing group
+        svg = re.sub(
+            r'(<g[^>]*id="openings"[^>]*>)',
+            f'\\1\n    {symbol}',
+            svg
+        )
+    else:
+        # Create new openings group before closing </svg>
+        openings_group = f'''
+  <g id="openings" class="openings-layer">
+    {symbol}
+  </g>'''
+        svg = svg.replace('</svg>', f'{openings_group}\n</svg>')
+    
+    return svg

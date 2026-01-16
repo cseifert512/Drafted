@@ -302,3 +302,187 @@ export function generateDraftedStreaming(
   };
 }
 
+// =============================================================================
+// OPENING (DOOR/WINDOW) API
+// =============================================================================
+
+import type {
+  OpeningType,
+  OpeningPlacement,
+  AddOpeningRequest,
+  AddOpeningResponse,
+  OpeningStatusResponse,
+  OpeningJobStatus,
+} from './editor/openingTypes';
+
+/**
+ * Add a door or window opening to a floor plan.
+ * 
+ * This initiates a background re-render job and returns immediately
+ * with a job ID for polling.
+ */
+export async function addOpening(request: {
+  planId: string;
+  svg: string;
+  croppedSvg: string;
+  renderedImageBase64: string;
+  opening: Omit<OpeningPlacement, 'id'>;
+  canonicalRoomKeys: string[];
+}): Promise<AddOpeningResponse> {
+  console.log('Adding opening:', request.opening.type);
+  
+  const response = await fetch(`${BACKEND_URL}/api/drafted/openings/add`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      plan_id: request.planId,
+      svg: request.svg,
+      cropped_svg: request.croppedSvg,
+      rendered_image_base64: request.renderedImageBase64,
+      opening: {
+        type: request.opening.type,
+        wall_id: request.opening.wallId,
+        position_on_wall: request.opening.positionOnWall,
+        width_inches: request.opening.widthInches,
+        swing_direction: request.opening.swingDirection,
+      },
+      canonical_room_keys: request.canonicalRoomKeys,
+    }),
+  });
+  
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({ detail: 'Failed to add opening' }));
+    throw new Error(error.detail || error.error || 'Failed to add opening');
+  }
+  
+  const data = await response.json();
+  
+  return {
+    success: data.success,
+    jobId: data.job_id,
+    status: data.status as OpeningJobStatus,
+    previewOverlaySvg: data.preview_overlay_svg,
+    modifiedSvg: data.modified_svg,
+    error: data.error,
+  };
+}
+
+/**
+ * Poll the status of an opening render job.
+ */
+export async function getOpeningStatus(jobId: string): Promise<OpeningStatusResponse> {
+  const response = await fetch(`${BACKEND_URL}/api/drafted/openings/status/${jobId}`);
+  
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({ detail: 'Failed to get status' }));
+    throw new Error(error.detail || error.error || 'Failed to get opening status');
+  }
+  
+  const data = await response.json();
+  
+  return {
+    jobId: data.job_id,
+    status: data.status as OpeningJobStatus,
+    renderedImageBase64: data.rendered_image_base64,
+    error: data.error,
+  };
+}
+
+/**
+ * Poll for opening render completion with callback.
+ * 
+ * @param jobId - The job ID to poll
+ * @param onStatusChange - Callback for status updates
+ * @param intervalMs - Polling interval in milliseconds (default 2000)
+ * @param maxAttempts - Maximum polling attempts (default 60 = 2 minutes)
+ * @returns Final status response
+ */
+export async function pollOpeningStatus(
+  jobId: string,
+  onStatusChange?: (status: OpeningStatusResponse) => void,
+  intervalMs: number = 2000,
+  maxAttempts: number = 60
+): Promise<OpeningStatusResponse> {
+  let attempts = 0;
+  
+  while (attempts < maxAttempts) {
+    try {
+      const status = await getOpeningStatus(jobId);
+      
+      // Notify callback
+      onStatusChange?.(status);
+      
+      // Check if complete or failed
+      if (status.status === 'complete' || status.status === 'failed') {
+        return status;
+      }
+      
+      // Wait before next poll
+      await new Promise(resolve => setTimeout(resolve, intervalMs));
+      attempts++;
+      
+    } catch (error) {
+      console.error('Polling error:', error);
+      // Continue polling on transient errors
+      await new Promise(resolve => setTimeout(resolve, intervalMs));
+      attempts++;
+    }
+  }
+  
+  // Timeout
+  throw new Error(`Opening render timed out after ${maxAttempts * intervalMs / 1000} seconds`);
+}
+
+/**
+ * Remove an opening from a floor plan.
+ */
+export async function removeOpening(planId: string, openingId: string): Promise<void> {
+  const response = await fetch(`${BACKEND_URL}/api/drafted/openings/${planId}/${openingId}`, {
+    method: 'DELETE',
+  });
+  
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({ detail: 'Failed to remove opening' }));
+    throw new Error(error.detail || error.error || 'Failed to remove opening');
+  }
+}
+
+/**
+ * Add an opening and wait for render completion.
+ * 
+ * This is a convenience function that combines addOpening and pollOpeningStatus.
+ */
+export async function addOpeningAndWait(
+  request: Parameters<typeof addOpening>[0],
+  onStatusChange?: (status: OpeningStatusResponse) => void
+): Promise<{
+  success: boolean;
+  renderedImageBase64?: string;
+  modifiedSvg: string;
+  error?: string;
+}> {
+  // Add the opening
+  const addResult = await addOpening(request);
+  
+  if (!addResult.success) {
+    return {
+      success: false,
+      modifiedSvg: request.svg,
+      error: addResult.error,
+    };
+  }
+  
+  // Poll for completion
+  const finalStatus = await pollOpeningStatus(
+    addResult.jobId,
+    onStatusChange
+  );
+  
+  return {
+    success: finalStatus.status === 'complete',
+    renderedImageBase64: finalStatus.renderedImageBase64,
+    modifiedSvg: addResult.modifiedSvg,
+    error: finalStatus.error,
+  };
+}
+
