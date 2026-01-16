@@ -451,10 +451,32 @@ def get_room_type_from_fill(fill: str) -> Optional[str]:
     return best_match
 
 
+def remove_existing_text_labels(svg: str) -> str:
+    """
+    Remove existing text labels from SVG.
+    The original SVG from the generator has generic labels like 'R001', 'R002'.
+    We remove these so we can add proper room type labels.
+    """
+    import re
+    
+    # Remove all <text> elements that contain generic room IDs like R001, R002, etc.
+    cleaned = re.sub(r'<text[^>]*>R\d+</text>', '', svg, flags=re.IGNORECASE)
+    
+    # Also remove any <text> elements inside groups that look like room labels
+    cleaned = re.sub(r'<g[^>]*id="[^"]*label[^"]*"[^>]*>[\s\S]*?</g>', '', cleaned, flags=re.IGNORECASE)
+    
+    # Remove empty groups that might be left over
+    cleaned = re.sub(r'<g[^>]*>\s*</g>', '', cleaned)
+    
+    return cleaned
+
+
 def add_room_labels_to_svg(svg: str) -> str:
     """
     Add text labels to each room in the SVG.
     This helps Gemini identify room types and render appropriate furniture/materials.
+    
+    IMPORTANT: First REMOVES existing generic labels (R001, R002, etc.)!
     
     Labels are determined by:
     1. data-room-type attribute (if present)
@@ -465,6 +487,9 @@ def add_room_labels_to_svg(svg: str) -> str:
     """
     import re
     
+    # First, remove existing generic text labels
+    processed_svg = remove_existing_text_labels(svg)
+    
     room_polygons = []
     
     # Pattern to match room polygons with their attributes
@@ -472,7 +497,7 @@ def add_room_labels_to_svg(svg: str) -> str:
         r'<polygon([^>]*)points="([^"]+)"([^>]*)/?>'
     )
     
-    for match in polygon_pattern.finditer(svg):
+    for match in polygon_pattern.finditer(processed_svg):
         attrs_before = match.group(1)
         points_str = match.group(2)
         attrs_after = match.group(3)
@@ -523,7 +548,7 @@ def add_room_labels_to_svg(svg: str) -> str:
     
     if not room_polygons:
         print(f"[add_room_labels_to_svg] No room polygons found to label")
-        return svg
+        return processed_svg
     
     print(f"[add_room_labels_to_svg] Adding labels for {len(room_polygons)} rooms: {[r['name'] for r in room_polygons]}")
     
@@ -544,10 +569,10 @@ def add_room_labels_to_svg(svg: str) -> str:
     labels_svg += '  </g>\n'
     
     # Insert labels before closing </svg> tag
-    if '</svg>' in svg:
-        svg = svg.replace('</svg>', labels_svg + '</svg>')
+    if '</svg>' in processed_svg:
+        processed_svg = processed_svg.replace('</svg>', labels_svg + '</svg>')
     
-    return svg
+    return processed_svg
 
 
 def calculate_polygon_centroid(points_str: str) -> Optional[Tuple[float, float]]:
