@@ -7,8 +7,10 @@ Main FastAPI application entry point
 from dotenv import load_dotenv
 load_dotenv()
 
+from pathlib import Path
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 
 from api.routes import router
 
@@ -48,6 +50,17 @@ app.include_router(router, prefix="/api")
 if DRAFTED_AVAILABLE:
     app.include_router(drafted_router, prefix="/api")
     print("[OK] Drafted routes enabled")
+
+# Mount static files for door/window assets
+EDITING_DIR = Path(__file__).parent.parent / "editing"
+DOORWINDOW_ASSETS_DIR = EDITING_DIR / "doorwindow_assets"
+if DOORWINDOW_ASSETS_DIR.exists():
+    app.mount(
+        "/static/doorwindow_assets",
+        StaticFiles(directory=str(DOORWINDOW_ASSETS_DIR)),
+        name="doorwindow_assets"
+    )
+    print(f"[OK] Door/window assets mounted from {DOORWINDOW_ASSETS_DIR}")
 
 
 @app.get("/")

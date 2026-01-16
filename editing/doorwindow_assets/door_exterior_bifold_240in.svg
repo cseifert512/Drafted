@@ -1,0 +1,130 @@
+<svg width="1990" height="238" viewBox="0 0 1990 238" fill="none" xmlns="http://www.w3.org/2000/svg">
+<g id="door_exterior_bifold_240in">
+<rect id="doorOpening" x="34" y="170.014" width="1922" height="59" fill="white"/>
+<rect id="doorTracks" x="35" y="170.013" width="1920" height="52" fill="white" stroke="black" stroke-width="2"/>
+<g id="doorPanel_glass">
+<g id="ext_lines02">
+<path id="ext2_3" d="M28.5 174.069L35.4282 170.069" stroke="black" stroke-width="2"/>
+<path id="ext2_2" d="M40.5 194.854L47.4282 190.854" stroke="black" stroke-width="2"/>
+<path id="ext2_1" d="M31.9282 164.007L50.9282 196.916" stroke="black" stroke-width="2"/>
+</g>
+<g id="panel_overall">
+<rect x="35.4282" y="170.069" width="320" height="24" transform="rotate(-30 35.4282 170.069)" fill="#D2D2D2"/>
+<rect x="35.4282" y="170.069" width="320" height="24" transform="rotate(-30 35.4282 170.069)" stroke="black" stroke-width="2"/>
+<rect id="mullion_rect" x="35.4282" y="170.069" width="24" height="24" transform="rotate(-30 35.4282 170.069)" fill="#3F3F3F" stroke="black" stroke-width="2"/>
+<rect id="glass_rect" x="59.8469" y="166.363" width="274" height="6" transform="rotate(-30 59.8469 166.363)" fill="white" stroke="black" stroke-width="2"/>
+<rect id="mullion_rect_2" x="291.772" y="22.0693" width="24" height="24" transform="rotate(-30 291.772 22.0693)" fill="#3F3F3F" stroke="black" stroke-width="2"/>
+</g>
+<g id="ext_lines02_2">
+<path id="ext2_3_2" d="M319.484 6.06934L312.556 10.0693" stroke="black" stroke-width="2"/>
+<path id="ext2_2_2" d="M331.484 26.8535L324.556 30.8535" stroke="black" stroke-width="2"/>
+<path id="ext2_1_2" d="M309.056 4.00684L328.056 36.9158" stroke="black" stroke-width="2"/>
+</g>
+</g>
+<g id="doorPanel_glass_2">
+<g id="ext_lines02_3">
+<path id="ext2_3_3" d="M608.5 174.069L615.428 170.069" stroke="black" stroke-width="2"/>
+<path id="ext2_2_3" d="M620.5 194.854L627.428 190.854" stroke="black" stroke-width="2"/>
+<path id="ext2_1_3" d="M611.928 164.007L630.928 196.916" stroke="black" stroke-width="2"/>
+</g>
+<g id="panel_overall_2">
+<rect x="615.428" y="170.069" width="320" height="24" transform="rotate(-30 615.428 170.069)" fill="#D2D2D2"/>
+<rect x="615.428" y="170.069" width="320" height="24" transform="rotate(-30 615.428 170.069)" stroke="black" stroke-width="2"/>
+<rect id="mullion_rect_3" x="615.428" y="170.069" width="24" height="24" transform="rotate(-30 615.428 170.069)" fill="#3F3F3F" stroke="black" stroke-width="2"/>
+<rect id="glass_rect_2" x="639.847" y="166.363" width="274" height="6" transform="rotate(-30 639.847 166.363)" fill="white" stroke="black" stroke-width="2"/>
+<rect id="mullion_rect_4" x="871.772" y="22.0693" width="24" height="24" transform="rotate(-30 871.772 22.0693)" fill="#3F3F3F" stroke="black" stroke-width="2"/>
+</g>
+<g id="ext_lines02_4">
+<path id="ext2_3_4" d="M899.484 6.06934L892.556 10.0693" stroke="black" stroke-width="2"/>
+<path id="ext2_2_4" d="M911.484 26.8535L904.556 30.8535" stroke="black" stroke-width="2"/>
+<path id="ext2_1_4" d="M889.056 4.00684L908.056 36.9158" stroke="black" stroke-width="2"/>
+</g>
+</g>
+<g id="doorPanel_glass_3">
+<g id="ext_lines02_5">
+<path id="ext2_3_5" d="M621.485 174.062L614.557 170.063" stroke="black" stroke-width="2"/>
+<path id="ext2_2_5" d="M609.485 194.847L602.557 190.847" stroke="black" stroke-width="2"/>
+<path id="ext2_1_5" d="M618.057 164L599.057 196.909" stroke="black" stroke-width="2"/>
+</g>
+<g id="panel_overall_3">
+<rect width="320" height="24" transform="matrix(-0.866025 -0.5 -0.5 0.866025 614.557 170.062)" fill="#D2D2D2"/>
+<rect width="320" height="24" transform="matrix(-0.866025 -0.5 -0.5 0.866025 614.557 170.062)" stroke="black" stroke-width="2"/>
+<rect id="mullion_rect_5" width="24" height="24" transform="matrix(-0.866025 -0.5 -0.5 0.866025 614.557 170.062)" fill="#3F3F3F" stroke="black" stroke-width="2"/>
+<rect id="glass_rect_3" x="1.36603" y="-0.366025" width="274" height="6" transform="matrix(-0.866025 -0.5 -0.5 0.866025 591.138 167.357)" fill="white" stroke="black" stroke-width="2"/>
+<rect id="mullion_rect_6" width="24" height="24" transform="matrix(-0.866025 -0.5 -0.5 0.866025 358.213 22.0625)" fill="#3F3F3F" stroke="black" stroke-width="2"/>
+</g>
+<g id="ext_lines02_6">
+<path id="ext2_3_6" d="M330.5 6.0625L337.429 10.0625" stroke="black" stroke-width="2"/>
+<path id="ext2_2_6" d="M318.5 26.8467L325.429 30.8467" stroke="black" stroke-width="2"/>
+<path id="ext2_1_6" d="M340.929 4L321.929 36.909" stroke="black" stroke-width="2"/>
+</g>
+</g>
+<g id="doorPanel_glass_4">
+<g id="ext_lines02_7">
+<path id="ext2_3_7" d="M1961.49 174.07L1954.56 170.07" stroke="black" stroke-width="2"/>
+<path id="ext2_2_7" d="M1949.49 194.854L1942.56 190.854" stroke="black" stroke-width="2"/>
+<path id="ext2_1_7" d="M1958.06 164.008L1939.06 196.917" stroke="black" stroke-width="2"/>
+</g>
+<g id="panel_overall_4">
+<rect width="320" height="24" transform="matrix(-0.866025 -0.5 -0.5 0.866025 1954.56 170.07)" fill="#D2D2D2"/>
+<rect width="320" height="24" transform="matrix(-0.866025 -0.5 -0.5 0.866025 1954.56 170.07)" stroke="black" stroke-width="2"/>
+<rect id="mullion_rect_7" width="24" height="24" transform="matrix(-0.866025 -0.5 -0.5 0.866025 1954.56 170.07)" fill="#3F3F3F" stroke="black" stroke-width="2"/>
+<rect id="glass_rect_4" x="1.36603" y="-0.366025" width="274" height="6" transform="matrix(-0.866025 -0.5 -0.5 0.866025 1931.14 167.364)" fill="white" stroke="black" stroke-width="2"/>
+<rect id="mullion_rect_8" width="24" height="24" transform="matrix(-0.866025 -0.5 -0.5 0.866025 1698.21 22.0703)" fill="#3F3F3F" stroke="black" stroke-width="2"/>
+</g>
+<g id="ext_lines02_8">
+<path id="ext2_3_8" d="M1670.5 6.07031L1677.43 10.0703" stroke="black" stroke-width="2"/>
+<path id="ext2_2_8" d="M1658.5 26.8545L1665.43 30.8545" stroke="black" stroke-width="2"/>
+<path id="ext2_1_8" d="M1680.93 4.00781L1661.93 36.9168" stroke="black" stroke-width="2"/>
+</g>
+</g>
+<g id="doorPanel_glass_5">
+<g id="ext_lines02_9">
+<path id="ext2_3_9" d="M1381.48 174.07L1374.56 170.07" stroke="black" stroke-width="2"/>
+<path id="ext2_2_9" d="M1369.48 194.854L1362.56 190.854" stroke="black" stroke-width="2"/>
+<path id="ext2_1_9" d="M1378.06 164.008L1359.06 196.917" stroke="black" stroke-width="2"/>
+</g>
+<g id="panel_overall_5">
+<rect width="320" height="24" transform="matrix(-0.866025 -0.5 -0.5 0.866025 1374.56 170.07)" fill="#D2D2D2"/>
+<rect width="320" height="24" transform="matrix(-0.866025 -0.5 -0.5 0.866025 1374.56 170.07)" stroke="black" stroke-width="2"/>
+<rect id="mullion_rect_9" width="24" height="24" transform="matrix(-0.866025 -0.5 -0.5 0.866025 1374.56 170.07)" fill="#3F3F3F" stroke="black" stroke-width="2"/>
+<rect id="glass_rect_5" x="1.36603" y="-0.366025" width="274" height="6" transform="matrix(-0.866025 -0.5 -0.5 0.866025 1351.14 167.364)" fill="white" stroke="black" stroke-width="2"/>
+<rect id="mullion_rect_10" width="24" height="24" transform="matrix(-0.866025 -0.5 -0.5 0.866025 1118.21 22.0703)" fill="#3F3F3F" stroke="black" stroke-width="2"/>
+</g>
+<g id="ext_lines02_10">
+<path id="ext2_3_10" d="M1090.5 6.07031L1097.43 10.0703" stroke="black" stroke-width="2"/>
+<path id="ext2_2_10" d="M1078.5 26.8545L1085.43 30.8545" stroke="black" stroke-width="2"/>
+<path id="ext2_1_10" d="M1100.93 4.00781L1081.93 36.9168" stroke="black" stroke-width="2"/>
+</g>
+</g>
+<g id="doorPanel_glass_6">
+<g id="ext_lines02_11">
+<path id="ext2_3_11" d="M1368.5 174.064L1375.43 170.064" stroke="black" stroke-width="2"/>
+<path id="ext2_2_11" d="M1380.5 194.849L1387.43 190.849" stroke="black" stroke-width="2"/>
+<path id="ext2_1_11" d="M1371.93 164.002L1390.93 196.911" stroke="black" stroke-width="2"/>
+</g>
+<g id="panel_overall_6">
+<rect x="1375.43" y="170.064" width="320" height="24" transform="rotate(-30 1375.43 170.064)" fill="#D2D2D2"/>
+<rect x="1375.43" y="170.064" width="320" height="24" transform="rotate(-30 1375.43 170.064)" stroke="black" stroke-width="2"/>
+<rect id="mullion_rect_11" x="1375.43" y="170.064" width="24" height="24" transform="rotate(-30 1375.43 170.064)" fill="#3F3F3F" stroke="black" stroke-width="2"/>
+<rect id="glass_rect_6" x="1399.85" y="166.359" width="274" height="6" transform="rotate(-30 1399.85 166.359)" fill="white" stroke="black" stroke-width="2"/>
+<rect id="mullion_rect_12" x="1631.77" y="22.0645" width="24" height="24" transform="rotate(-30 1631.77 22.0645)" fill="#3F3F3F" stroke="black" stroke-width="2"/>
+</g>
+<g id="ext_lines02_12">
+<path id="ext2_3_12" d="M1659.48 6.06445L1652.56 10.0645" stroke="black" stroke-width="2"/>
+<path id="ext2_2_12" d="M1671.48 26.8486L1664.56 30.8486" stroke="black" stroke-width="2"/>
+<path id="ext2_1_12" d="M1649.06 4.00195L1668.06 36.9109" stroke="black" stroke-width="2"/>
+</g>
+</g>
+<g id="doorFrame_exterior_glass_hinge">
+<rect id="doorTrim_outside" x="1" y="228.054" width="32" height="8" fill="#3F3F3F" stroke="black" stroke-width="2"/>
+<rect id="doorTrim_inside" x="1" y="162.054" width="32" height="8" fill="#3F3F3F" stroke="black" stroke-width="2"/>
+<rect id="doorJamb_hinge" x="35" y="170.054" width="58" height="12" transform="rotate(90 35 170.054)" fill="#3F3F3F" stroke="black" stroke-width="2"/>
+</g>
+<g id="doorFrame_exterior_glass_hinge_2">
+<rect id="doorTrim_outside_2" width="32" height="8" transform="matrix(-1 0 0 1 1989 228.054)" fill="#3F3F3F" stroke="black" stroke-width="2"/>
+<rect id="doorTrim_inside_2" width="32" height="8" transform="matrix(-1 0 0 1 1989 162.054)" fill="#3F3F3F" stroke="black" stroke-width="2"/>
+<rect id="doorJamb_hinge_2" width="58" height="12" transform="matrix(4.37114e-08 1 1 -4.37114e-08 1955 170.054)" fill="#3F3F3F" stroke="black" stroke-width="2"/>
+</g>
+</g>
+</svg>

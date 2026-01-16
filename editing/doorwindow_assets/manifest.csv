@@ -1,0 +1,69 @@
+category,inches,new_name,src,dst
+DoorExteriorDouble,60,door_exterior_double_60.svg,/Users/carson/Downloads/25-1030_Updated Doors 3/door_exteriorDoubleSwing_Glass_60in.svg,/Users/carson/Downloads/UpdatedAssets/door_exterior_double_60.svg
+DoorExteriorDouble,64,door_exterior_double_64.svg,/Users/carson/Downloads/25-1030_Updated Doors 3/door_exteriorDoubleSwing_Glass_64in.svg,/Users/carson/Downloads/UpdatedAssets/door_exterior_double_64.svg
+DoorExteriorDouble,72,door_exterior_double_72.svg,/Users/carson/Downloads/25-1030_Updated Doors 3/door_exteriorDoubleSwing_72in.svg,/Users/carson/Downloads/UpdatedAssets/door_exterior_double_72.svg
+DoorExteriorSingle,30,door_exterior_single_30.svg,/Users/carson/Downloads/25-1030_Updated Doors 3/door_exteriorSingleSwing_30in.svg,/Users/carson/Downloads/UpdatedAssets/door_exterior_single_30.svg
+DoorExteriorSingle,32,door_exterior_single_32.svg,/Users/carson/Downloads/25-1030_Updated Doors 3/door_exteriorSingleSwing_32in.svg,/Users/carson/Downloads/UpdatedAssets/door_exterior_single_32.svg
+DoorExteriorSingle,36,door_exterior_single_36.svg,/Users/carson/Downloads/25-1030_Updated Doors 3/door_exteriorSingleSwing_Glass_36in.svg,/Users/carson/Downloads/UpdatedAssets/door_exterior_single_36.svg
+DoorExteriorSingle,42,door_exterior_single_42.svg,/Users/carson/Downloads/25-1030_Updated Doors 3/door_exteriorSingleSwing_42in.svg,/Users/carson/Downloads/UpdatedAssets/door_exterior_single_42.svg
+DoorExteriorSingle,48,door_exterior_single_wlites_36+12.svg,/Users/carson/Downloads/25-1030_Updated Doors 3/door_exteriorSingleSwing_36in+12inSL_51.5in.svg,/Users/carson/Downloads/UpdatedAssets/door_exterior_single_wlites_36+12.svg
+DoorExteriorSingle,60,door_exterior_single_wlites_36+12+12.svg,/Users/carson/Downloads/25-1030_Updated Doors 3/door_exteriorSingleSwing_36in+12inSLx2_63in.svg,/Users/carson/Downloads/UpdatedAssets/door_exterior_single_wlites_36+12+12.svg
+DoorExteriorSingle,64,door_exterior_single_wlites_36+14+14.svg,/Users/carson/Downloads/25-1030_Updated Doors 3/door_exteriorSingleSwing_36in+14inSLx2_67in.svg,/Users/carson/Downloads/UpdatedAssets/door_exterior_single_wlites_36+14+14.svg
+DoorInteriorBifold,20,door_interior_bifold_20.svg,/Users/carson/Downloads/21-1031_Updated Bifolds/door_interiorBifold_20in.svg,/Users/carson/Downloads/UpdatedAssets/door_interior_bifold_20.svg
+DoorInteriorBifold,24,door_interior_bifold_24.svg,/Users/carson/Downloads/21-1031_Updated Bifolds/door_interiorBifold_24in.svg,/Users/carson/Downloads/UpdatedAssets/door_interior_bifold_24.svg
+DoorInteriorBifold,30,door_interior_bifold_30.svg,/Users/carson/Downloads/21-1031_Updated Bifolds/door_interiorBifold_30in.svg,/Users/carson/Downloads/UpdatedAssets/door_interior_bifold_30.svg
+DoorInteriorBifold,32,door_interior_bifold_32.svg,/Users/carson/Downloads/21-1031_Updated Bifolds/door_interiorBifold_32in.svg,/Users/carson/Downloads/UpdatedAssets/door_interior_bifold_32.svg
+DoorInteriorBifold,36,door_interior_bifold_36.svg,/Users/carson/Downloads/21-1031_Updated Bifolds/door_interiorBifold_36in.svg,/Users/carson/Downloads/UpdatedAssets/door_interior_bifold_36.svg
+DoorInteriorBifold,42,door_interior_bifold_42.svg,/Users/carson/Downloads/21-1031_Updated Bifolds/door_interiorBifold_42in.svg,/Users/carson/Downloads/UpdatedAssets/door_interior_bifold_42.svg
+DoorInteriorBifold,48,door_interior_bifold_48.svg,/Users/carson/Downloads/21-1031_Updated Bifolds/door_interiorBifold_48in.svg,/Users/carson/Downloads/UpdatedAssets/door_interior_bifold_48.svg
+DoorInteriorBifold,60,door_interior_bifold_60.svg,/Users/carson/Downloads/21-1031_Updated Bifolds/door_interiorBifold_60in.svg,/Users/carson/Downloads/UpdatedAssets/door_interior_bifold_60.svg
+DoorInteriorBifold,72,door_interior_bifold_72.svg,/Users/carson/Downloads/21-1031_Updated Bifolds/door_interiorBifold_72in.svg,/Users/carson/Downloads/UpdatedAssets/door_interior_bifold_72.svg
+DoorInteriorBifold,96,door_interior_bifold_96.svg,/Users/carson/Downloads/21-1031_Updated Bifolds/door_interiorBifold_96in.svg,/Users/carson/Downloads/UpdatedAssets/door_interior_bifold_96.svg
+DoorInteriorDouble,56,door_interior_double_56.svg,/Users/carson/Downloads/25-1030_Updated Doors 3/door_interiorDoubleSwing_56in.svg,/Users/carson/Downloads/UpdatedAssets/door_interior_double_56.svg
+DoorInteriorDouble,56,door_interior_double_56_halfswing.svg,/Users/carson/Downloads/25-1030_Updated Doors 3/door_interiorDoubleSwing_56in_halfswing.svg,/Users/carson/Downloads/UpdatedAssets/door_interior_double_56_halfswing.svg
+DoorInteriorDouble,60,door_interior_double_60.svg,/Users/carson/Downloads/25-1030_Updated Doors 3/door_interiorDoubleSwing_60in.svg,/Users/carson/Downloads/UpdatedAssets/door_interior_double_60.svg
+DoorInteriorDouble,60,door_interior_double_60_halfswing.svg,/Users/carson/Downloads/25-1030_Updated Doors 3/door_interiorDoubleSwing_60in_halfswing.svg,/Users/carson/Downloads/UpdatedAssets/door_interior_double_60_halfswing.svg
+DoorInteriorDouble,64,door_interior_double_64.svg,/Users/carson/Downloads/25-1030_Updated Doors 3/door_interiorDoubleSwing_64in.svg,/Users/carson/Downloads/UpdatedAssets/door_interior_double_64.svg
+DoorInteriorDouble,64,door_interior_double_64_halfswing.svg,/Users/carson/Downloads/25-1030_Updated Doors 3/door_interiorDoubleSwing_64in_halfswing.svg,/Users/carson/Downloads/UpdatedAssets/door_interior_double_64_halfswing.svg
+DoorInteriorDouble,72,door_interior_double_72.svg,/Users/carson/Downloads/25-1030_Updated Doors 3/door_interiorDoubleSwing_72in.svg,/Users/carson/Downloads/UpdatedAssets/door_interior_double_72.svg
+DoorInteriorDouble,72,door_interior_double_72_halfswing.svg,/Users/carson/Downloads/25-1030_Updated Doors 3/door_interiorDoubleSwing_72in_halfswing.svg,/Users/carson/Downloads/UpdatedAssets/door_interior_double_72_halfswing.svg
+DoorInteriorSingle,28,door_interior_single_28.svg,/Users/carson/Downloads/25-1030_Updated Doors 3/door_interiorSingleSwing_28in.svg,/Users/carson/Downloads/UpdatedAssets/door_interior_single_28.svg
+DoorInteriorSingle,28,door_interior_single_28_halfswing.svg,/Users/carson/Downloads/25-1030_Updated Doors 3/door_interiorSingleSwing_28in_halfswing.svg,/Users/carson/Downloads/UpdatedAssets/door_interior_single_28_halfswing.svg
+DoorInteriorSingle,30,door_interior_single_30.svg,/Users/carson/Downloads/25-1030_Updated Doors 3/door_interiorSingleSwing_30in.svg,/Users/carson/Downloads/UpdatedAssets/door_interior_single_30.svg
+DoorInteriorSingle,30,door_interior_single_30_halfswing.svg,/Users/carson/Downloads/25-1030_Updated Doors 3/door_interiorSingleSwing_30in_halfswing.svg,/Users/carson/Downloads/UpdatedAssets/door_interior_single_30_halfswing.svg
+DoorInteriorSingle,32,door_interior_single_32.svg,/Users/carson/Downloads/25-1030_Updated Doors 3/door_interiorSingleSwing_32in.svg,/Users/carson/Downloads/UpdatedAssets/door_interior_single_32.svg
+DoorInteriorSingle,32,door_interior_single_32_halfswing.svg,/Users/carson/Downloads/25-1030_Updated Doors 3/door_interiorSingleSwing_32in_halfswing.svg,/Users/carson/Downloads/UpdatedAssets/door_interior_single_32_halfswing.svg
+DoorInteriorSingle,36,door_interior_single_36.svg,/Users/carson/Downloads/25-1030_Updated Doors 3/door_interiorSingleSwing_36in.svg,/Users/carson/Downloads/UpdatedAssets/door_interior_single_36.svg
+DoorInteriorSingle,36,door_interior_single_36_halfswing.svg,/Users/carson/Downloads/25-1030_Updated Doors 3/door_interiorSingleSwing_36in_halfswing.svg,/Users/carson/Downloads/UpdatedAssets/door_interior_single_36_halfswing.svg
+GarageDouble,192,garagedoor_double_16ft.svg,/Users/carson/Downloads/25-1030_Updated Doors 3/garagedoor_Double_16ft.svg,/Users/carson/Downloads/UpdatedAssets/garagedoor_double_16ft.svg
+GarageSingle,96,garagedoor_single_8ft.svg,/Users/carson/Downloads/25-1030_Updated Doors 3/garagedoor_Single_8ft.svg,/Users/carson/Downloads/UpdatedAssets/garagedoor_single_8ft.svg
+Window,16,window_16.svg,/Users/carson/Downloads/Window SVG Assets/window_single_casement_16in.svg,/Users/carson/Downloads/UpdatedAssets/window_16.svg
+Window,18,window_18.svg,/Users/carson/Downloads/Window SVG Assets/window_single_casement_18in.svg,/Users/carson/Downloads/UpdatedAssets/window_18.svg
+Window,20,window_20.svg,/Users/carson/Downloads/Window SVG Assets/window_single_casement_20in.svg,/Users/carson/Downloads/UpdatedAssets/window_20.svg
+Window,24,window_24.svg,/Users/carson/Downloads/Window SVG Assets/window_single_casement_24in.svg,/Users/carson/Downloads/UpdatedAssets/window_24.svg
+Window,28,window_28.svg,/Users/carson/Downloads/Window SVG Assets/window_single_casement_28in.svg,/Users/carson/Downloads/UpdatedAssets/window_28.svg
+Window,30,window_30.svg,/Users/carson/Downloads/Window SVG Assets/window_single_casement_30in.svg,/Users/carson/Downloads/UpdatedAssets/window_30.svg
+Window,32,window_32.svg,/Users/carson/Downloads/Window SVG Assets/window_single_casement_32in.svg,/Users/carson/Downloads/UpdatedAssets/window_32.svg
+Window,36,window_36.svg,/Users/carson/Downloads/Window SVG Assets/window_single_casement_36in.svg,/Users/carson/Downloads/UpdatedAssets/window_36.svg
+Window,38,window_38.svg,/Users/carson/Downloads/Window SVG Assets/window_single_casement_38in.svg,/Users/carson/Downloads/UpdatedAssets/window_38.svg
+Window,42,window_42.svg,/Users/carson/Downloads/Window SVG Assets/window_single_casement_42in.svg,/Users/carson/Downloads/UpdatedAssets/window_42.svg
+Window,48,window_48.svg,/Users/carson/Downloads/Window SVG Assets/window_single_casement_48in.svg,/Users/carson/Downloads/UpdatedAssets/window_48.svg
+Window,52,window_52.svg,/Users/carson/Downloads/Window SVG Assets/window_mulled_casement_24x2_52in.svg,/Users/carson/Downloads/UpdatedAssets/window_52.svg
+Window,60,window_60.svg,/Users/carson/Downloads/Window SVG Assets/window_mulled_casement_28x2_60in.svg,/Users/carson/Downloads/UpdatedAssets/window_60.svg
+Window,64,window_64.svg,/Users/carson/Downloads/Window SVG Assets/window_mulled_casement_30x2_64in.svg,/Users/carson/Downloads/UpdatedAssets/window_64.svg
+Window,68,window_68.svg,/Users/carson/Downloads/Window SVG Assets/window_mulled_casement_32x2_68in.svg,/Users/carson/Downloads/UpdatedAssets/window_68.svg
+Window,76,window_76.svg,/Users/carson/Downloads/Window SVG Assets/window_mulled_casement_36x2_76in.svg,/Users/carson/Downloads/UpdatedAssets/window_76.svg
+Window,80,window_80.svg,/Users/carson/Downloads/Window SVG Assets/window_mulled_casement_24x3_80in.svg,/Users/carson/Downloads/UpdatedAssets/window_80.svg
+Window,88,window_88.svg,/Users/carson/Downloads/Window SVG Assets/window_mulled_casement_42x2_88in.svg,/Users/carson/Downloads/UpdatedAssets/window_88.svg
+Window,92,window_92.svg,/Users/carson/Downloads/Window SVG Assets/window_mulled_casement_28x3_92in.svg,/Users/carson/Downloads/UpdatedAssets/window_92.svg
+Window,98,window_98.svg,/Users/carson/Downloads/Window SVG Assets/window_mulled_casement_30x3_98in.svg,/Users/carson/Downloads/UpdatedAssets/window_98.svg
+Window,104,window_104.svg,/Users/carson/Downloads/Window SVG Assets/window_mulled_casement_32x3_104in.svg,/Users/carson/Downloads/UpdatedAssets/window_104.svg
+Window,108,window_108.svg,/Users/carson/Downloads/Window SVG Assets/window_mulled_casement_24x4_108in.svg,/Users/carson/Downloads/UpdatedAssets/window_108.svg
+Window,116,window_116.svg,/Users/carson/Downloads/Window SVG Assets/window_mulled_casement_36x3_116in.svg,/Users/carson/Downloads/UpdatedAssets/window_116.svg
+Window,124,window_124.svg,/Users/carson/Downloads/Window SVG Assets/window_mulled_casement_28x4_124in.svg,/Users/carson/Downloads/UpdatedAssets/window_124.svg
+Window,132,window_132.svg,/Users/carson/Downloads/Window SVG Assets/window_mulled_casement_30x4_132in.svg,/Users/carson/Downloads/UpdatedAssets/window_132.svg
+Window,140,window_140.svg,/Users/carson/Downloads/Window SVG Assets/window_mulled_casement_32x4_140in.svg,/Users/carson/Downloads/UpdatedAssets/window_140.svg
+Window,156,window_156.svg,/Users/carson/Downloads/Window SVG Assets/window_mulled_casement_36x4_156in.svg,/Users/carson/Downloads/UpdatedAssets/window_156.svg
+Window,166,window_166.svg,/Users/carson/Downloads/Window SVG Assets/window_mulled_casement_30x5_166in.svg,/Users/carson/Downloads/UpdatedAssets/window_166.svg
+Window,176,window_176.svg,/Users/carson/Downloads/Window SVG Assets/window_mulled_casement_32x5_176in.svg,/Users/carson/Downloads/UpdatedAssets/window_176.svg
+Window,196,window_196.svg,/Users/carson/Downloads/Window SVG Assets/window_mulled_casement_36x5_196in.svg,/Users/carson/Downloads/UpdatedAssets/window_196.svg

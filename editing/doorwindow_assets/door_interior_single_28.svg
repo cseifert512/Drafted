@@ -1,0 +1,29 @@
+<svg width="294" height="277" viewBox="0 0 294 277" fill="none" xmlns="http://www.w3.org/2000/svg">
+<g id="door_interiorSingleSwing_28in">
+<rect id="doorOpening" x="34.25" y="231.25" width="225.5" height="37.5" fill="white" stroke="#8E8E8E" stroke-width="0.5"/>
+<path id="doorSwing" d="M259 232C259 108.288 158.712 8 35 8" stroke="black" stroke-width="6" stroke-dasharray="20 20"/>
+<g id="doorFrame_interior_hinge">
+<rect id="doorTrim_outside" x="1" y="268" width="32" height="8" fill="#3F3F3F" stroke="black" stroke-width="2"/>
+<rect id="doorTrim_inside" x="1" y="224" width="32" height="8" fill="#3F3F3F" stroke="black" stroke-width="2"/>
+<rect id="doorJamb_hinge" x="35" y="232" width="36" height="8" transform="rotate(90 35 232)" fill="#3F3F3F" stroke="black" stroke-width="2"/>
+</g>
+<g id="doorFrame_interior_latch">
+<rect id="doorTrim_outside_2" x="261" y="268" width="32" height="8" fill="#3F3F3F" stroke="black" stroke-width="2"/>
+<rect id="doorTrim_inside_2" x="261" y="224" width="32" height="8" fill="#3F3F3F" stroke="black" stroke-width="2"/>
+<rect id="doorJamb_hinge_2" x="267" y="232" width="36" height="8" transform="rotate(90 267 232)" fill="#3F3F3F" stroke="black" stroke-width="2"/>
+</g>
+<g id="doorPanel">
+<g id="ext_lines02">
+<path id="ext2_3" d="M35 240L35 232" stroke="black" stroke-width="2"/>
+<path id="ext2_2" d="M46 240L46 232" stroke="black" stroke-width="2"/>
+<path id="ext2_1" d="M28 232L53 232" stroke="black" stroke-width="2"/>
+</g>
+<rect id="panel_rect" x="35" y="232" width="224" height="11" transform="rotate(-90 35 232)" fill="black" stroke="black" stroke-width="2"/>
+<g id="ext_lines01">
+<path id="ext1_3" d="M35 8L35 -3.57628e-07" stroke="black" stroke-width="2"/>
+<path id="ext1_2" d="M46 8L46 -1.19209e-07" stroke="black" stroke-width="2"/>
+<path id="ext1_1" d="M28 8L53 8" stroke="black" stroke-width="2"/>
+</g>
+</g>
+</g>
+</svg>

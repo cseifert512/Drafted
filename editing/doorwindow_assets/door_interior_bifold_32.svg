@@ -1,0 +1,41 @@
+<svg width="326" height="120" viewBox="0 0 326 120" fill="none" xmlns="http://www.w3.org/2000/svg">
+<g id="door_interiorBifold_32in">
+<rect id="doorOpening" x="34.25" y="73.2441" width="257.5" height="37.5" fill="white" stroke="#8E8E8E" stroke-width="0.5"/>
+<g id="doorFrame_interior_hinge">
+<rect id="doorTrim_outside" x="1" y="110.018" width="32" height="8" fill="#3F3F3F" stroke="black" stroke-width="2"/>
+<rect id="doorTrim_inside" x="1" y="66.0176" width="32" height="8" fill="#3F3F3F" stroke="black" stroke-width="2"/>
+<rect id="doorJamb_hinge" x="35" y="74.0176" width="36" height="8" transform="rotate(90 35 74.0176)" fill="#3F3F3F" stroke="black" stroke-width="2"/>
+</g>
+<g id="doorFrame_interior_hinge_2">
+<rect id="doorTrim_outside_2" width="32" height="8" transform="matrix(-1 0 0 1 325 109.992)" fill="#3F3F3F" stroke="black" stroke-width="2"/>
+<rect id="doorTrim_inside_2" width="32" height="8" transform="matrix(-1 0 0 1 325 65.9922)" fill="#3F3F3F" stroke="black" stroke-width="2"/>
+<rect id="doorJamb_hinge_2" width="36" height="8" transform="matrix(4.37114e-08 1 1 -4.37114e-08 291 73.9922)" fill="#3F3F3F" stroke="black" stroke-width="2"/>
+</g>
+<g id="doorPanel">
+<g id="ext_lines02">
+<path id="ext2_3" d="M28.5 78.0625L35.4282 74.0625" stroke="black" stroke-width="2"/>
+<path id="ext2_2" d="M34 87.5879L40.9282 83.5879" stroke="black" stroke-width="2"/>
+<path id="ext2_1" d="M31.9277 68L44.4277 89.6506" stroke="black" stroke-width="2"/>
+</g>
+<rect id="panel_rect" x="35.4277" y="74.0625" width="128" height="11" transform="rotate(-30 35.4277 74.0625)" fill="black" stroke="black" stroke-width="2"/>
+<g id="ext_lines01">
+<path id="ext1_3" d="M146.279 10.0625L153.208 6.0625" stroke="black" stroke-width="2"/>
+<path id="ext1_2" d="M151.779 19.5879L158.708 15.5879" stroke="black" stroke-width="2"/>
+<path id="ext1_1" d="M142.779 4L155.279 25.6506" stroke="black" stroke-width="2"/>
+</g>
+</g>
+<g id="doorPanel_2">
+<g id="ext_lines02_2">
+<path id="ext2_3_2" d="M275.709 78.0645L268.781 74.0645" stroke="black" stroke-width="2"/>
+<path id="ext2_2_2" d="M270.209 87.5898L263.281 83.5898" stroke="black" stroke-width="2"/>
+<path id="ext2_1_2" d="M272.281 68.002L259.781 89.6526" stroke="black" stroke-width="2"/>
+</g>
+<rect id="panel_rect_2" width="128" height="11" transform="matrix(-0.866025 -0.5 -0.5 0.866025 268.781 74.0645)" fill="black" stroke="black" stroke-width="2"/>
+<g id="ext_lines01_2">
+<path id="ext1_3_2" d="M157.93 10.0645L151.001 6.06445" stroke="black" stroke-width="2"/>
+<path id="ext1_2_2" d="M152.43 19.5898L145.501 15.5898" stroke="black" stroke-width="2"/>
+<path id="ext1_1_2" d="M161.43 4.00195L148.93 25.6526" stroke="black" stroke-width="2"/>
+</g>
+</g>
+</g>
+</svg>

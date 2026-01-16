@@ -6,19 +6,21 @@
  * - Opening placement UI state
  * - API calls for adding/removing openings
  * - Render job polling
+ * - Asset-based opening placement
  */
 
-import { useState, useCallback, useMemo, useEffect } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 import type { 
   WallSegment, 
   OpeningPlacement, 
-  OpeningType,
   OpeningJobStatus,
 } from '@/lib/editor/openingTypes';
+import { assetToOpeningPlacement } from '@/lib/editor/openingTypes';
 import { extractWallSegments } from '@/lib/editor/wallDetection';
 import { createMapperFromSvg, type CoordinateMapper } from '@/lib/editor/coordinateMapping';
-import { addOpeningToSvg, validateOpeningPlacement, generateOpeningId } from '@/lib/editor/svgOpenings';
+import { validateOpeningPlacement, generateOpeningId } from '@/lib/editor/svgOpenings';
 import { addOpening, pollOpeningStatus, type OpeningStatusResponse } from '@/lib/drafted-api';
+import type { DoorWindowAsset } from '@/lib/editor/assetManifest';
 
 interface OpeningJob {
   jobId: string;
@@ -26,6 +28,7 @@ interface OpeningJob {
   wall: WallSegment;
   status: OpeningJobStatus;
   error?: string;
+  asset?: DoorWindowAsset;  // Track the asset used
 }
 
 interface UseOpeningEditorOptions {
@@ -90,9 +93,9 @@ export function useOpeningEditor(options: UseOpeningEditorOptions) {
     setIsModalOpen(true);
   }, [isEnabled]);
 
-  // Handle opening placement confirmation
+  // Handle opening placement confirmation (new asset-based version)
   const handleConfirmOpening = useCallback(async (config: {
-    type: OpeningType;
+    asset: DoorWindowAsset;
     widthInches: number;
     swingDirection?: 'left' | 'right';
   }) => {
@@ -101,19 +104,23 @@ export function useOpeningEditor(options: UseOpeningEditorOptions) {
       return;
     }
 
-    // Create opening placement
+    // Convert asset to legacy opening placement for API compatibility
+    const openingSpec = assetToOpeningPlacement(
+      config.asset,
+      selectedWall.id,
+      selectedPosition,
+      config.swingDirection
+    );
+
+    // Create opening placement with ID
     const opening: OpeningPlacement = {
       id: generateOpeningId(),
-      type: config.type,
-      wallId: selectedWall.id,
-      positionOnWall: selectedPosition,
-      widthInches: config.widthInches,
-      swingDirection: config.swingDirection,
+      ...openingSpec,
     };
 
     // Validate placement
     const validation = validateOpeningPlacement(
-      { ...opening, id: '' }, // Omit ID for validation
+      openingSpec,
       selectedWall,
       openings
     );
@@ -130,17 +137,18 @@ export function useOpeningEditor(options: UseOpeningEditorOptions) {
     // Add to local state immediately
     setOpenings(prev => [...prev, opening]);
 
-    // Create job entry
+    // Create job entry with asset info
     const job: OpeningJob = {
       jobId: '', // Will be set after API call
       opening,
       wall: selectedWall,
       status: 'pending',
+      asset: config.asset,
     };
     setActiveJobs(prev => [...prev, job]);
 
     try {
-      // Call API with wall coordinates for accurate surgical blending
+      // Call API with wall coordinates and asset info
       const result = await addOpening({
         planId,
         svg,
@@ -159,6 +167,13 @@ export function useOpeningEditor(options: UseOpeningEditorOptions) {
           startY: selectedWall.start.y,
           endX: selectedWall.end.x,
           endY: selectedWall.end.y,
+        },
+        // Pass asset info for enhanced Gemini prompts
+        assetInfo: {
+          filename: config.asset.filename,
+          category: config.asset.category,
+          displayName: config.asset.displayName,
+          description: config.asset.description,
         },
       });
 
@@ -282,5 +297,3 @@ export function useOpeningEditor(options: UseOpeningEditorOptions) {
 }
 
 export type OpeningEditor = ReturnType<typeof useOpeningEditor>;
-
-

@@ -135,16 +135,23 @@ ROOM_PROMPTS: Dict[str, str] = {
 # =============================================================================
 
 OPENING_EDIT_SYSTEM_PROMPT = """
-You are editing a TOP-DOWN FLOOR PLAN. Add a door where the RED BOX is.
+You are editing a TOP-DOWN FLOOR PLAN.
+
+There is a RED RECTANGLE on the image. Add a door ONLY inside that red rectangle.
+
+CRITICAL - PIXEL CONSTRAINT:
+- ONLY modify pixels INSIDE the red rectangle
+- Every pixel OUTSIDE the red rectangle must be IDENTICAL to the input
+- The output image must be the EXACT same as input EXCEPT for the red rectangle area
 
 RULES:
-1. Add the door at the RED BOX location only
-2. Door must be flat/top-down view - match the style of other doors in this plan
-3. Remove the red box in your output
-4. Do NOT change anything else - same image, just with a door added
+1. Find the RED RECTANGLE (semi-transparent red box on a wall)
+2. Replace ONLY those red pixels with a door
+3. Door must be flat top-down view matching other doors in this plan
+4. Pixels outside the red box = UNCHANGED from input
 """
 
-# Opening type descriptions - keep simple
+# Opening type descriptions - keep simple (legacy fallback)
 OPENING_TYPE_PROMPTS: Dict[str, str] = {
     "interior_door": "Interior door - flat rectangle with door frame, top-down view",
     "exterior_door": "Exterior door - solid door panel in wall opening, top-down view", 
@@ -155,11 +162,26 @@ OPENING_TYPE_PROMPTS: Dict[str, str] = {
     "bay_window": "Bay window - angled window projection, top-down view",
 }
 
+# Asset category to detailed description mapping
+ASSET_CATEGORY_DESCRIPTIONS: Dict[str, str] = {
+    "DoorInteriorSingle": "a standard interior hinged door with door frame and swing arc",
+    "DoorInteriorDouble": "interior French doors with two door panels meeting in the middle",
+    "DoorInteriorBifold": "a bifold closet door with folding panels",
+    "DoorExteriorSingle": "an exterior entry door with solid panel and door frame",
+    "DoorExteriorDouble": "exterior double doors with glass panels",
+    "DoorExteriorSliding": "a sliding glass patio door with two overlapping glass panels",
+    "DoorExteriorBifold": "large exterior folding glass doors",
+    "GarageSingle": "a single-car garage door with panel sections",
+    "GarageDouble": "a double-car garage door with panel sections",
+    "Window": "a casement window with glass panes and frame",
+}
+
 
 def build_opening_edit_prompt(
     opening_type: str,
     width_inches: float,
     swing_direction: Optional[str] = None,
+    asset_info: Optional[Dict[str, Any]] = None,
 ) -> str:
     """
     Build a detailed prompt for editing a floor plan to add an opening.
@@ -168,31 +190,45 @@ def build_opening_edit_prompt(
         opening_type: Type of opening (interior_door, window, etc.)
         width_inches: Width of the opening in inches
         swing_direction: For doors, which way it swings (left/right)
+        asset_info: Optional asset information for enhanced descriptions
         
     Returns:
         Complete prompt string for Gemini
     """
     # Get type-specific description
-    type_description = OPENING_TYPE_PROMPTS.get(
-        opening_type,
-        f"{opening_type.replace('_', ' ').title()}"
-    )
+    # Prefer asset-specific description if available
+    if asset_info and asset_info.get("category"):
+        category = asset_info["category"]
+        type_description = ASSET_CATEGORY_DESCRIPTIONS.get(
+            category,
+            asset_info.get("description", f"{category.replace('_', ' ')}")
+        )
+        # Add display name for context
+        display_name = asset_info.get("display_name", "")
+        if display_name:
+            type_description = f"{display_name} - {type_description}"
+    else:
+        type_description = OPENING_TYPE_PROMPTS.get(
+            opening_type,
+            f"{opening_type.replace('_', ' ').title()}"
+        )
     
-    # Build simple prompt
-    prompt = f"""Add a {type_description} at the RED BOX location.
+    # Build simple prompt with pixel constraint emphasis
+    prompt = f"""Add {type_description} ONLY inside the RED RECTANGLE.
 
 Width: {width_inches} inches
 """
     
     # Add swing direction for doors
-    if swing_direction and "door" in opening_type:
-        prompt += f"Swing: {swing_direction}\n"
+    if swing_direction and "door" in opening_type.lower():
+        prompt += f"Swing direction: {swing_direction}\n"
     
     prompt += """
-Instructions:
-1. Add the door/window at the RED BOX - match the style of other doors in this plan
-2. Remove the red box
-3. Keep everything else exactly the same
+PIXEL CONSTRAINT:
+- ONLY change pixels that are currently RED (inside the rectangle)
+- All other pixels must be EXACTLY the same as the input image
+- Replace the red area with the opening - nothing else changes
+- Match the style and perspective of other doors/windows in the floor plan
 """
     
     return prompt
@@ -1481,6 +1517,7 @@ async def stage_floor_plan(
 async def edit_floor_plan_with_opening(
     annotated_png: bytes,
     opening: Dict[str, Any],
+    asset_info: Optional[Dict[str, Any]] = None,
     api_key: Optional[str] = None,
     max_retries: int = 5,
     retry_delay_ms: int = 5000,
@@ -1497,6 +1534,7 @@ async def edit_floor_plan_with_opening(
     Args:
         annotated_png: PNG bytes with blue box and red boundary annotations
         opening: Opening specification dict with type, width_inches, swing_direction
+        asset_info: Optional asset information for enhanced prompts
         api_key: Gemini API key (optional, uses env var if not provided)
         max_retries: Maximum retry attempts for transient errors
         retry_delay_ms: Base delay between retries in milliseconds
@@ -1526,6 +1564,7 @@ async def edit_floor_plan_with_opening(
             opening_type=opening_type,
             width_inches=width_inches,
             swing_direction=swing_direction,
+            asset_info=asset_info,
         )
         
         # Combine system prompt and user prompt

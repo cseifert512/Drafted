@@ -1,0 +1,478 @@
+[
+  {
+    "new_name": "door_exterior_double_60.svg",
+    "category": "DoorExteriorDouble",
+    "inches": 60,
+    "src": "/Users/carson/Downloads/25-1030_Updated Doors 3/door_exteriorDoubleSwing_Glass_60in.svg",
+    "dst": "/Users/carson/Downloads/UpdatedAssets/door_exterior_double_60.svg"
+  },
+  {
+    "new_name": "door_exterior_double_64.svg",
+    "category": "DoorExteriorDouble",
+    "inches": 64,
+    "src": "/Users/carson/Downloads/25-1030_Updated Doors 3/door_exteriorDoubleSwing_Glass_64in.svg",
+    "dst": "/Users/carson/Downloads/UpdatedAssets/door_exterior_double_64.svg"
+  },
+  {
+    "new_name": "door_exterior_double_72.svg",
+    "category": "DoorExteriorDouble",
+    "inches": 72,
+    "src": "/Users/carson/Downloads/25-1030_Updated Doors 3/door_exteriorDoubleSwing_72in.svg",
+    "dst": "/Users/carson/Downloads/UpdatedAssets/door_exterior_double_72.svg"
+  },
+  {
+    "new_name": "door_exterior_single_30.svg",
+    "category": "DoorExteriorSingle",
+    "inches": 30,
+    "src": "/Users/carson/Downloads/25-1030_Updated Doors 3/door_exteriorSingleSwing_30in.svg",
+    "dst": "/Users/carson/Downloads/UpdatedAssets/door_exterior_single_30.svg"
+  },
+  {
+    "new_name": "door_exterior_single_32.svg",
+    "category": "DoorExteriorSingle",
+    "inches": 32,
+    "src": "/Users/carson/Downloads/25-1030_Updated Doors 3/door_exteriorSingleSwing_32in.svg",
+    "dst": "/Users/carson/Downloads/UpdatedAssets/door_exterior_single_32.svg"
+  },
+  {
+    "new_name": "door_exterior_single_36.svg",
+    "category": "DoorExteriorSingle",
+    "inches": 36,
+    "src": "/Users/carson/Downloads/25-1030_Updated Doors 3/door_exteriorSingleSwing_Glass_36in.svg",
+    "dst": "/Users/carson/Downloads/UpdatedAssets/door_exterior_single_36.svg"
+  },
+  {
+    "new_name": "door_exterior_single_42.svg",
+    "category": "DoorExteriorSingle",
+    "inches": 42,
+    "src": "/Users/carson/Downloads/25-1030_Updated Doors 3/door_exteriorSingleSwing_42in.svg",
+    "dst": "/Users/carson/Downloads/UpdatedAssets/door_exterior_single_42.svg"
+  },
+  {
+    "new_name": "door_exterior_single_wlites_36+12.svg",
+    "category": "DoorExteriorSingle",
+    "inches": 48,
+    "src": "/Users/carson/Downloads/25-1030_Updated Doors 3/door_exteriorSingleSwing_36in+12inSL_51.5in.svg",
+    "dst": "/Users/carson/Downloads/UpdatedAssets/door_exterior_single_wlites_36+12.svg"
+  },
+  {
+    "new_name": "door_exterior_single_wlites_36+12+12.svg",
+    "category": "DoorExteriorSingle",
+    "inches": 60,
+    "src": "/Users/carson/Downloads/25-1030_Updated Doors 3/door_exteriorSingleSwing_36in+12inSLx2_63in.svg",
+    "dst": "/Users/carson/Downloads/UpdatedAssets/door_exterior_single_wlites_36+12+12.svg"
+  },
+  {
+    "new_name": "door_exterior_single_wlites_36+14+14.svg",
+    "category": "DoorExteriorSingle",
+    "inches": 64,
+    "src": "/Users/carson/Downloads/25-1030_Updated Doors 3/door_exteriorSingleSwing_36in+14inSLx2_67in.svg",
+    "dst": "/Users/carson/Downloads/UpdatedAssets/door_exterior_single_wlites_36+14+14.svg"
+  },
+  {
+    "new_name": "door_interior_bifold_20.svg",
+    "category": "DoorInteriorBifold",
+    "inches": 20,
+    "src": "/Users/carson/Downloads/21-1031_Updated Bifolds/door_interiorBifold_20in.svg",
+    "dst": "/Users/carson/Downloads/UpdatedAssets/door_interior_bifold_20.svg"
+  },
+  {
+    "new_name": "door_interior_bifold_24.svg",
+    "category": "DoorInteriorBifold",
+    "inches": 24,
+    "src": "/Users/carson/Downloads/21-1031_Updated Bifolds/door_interiorBifold_24in.svg",
+    "dst": "/Users/carson/Downloads/UpdatedAssets/door_interior_bifold_24.svg"
+  },
+  {
+    "new_name": "door_interior_bifold_30.svg",
+    "category": "DoorInteriorBifold",
+    "inches": 30,
+    "src": "/Users/carson/Downloads/21-1031_Updated Bifolds/door_interiorBifold_30in.svg",
+    "dst": "/Users/carson/Downloads/UpdatedAssets/door_interior_bifold_30.svg"
+  },
+  {
+    "new_name": "door_interior_bifold_32.svg",
+    "category": "DoorInteriorBifold",
+    "inches": 32,
+    "src": "/Users/carson/Downloads/21-1031_Updated Bifolds/door_interiorBifold_32in.svg",
+    "dst": "/Users/carson/Downloads/UpdatedAssets/door_interior_bifold_32.svg"
+  },
+  {
+    "new_name": "door_interior_bifold_36.svg",
+    "category": "DoorInteriorBifold",
+    "inches": 36,
+    "src": "/Users/carson/Downloads/21-1031_Updated Bifolds/door_interiorBifold_36in.svg",
+    "dst": "/Users/carson/Downloads/UpdatedAssets/door_interior_bifold_36.svg"
+  },
+  {
+    "new_name": "door_interior_bifold_42.svg",
+    "category": "DoorInteriorBifold",
+    "inches": 42,
+    "src": "/Users/carson/Downloads/21-1031_Updated Bifolds/door_interiorBifold_42in.svg",
+    "dst": "/Users/carson/Downloads/UpdatedAssets/door_interior_bifold_42.svg"
+  },
+  {
+    "new_name": "door_interior_bifold_48.svg",
+    "category": "DoorInteriorBifold",
+    "inches": 48,
+    "src": "/Users/carson/Downloads/21-1031_Updated Bifolds/door_interiorBifold_48in.svg",
+    "dst": "/Users/carson/Downloads/UpdatedAssets/door_interior_bifold_48.svg"
+  },
+  {
+    "new_name": "door_interior_bifold_60.svg",
+    "category": "DoorInteriorBifold",
+    "inches": 60,
+    "src": "/Users/carson/Downloads/21-1031_Updated Bifolds/door_interiorBifold_60in.svg",
+    "dst": "/Users/carson/Downloads/UpdatedAssets/door_interior_bifold_60.svg"
+  },
+  {
+    "new_name": "door_interior_bifold_72.svg",
+    "category": "DoorInteriorBifold",
+    "inches": 72,
+    "src": "/Users/carson/Downloads/21-1031_Updated Bifolds/door_interiorBifold_72in.svg",
+    "dst": "/Users/carson/Downloads/UpdatedAssets/door_interior_bifold_72.svg"
+  },
+  {
+    "new_name": "door_interior_bifold_96.svg",
+    "category": "DoorInteriorBifold",
+    "inches": 96,
+    "src": "/Users/carson/Downloads/21-1031_Updated Bifolds/door_interiorBifold_96in.svg",
+    "dst": "/Users/carson/Downloads/UpdatedAssets/door_interior_bifold_96.svg"
+  },
+  {
+    "new_name": "door_interior_double_56.svg",
+    "category": "DoorInteriorDouble",
+    "inches": 56,
+    "src": "/Users/carson/Downloads/25-1030_Updated Doors 3/door_interiorDoubleSwing_56in.svg",
+    "dst": "/Users/carson/Downloads/UpdatedAssets/door_interior_double_56.svg"
+  },
+  {
+    "new_name": "door_interior_double_56_halfswing.svg",
+    "category": "DoorInteriorDouble",
+    "inches": 56,
+    "src": "/Users/carson/Downloads/25-1030_Updated Doors 3/door_interiorDoubleSwing_56in_halfswing.svg",
+    "dst": "/Users/carson/Downloads/UpdatedAssets/door_interior_double_56_halfswing.svg"
+  },
+  {
+    "new_name": "door_interior_double_60.svg",
+    "category": "DoorInteriorDouble",
+    "inches": 60,
+    "src": "/Users/carson/Downloads/25-1030_Updated Doors 3/door_interiorDoubleSwing_60in.svg",
+    "dst": "/Users/carson/Downloads/UpdatedAssets/door_interior_double_60.svg"
+  },
+  {
+    "new_name": "door_interior_double_60_halfswing.svg",
+    "category": "DoorInteriorDouble",
+    "inches": 60,
+    "src": "/Users/carson/Downloads/25-1030_Updated Doors 3/door_interiorDoubleSwing_60in_halfswing.svg",
+    "dst": "/Users/carson/Downloads/UpdatedAssets/door_interior_double_60_halfswing.svg"
+  },
+  {
+    "new_name": "door_interior_double_64.svg",
+    "category": "DoorInteriorDouble",
+    "inches": 64,
+    "src": "/Users/carson/Downloads/25-1030_Updated Doors 3/door_interiorDoubleSwing_64in.svg",
+    "dst": "/Users/carson/Downloads/UpdatedAssets/door_interior_double_64.svg"
+  },
+  {
+    "new_name": "door_interior_double_64_halfswing.svg",
+    "category": "DoorInteriorDouble",
+    "inches": 64,
+    "src": "/Users/carson/Downloads/25-1030_Updated Doors 3/door_interiorDoubleSwing_64in_halfswing.svg",
+    "dst": "/Users/carson/Downloads/UpdatedAssets/door_interior_double_64_halfswing.svg"
+  },
+  {
+    "new_name": "door_interior_double_72.svg",
+    "category": "DoorInteriorDouble",
+    "inches": 72,
+    "src": "/Users/carson/Downloads/25-1030_Updated Doors 3/door_interiorDoubleSwing_72in.svg",
+    "dst": "/Users/carson/Downloads/UpdatedAssets/door_interior_double_72.svg"
+  },
+  {
+    "new_name": "door_interior_double_72_halfswing.svg",
+    "category": "DoorInteriorDouble",
+    "inches": 72,
+    "src": "/Users/carson/Downloads/25-1030_Updated Doors 3/door_interiorDoubleSwing_72in_halfswing.svg",
+    "dst": "/Users/carson/Downloads/UpdatedAssets/door_interior_double_72_halfswing.svg"
+  },
+  {
+    "new_name": "door_interior_single_28.svg",
+    "category": "DoorInteriorSingle",
+    "inches": 28,
+    "src": "/Users/carson/Downloads/25-1030_Updated Doors 3/door_interiorSingleSwing_28in.svg",
+    "dst": "/Users/carson/Downloads/UpdatedAssets/door_interior_single_28.svg"
+  },
+  {
+    "new_name": "door_interior_single_28_halfswing.svg",
+    "category": "DoorInteriorSingle",
+    "inches": 28,
+    "src": "/Users/carson/Downloads/25-1030_Updated Doors 3/door_interiorSingleSwing_28in_halfswing.svg",
+    "dst": "/Users/carson/Downloads/UpdatedAssets/door_interior_single_28_halfswing.svg"
+  },
+  {
+    "new_name": "door_interior_single_30.svg",
+    "category": "DoorInteriorSingle",
+    "inches": 30,
+    "src": "/Users/carson/Downloads/25-1030_Updated Doors 3/door_interiorSingleSwing_30in.svg",
+    "dst": "/Users/carson/Downloads/UpdatedAssets/door_interior_single_30.svg"
+  },
+  {
+    "new_name": "door_interior_single_30_halfswing.svg",
+    "category": "DoorInteriorSingle",
+    "inches": 30,
+    "src": "/Users/carson/Downloads/25-1030_Updated Doors 3/door_interiorSingleSwing_30in_halfswing.svg",
+    "dst": "/Users/carson/Downloads/UpdatedAssets/door_interior_single_30_halfswing.svg"
+  },
+  {
+    "new_name": "door_interior_single_32.svg",
+    "category": "DoorInteriorSingle",
+    "inches": 32,
+    "src": "/Users/carson/Downloads/25-1030_Updated Doors 3/door_interiorSingleSwing_32in.svg",
+    "dst": "/Users/carson/Downloads/UpdatedAssets/door_interior_single_32.svg"
+  },
+  {
+    "new_name": "door_interior_single_32_halfswing.svg",
+    "category": "DoorInteriorSingle",
+    "inches": 32,
+    "src": "/Users/carson/Downloads/25-1030_Updated Doors 3/door_interiorSingleSwing_32in_halfswing.svg",
+    "dst": "/Users/carson/Downloads/UpdatedAssets/door_interior_single_32_halfswing.svg"
+  },
+  {
+    "new_name": "door_interior_single_36.svg",
+    "category": "DoorInteriorSingle",
+    "inches": 36,
+    "src": "/Users/carson/Downloads/25-1030_Updated Doors 3/door_interiorSingleSwing_36in.svg",
+    "dst": "/Users/carson/Downloads/UpdatedAssets/door_interior_single_36.svg"
+  },
+  {
+    "new_name": "door_interior_single_36_halfswing.svg",
+    "category": "DoorInteriorSingle",
+    "inches": 36,
+    "src": "/Users/carson/Downloads/25-1030_Updated Doors 3/door_interiorSingleSwing_36in_halfswing.svg",
+    "dst": "/Users/carson/Downloads/UpdatedAssets/door_interior_single_36_halfswing.svg"
+  },
+  {
+    "new_name": "garagedoor_double_16ft.svg",
+    "category": "GarageDouble",
+    "inches": 192,
+    "src": "/Users/carson/Downloads/25-1030_Updated Doors 3/garagedoor_Double_16ft.svg",
+    "dst": "/Users/carson/Downloads/UpdatedAssets/garagedoor_double_16ft.svg"
+  },
+  {
+    "new_name": "garagedoor_single_8ft.svg",
+    "category": "GarageSingle",
+    "inches": 96,
+    "src": "/Users/carson/Downloads/25-1030_Updated Doors 3/garagedoor_Single_8ft.svg",
+    "dst": "/Users/carson/Downloads/UpdatedAssets/garagedoor_single_8ft.svg"
+  },
+  {
+    "new_name": "window_16.svg",
+    "category": "Window",
+    "inches": 16,
+    "src": "/Users/carson/Downloads/Window SVG Assets/window_single_casement_16in.svg",
+    "dst": "/Users/carson/Downloads/UpdatedAssets/window_16.svg"
+  },
+  {
+    "new_name": "window_18.svg",
+    "category": "Window",
+    "inches": 18,
+    "src": "/Users/carson/Downloads/Window SVG Assets/window_single_casement_18in.svg",
+    "dst": "/Users/carson/Downloads/UpdatedAssets/window_18.svg"
+  },
+  {
+    "new_name": "window_20.svg",
+    "category": "Window",
+    "inches": 20,
+    "src": "/Users/carson/Downloads/Window SVG Assets/window_single_casement_20in.svg",
+    "dst": "/Users/carson/Downloads/UpdatedAssets/window_20.svg"
+  },
+  {
+    "new_name": "window_24.svg",
+    "category": "Window",
+    "inches": 24,
+    "src": "/Users/carson/Downloads/Window SVG Assets/window_single_casement_24in.svg",
+    "dst": "/Users/carson/Downloads/UpdatedAssets/window_24.svg"
+  },
+  {
+    "new_name": "window_28.svg",
+    "category": "Window",
+    "inches": 28,
+    "src": "/Users/carson/Downloads/Window SVG Assets/window_single_casement_28in.svg",
+    "dst": "/Users/carson/Downloads/UpdatedAssets/window_28.svg"
+  },
+  {
+    "new_name": "window_30.svg",
+    "category": "Window",
+    "inches": 30,
+    "src": "/Users/carson/Downloads/Window SVG Assets/window_single_casement_30in.svg",
+    "dst": "/Users/carson/Downloads/UpdatedAssets/window_30.svg"
+  },
+  {
+    "new_name": "window_32.svg",
+    "category": "Window",
+    "inches": 32,
+    "src": "/Users/carson/Downloads/Window SVG Assets/window_single_casement_32in.svg",
+    "dst": "/Users/carson/Downloads/UpdatedAssets/window_32.svg"
+  },
+  {
+    "new_name": "window_36.svg",
+    "category": "Window",
+    "inches": 36,
+    "src": "/Users/carson/Downloads/Window SVG Assets/window_single_casement_36in.svg",
+    "dst": "/Users/carson/Downloads/UpdatedAssets/window_36.svg"
+  },
+  {
+    "new_name": "window_38.svg",
+    "category": "Window",
+    "inches": 38,
+    "src": "/Users/carson/Downloads/Window SVG Assets/window_single_casement_38in.svg",
+    "dst": "/Users/carson/Downloads/UpdatedAssets/window_38.svg"
+  },
+  {
+    "new_name": "window_42.svg",
+    "category": "Window",
+    "inches": 42,
+    "src": "/Users/carson/Downloads/Window SVG Assets/window_single_casement_42in.svg",
+    "dst": "/Users/carson/Downloads/UpdatedAssets/window_42.svg"
+  },
+  {
+    "new_name": "window_48.svg",
+    "category": "Window",
+    "inches": 48,
+    "src": "/Users/carson/Downloads/Window SVG Assets/window_single_casement_48in.svg",
+    "dst": "/Users/carson/Downloads/UpdatedAssets/window_48.svg"
+  },
+  {
+    "new_name": "window_52.svg",
+    "category": "Window",
+    "inches": 52,
+    "src": "/Users/carson/Downloads/Window SVG Assets/window_mulled_casement_24x2_52in.svg",
+    "dst": "/Users/carson/Downloads/UpdatedAssets/window_52.svg"
+  },
+  {
+    "new_name": "window_60.svg",
+    "category": "Window",
+    "inches": 60,
+    "src": "/Users/carson/Downloads/Window SVG Assets/window_mulled_casement_28x2_60in.svg",
+    "dst": "/Users/carson/Downloads/UpdatedAssets/window_60.svg"
+  },
+  {
+    "new_name": "window_64.svg",
+    "category": "Window",
+    "inches": 64,
+    "src": "/Users/carson/Downloads/Window SVG Assets/window_mulled_casement_30x2_64in.svg",
+    "dst": "/Users/carson/Downloads/UpdatedAssets/window_64.svg"
+  },
+  {
+    "new_name": "window_68.svg",
+    "category": "Window",
+    "inches": 68,
+    "src": "/Users/carson/Downloads/Window SVG Assets/window_mulled_casement_32x2_68in.svg",
+    "dst": "/Users/carson/Downloads/UpdatedAssets/window_68.svg"
+  },
+  {
+    "new_name": "window_76.svg",
+    "category": "Window",
+    "inches": 76,
+    "src": "/Users/carson/Downloads/Window SVG Assets/window_mulled_casement_36x2_76in.svg",
+    "dst": "/Users/carson/Downloads/UpdatedAssets/window_76.svg"
+  },
+  {
+    "new_name": "window_80.svg",
+    "category": "Window",
+    "inches": 80,
+    "src": "/Users/carson/Downloads/Window SVG Assets/window_mulled_casement_24x3_80in.svg",
+    "dst": "/Users/carson/Downloads/UpdatedAssets/window_80.svg"
+  },
+  {
+    "new_name": "window_88.svg",
+    "category": "Window",
+    "inches": 88,
+    "src": "/Users/carson/Downloads/Window SVG Assets/window_mulled_casement_42x2_88in.svg",
+    "dst": "/Users/carson/Downloads/UpdatedAssets/window_88.svg"
+  },
+  {
+    "new_name": "window_92.svg",
+    "category": "Window",
+    "inches": 92,
+    "src": "/Users/carson/Downloads/Window SVG Assets/window_mulled_casement_28x3_92in.svg",
+    "dst": "/Users/carson/Downloads/UpdatedAssets/window_92.svg"
+  },
+  {
+    "new_name": "window_98.svg",
+    "category": "Window",
+    "inches": 98,
+    "src": "/Users/carson/Downloads/Window SVG Assets/window_mulled_casement_30x3_98in.svg",
+    "dst": "/Users/carson/Downloads/UpdatedAssets/window_98.svg"
+  },
+  {
+    "new_name": "window_104.svg",
+    "category": "Window",
+    "inches": 104,
+    "src": "/Users/carson/Downloads/Window SVG Assets/window_mulled_casement_32x3_104in.svg",
+    "dst": "/Users/carson/Downloads/UpdatedAssets/window_104.svg"
+  },
+  {
+    "new_name": "window_108.svg",
+    "category": "Window",
+    "inches": 108,
+    "src": "/Users/carson/Downloads/Window SVG Assets/window_mulled_casement_24x4_108in.svg",
+    "dst": "/Users/carson/Downloads/UpdatedAssets/window_108.svg"
+  },
+  {
+    "new_name": "window_116.svg",
+    "category": "Window",
+    "inches": 116,
+    "src": "/Users/carson/Downloads/Window SVG Assets/window_mulled_casement_36x3_116in.svg",
+    "dst": "/Users/carson/Downloads/UpdatedAssets/window_116.svg"
+  },
+  {
+    "new_name": "window_124.svg",
+    "category": "Window",
+    "inches": 124,
+    "src": "/Users/carson/Downloads/Window SVG Assets/window_mulled_casement_28x4_124in.svg",
+    "dst": "/Users/carson/Downloads/UpdatedAssets/window_124.svg"
+  },
+  {
+    "new_name": "window_132.svg",
+    "category": "Window",
+    "inches": 132,
+    "src": "/Users/carson/Downloads/Window SVG Assets/window_mulled_casement_30x4_132in.svg",
+    "dst": "/Users/carson/Downloads/UpdatedAssets/window_132.svg"
+  },
+  {
+    "new_name": "window_140.svg",
+    "category": "Window",
+    "inches": 140,
+    "src": "/Users/carson/Downloads/Window SVG Assets/window_mulled_casement_32x4_140in.svg",
+    "dst": "/Users/carson/Downloads/UpdatedAssets/window_140.svg"
+  },
+  {
+    "new_name": "window_156.svg",
+    "category": "Window",
+    "inches": 156,
+    "src": "/Users/carson/Downloads/Window SVG Assets/window_mulled_casement_36x4_156in.svg",
+    "dst": "/Users/carson/Downloads/UpdatedAssets/window_156.svg"
+  },
+  {
+    "new_name": "window_166.svg",
+    "category": "Window",
+    "inches": 166,
+    "src": "/Users/carson/Downloads/Window SVG Assets/window_mulled_casement_30x5_166in.svg",
+    "dst": "/Users/carson/Downloads/UpdatedAssets/window_166.svg"
+  },
+  {
+    "new_name": "window_176.svg",
+    "category": "Window",
+    "inches": 176,
+    "src": "/Users/carson/Downloads/Window SVG Assets/window_mulled_casement_32x5_176in.svg",
+    "dst": "/Users/carson/Downloads/UpdatedAssets/window_176.svg"
+  },
+  {
+    "new_name": "window_196.svg",
+    "category": "Window",
+    "inches": 196,
+    "src": "/Users/carson/Downloads/Window SVG Assets/window_mulled_casement_36x5_196in.svg",
+    "dst": "/Users/carson/Downloads/UpdatedAssets/window_196.svg"
+  }
+]

@@ -72,6 +72,14 @@ class OpeningPlacement(BaseModel):
     wall_coords: Optional[WallCoordinates] = None  # Actual wall coordinates for surgical blending
 
 
+class AssetInfo(BaseModel):
+    """Information about the selected door/window asset."""
+    filename: str
+    category: str
+    display_name: str
+    description: str
+
+
 class AddOpeningRequest(BaseModel):
     """Request to add a door or window to a floor plan."""
     plan_id: str
@@ -80,6 +88,7 @@ class AddOpeningRequest(BaseModel):
     rendered_image_base64: str
     opening: OpeningPlacement
     canonical_room_keys: List[str]
+    asset_info: Optional[AssetInfo] = None  # New: asset information for enhanced prompts
 
 
 class OpeningJobResponse(BaseModel):
@@ -667,6 +676,104 @@ async def get_rooms_json():
 
 
 # =============================================================================
+# DOOR/WINDOW ASSET ROUTES
+# =============================================================================
+
+@router.get("/doorwindow-assets")
+async def get_doorwindow_assets():
+    """
+    Get the door/window asset manifest.
+    
+    Returns all available door and window SVG assets with their metadata
+    including category, size in inches, and filename.
+    
+    The frontend uses this to populate the asset picker in the opening
+    placement modal.
+    """
+    import json
+    
+    assets_dir = EDITING_DIR / "doorwindow_assets"
+    manifest_path = assets_dir / "manifest.json"
+    
+    if not manifest_path.exists():
+        raise HTTPException(status_code=404, detail="Asset manifest not found")
+    
+    with open(manifest_path) as f:
+        manifest = json.load(f)
+    
+    # Get list of actual SVG files in the directory (for assets not in manifest)
+    svg_files = [f.name for f in assets_dir.glob("*.svg")]
+    manifest_filenames = {entry["new_name"] for entry in manifest}
+    additional_files = [f for f in svg_files if f not in manifest_filenames]
+    
+    # Add additional assets from files not in manifest (parsed from filename)
+    additional_assets = []
+    for filename in additional_files:
+        parsed = _parse_asset_filename(filename)
+        if parsed:
+            additional_assets.append(parsed)
+    
+    return {
+        "assets": manifest + additional_assets,
+        "additional_files": additional_files,
+        "total_count": len(manifest) + len(additional_assets),
+    }
+
+
+def _parse_asset_filename(filename: str) -> Optional[Dict[str, Any]]:
+    """
+    Parse asset info from filename for assets not in manifest.
+    
+    Examples:
+    - door_exterior_sliding_72in.svg -> DoorExteriorSliding, 72
+    - door_exterior_bifold_192in.svg -> DoorExteriorBifold, 192
+    """
+    import re
+    
+    name = filename.replace('.svg', '')
+    
+    # Try to extract inches from filename
+    inches_match = re.search(r'_(\d+)(in)?$', name)
+    if not inches_match:
+        return None
+    
+    inches = int(inches_match.group(1))
+    clean_name = re.sub(r'_(\d+)(in)?$', '', name)
+    
+    # Detect category from filename pattern
+    category = None
+    if clean_name.startswith('door_exterior_sliding'):
+        category = 'DoorExteriorSliding'
+    elif clean_name.startswith('door_exterior_bifold'):
+        category = 'DoorExteriorBifold'
+    elif clean_name.startswith('door_exterior_double'):
+        category = 'DoorExteriorDouble'
+    elif clean_name.startswith('door_exterior_single'):
+        category = 'DoorExteriorSingle'
+    elif clean_name.startswith('door_interior_bifold'):
+        category = 'DoorInteriorBifold'
+    elif clean_name.startswith('door_interior_double'):
+        category = 'DoorInteriorDouble'
+    elif clean_name.startswith('door_interior_single'):
+        category = 'DoorInteriorSingle'
+    elif clean_name.startswith('garagedoor_double'):
+        category = 'GarageDouble'
+    elif clean_name.startswith('garagedoor_single'):
+        category = 'GarageSingle'
+    elif clean_name.startswith('window'):
+        category = 'Window'
+    
+    if not category:
+        return None
+    
+    return {
+        "new_name": filename,
+        "category": category,
+        "inches": inches,
+    }
+
+
+# =============================================================================
 # OPENING (DOOR/WINDOW) ROUTES
 # =============================================================================
 
@@ -762,6 +869,13 @@ async def add_opening(request: AddOpeningRequest):
             "rendered_image_base64": None,
             "error": None,
             "created_at": __import__('time').time(),
+            # Asset info for enhanced Gemini prompts
+            "asset_info": {
+                "filename": request.asset_info.filename,
+                "category": request.asset_info.category,
+                "display_name": request.asset_info.display_name,
+                "description": request.asset_info.description,
+            } if request.asset_info else None,
         }
         
         # Store job
@@ -938,9 +1052,11 @@ async def _process_opening_render(job_id: str):
         
         # Step 2: Send annotated PNG to Gemini with opening-specific prompt
         print(f"[RENDER] Sending to Gemini for prompt-based edit...")
+        print(f"[RENDER] Asset info: {job.get('asset_info')}")
         edit_result = await edit_floor_plan_with_opening(
             annotated_png=annotated_png,
             opening=job["opening"],
+            asset_info=job.get("asset_info"),
         )
         
         # Save the prompt used
@@ -954,15 +1070,36 @@ async def _process_opening_render(job_id: str):
             print(f"[RENDER] Edit failed: {edit_result.error}")
             return
         
-        # Step 3: Use Gemini's output directly (NO surgical blending needed!)
-        final_image = edit_result.edited_image
-        print(f"[RENDER] Edit complete! Final image: {len(final_image)} bytes")
+        # Save raw Gemini output for debugging
+        gemini_raw_path = debug_dir / "02_gemini_raw_output.png"
+        with open(gemini_raw_path, 'wb') as f:
+            f.write(edit_result.edited_image)
+        print(f"[DEBUG] Saved raw Gemini output to: {gemini_raw_path}")
         
-        # Save final image for debugging
-        final_path = debug_dir / "02_gemini_output.png"
+        # Step 3: Composite ONLY the bbox region from Gemini onto original
+        # This enforces that only the door area changes
+        from backend.utils.surgical_blend import composite_only_bbox
+        
+        bbox = annotation_metadata.get("edit_bbox")
+        if bbox:
+            print(f"[RENDER] Compositing only bbox region: {bbox}")
+            final_image = composite_only_bbox(
+                original_png=original_png,
+                gemini_output_png=edit_result.edited_image,
+                bbox=bbox,
+                job_id=job_id,
+            )
+            print(f"[RENDER] Composite complete! Final image: {len(final_image)} bytes")
+        else:
+            # Fallback if no bbox (shouldn't happen)
+            print(f"[RENDER] WARNING: No bbox, using raw Gemini output")
+            final_image = edit_result.edited_image
+        
+        # Save final composited image for debugging
+        final_path = debug_dir / "03_final_composite.png"
         with open(final_path, 'wb') as f:
             f.write(final_image)
-        print(f"[DEBUG] Saved final image to: {final_path}")
+        print(f"[DEBUG] Saved final composite to: {final_path}")
         
         # Update job with final image
         job["status"] = "complete"

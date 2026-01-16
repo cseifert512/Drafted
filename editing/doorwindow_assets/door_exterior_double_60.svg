@@ -1,0 +1,55 @@
+<svg width="550" height="315" viewBox="0 0 550 315" fill="none" xmlns="http://www.w3.org/2000/svg">
+<g id="door_exteriorDoubleSwing_Glass_60in">
+<rect id="doorOpening" x="35" y="248" width="480" height="58" fill="white" stroke="#8E8E8E" stroke-width="2"/>
+<path id="doorSwing" d="M275 248C275 115.452 167.548 8 35 8" stroke="black" stroke-width="6" stroke-dasharray="20 20"/>
+<g id="doorFrame_exterior_hinge">
+<rect id="doorTrim_outside" x="1" y="306" width="32" height="8" fill="#3F3F3F" stroke="black" stroke-width="2"/>
+<rect id="doorTrim_inside" x="1" y="240" width="32" height="8" fill="#3F3F3F" stroke="black" stroke-width="2"/>
+<rect id="doorJamb_hinge" x="35" y="248" width="58" height="8" transform="rotate(90 35 248)" fill="#3F3F3F" stroke="black" stroke-width="2"/>
+</g>
+<g id="doorPanel_glass">
+<g id="ext_lines02">
+<path id="ext2_3" d="M35 256L35 248" stroke="black" stroke-width="2"/>
+<path id="ext2_2" d="M51 256L51 248" stroke="black" stroke-width="2"/>
+<path id="ext2_1" d="M29 248L57 248" stroke="black" stroke-width="2"/>
+</g>
+<g id="panel_overall">
+<rect x="35" y="248" width="240" height="16" transform="rotate(-90 35 248)" fill="white"/>
+<rect x="35" y="248" width="240" height="16" transform="rotate(-90 35 248)" stroke="black" stroke-width="2"/>
+<rect id="mullion_rect" x="35" y="248" width="24" height="16" transform="rotate(-90 35 248)" fill="white" stroke="black" stroke-width="2"/>
+<rect id="glass_rect" x="41" y="224" width="192" height="4" transform="rotate(-90 41 224)" fill="white" stroke="black" stroke-width="2"/>
+<rect id="mullion_rect_2" x="35" y="32" width="24" height="16" transform="rotate(-90 35 32)" fill="white" stroke="black" stroke-width="2"/>
+</g>
+<g id="ext_lines02_2">
+<path id="ext2_3_2" d="M35 0L35 8" stroke="black" stroke-width="2"/>
+<path id="ext2_2_2" d="M51 0L51 8" stroke="black" stroke-width="2"/>
+<path id="ext2_1_2" d="M29 8L57 8" stroke="black" stroke-width="2"/>
+</g>
+</g>
+<path id="doorSwing_2" d="M275 248C275 115.452 382.452 8 515 8" stroke="black" stroke-width="6" stroke-dasharray="20 20"/>
+<g id="doorFrame_exterior_hinge_2">
+<rect id="doorTrim_outside_2" width="32" height="8" transform="matrix(-1 0 0 1 549 306)" fill="#3F3F3F" stroke="black" stroke-width="2"/>
+<rect id="doorTrim_inside_2" width="32" height="8" transform="matrix(-1 0 0 1 549 240)" fill="#3F3F3F" stroke="black" stroke-width="2"/>
+<rect id="doorJamb_hinge_2" width="58" height="8" transform="matrix(4.37114e-08 1 1 -4.37114e-08 515 248)" fill="#3F3F3F" stroke="black" stroke-width="2"/>
+</g>
+<g id="doorPanel_glass_2">
+<g id="ext_lines02_3">
+<path id="ext2_3_3" d="M515 256L515 248" stroke="black" stroke-width="2"/>
+<path id="ext2_2_3" d="M499 256L499 248" stroke="black" stroke-width="2"/>
+<path id="ext2_1_3" d="M521 248L493 248" stroke="black" stroke-width="2"/>
+</g>
+<g id="panel_overall_2">
+<rect width="240" height="16" transform="matrix(4.37114e-08 -1 -1 -4.37114e-08 515 248)" fill="white"/>
+<rect width="240" height="16" transform="matrix(4.37114e-08 -1 -1 -4.37114e-08 515 248)" stroke="black" stroke-width="2"/>
+<rect id="mullion_rect_3" width="24" height="16" transform="matrix(4.37114e-08 -1 -1 -4.37114e-08 515 248)" fill="white" stroke="black" stroke-width="2"/>
+<rect id="glass_rect_2" width="192" height="4" transform="matrix(4.37114e-08 -1 -1 -4.37114e-08 509 224)" fill="white" stroke="black" stroke-width="2"/>
+<rect id="mullion_rect_4" width="24" height="16" transform="matrix(4.37114e-08 -1 -1 -4.37114e-08 515 32)" fill="white" stroke="black" stroke-width="2"/>
+</g>
+<g id="ext_lines02_4">
+<path id="ext2_3_4" d="M515 0L515 8" stroke="black" stroke-width="2"/>
+<path id="ext2_2_4" d="M499 0L499 8" stroke="black" stroke-width="2"/>
+<path id="ext2_1_4" d="M521 8L493 8" stroke="black" stroke-width="2"/>
+</g>
+</g>
+</g>
+</svg>

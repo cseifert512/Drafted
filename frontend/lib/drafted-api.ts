@@ -330,8 +330,14 @@ export async function addOpening(request: {
   opening: Omit<OpeningPlacement, 'id'>;
   canonicalRoomKeys: string[];
   wallCoords?: { startX: number; startY: number; endX: number; endY: number };
+  assetInfo?: {
+    filename: string;
+    category: string;
+    displayName: string;
+    description: string;
+  };
 }): Promise<AddOpeningResponse> {
-  console.log('Adding opening:', request.opening.type, 'with wall coords:', request.wallCoords);
+  console.log('Adding opening:', request.opening.type, 'with wall coords:', request.wallCoords, 'asset:', request.assetInfo?.filename);
   
   const response = await fetch(`${BACKEND_URL}/api/drafted/openings/add`, {
     method: 'POST',
@@ -355,6 +361,12 @@ export async function addOpening(request: {
         } : null,
       },
       canonical_room_keys: request.canonicalRoomKeys,
+      asset_info: request.assetInfo ? {
+        filename: request.assetInfo.filename,
+        category: request.assetInfo.category,
+        display_name: request.assetInfo.displayName,
+        description: request.assetInfo.description,
+      } : null,
     }),
   });
   

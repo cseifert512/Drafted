@@ -1,0 +1,44 @@
+<svg width="738" height="60" viewBox="0 0 738 60" fill="none" xmlns="http://www.w3.org/2000/svg">
+<g id="window_mulled_casement_28x3_92in">
+<rect x="1" y="1" width="736" height="58" fill="white"/>
+<rect x="1" y="1" width="736" height="58" stroke="black" stroke-width="2"/>
+<rect id="windowFrame01" x="1" y="1" width="10" height="58" fill="white" stroke="black" stroke-width="2"/>
+<g id="windowContainer">
+<g id="windowPanel">
+<rect x="11" y="5" width="204" height="32" stroke="black" stroke-width="2"/>
+<rect id="windowMullion01" x="11" y="5" width="16" height="32" fill="white" stroke="black" stroke-width="2"/>
+<rect id="windowGlass" x="27" y="19" width="172" height="4" fill="white" stroke="black" stroke-width="2"/>
+<rect id="windowMullion02" x="199" y="5" width="16" height="32" fill="white" stroke="black" stroke-width="2"/>
+</g>
+</g>
+<rect id="windowFrame_interstitial" x="215" y="1" width="10" height="45" fill="white" stroke="black" stroke-width="2"/>
+<g id="Mullion_4in">
+<rect id="mullion_rect" x="225" y="1" width="32" height="45" fill="white" stroke="black" stroke-width="2"/>
+<rect id="mullion_rect_2" x="225" y="1" width="32" height="10" fill="white" stroke="black" stroke-width="2"/>
+</g>
+<rect id="windowFrame_interstitial_2" x="257" y="1" width="10" height="45" fill="white" stroke="black" stroke-width="2"/>
+<g id="windowContainer_2">
+<g id="windowPanel_2">
+<rect x="267" y="5" width="204" height="32" stroke="black" stroke-width="2"/>
+<rect id="windowMullion01_2" x="267" y="5" width="16" height="32" fill="white" stroke="black" stroke-width="2"/>
+<rect id="windowGlass_2" x="283" y="19" width="172" height="4" fill="white" stroke="black" stroke-width="2"/>
+<rect id="windowMullion02_2" x="455" y="5" width="16" height="32" fill="white" stroke="black" stroke-width="2"/>
+</g>
+</g>
+<rect id="windowFrame_interstitial_3" x="471" y="1" width="10" height="45" fill="white" stroke="black" stroke-width="2"/>
+<g id="Mullion_4in_2">
+<rect id="mullion_rect_3" x="481" y="1" width="32" height="45" fill="white" stroke="black" stroke-width="2"/>
+<rect id="mullion_rect_4" x="481" y="1" width="32" height="10" fill="white" stroke="black" stroke-width="2"/>
+</g>
+<rect id="windowFrame_interstitial_4" x="513" y="1" width="10" height="45" fill="white" stroke="black" stroke-width="2"/>
+<g id="windowContainer_3">
+<g id="windowPanel_3">
+<rect x="523" y="5" width="204" height="32" stroke="black" stroke-width="2"/>
+<rect id="windowMullion01_3" x="523" y="5" width="16" height="32" fill="white" stroke="black" stroke-width="2"/>
+<rect id="windowGlass_3" x="539" y="19" width="172" height="4" fill="white" stroke="black" stroke-width="2"/>
+<rect id="windowMullion02_3" x="711" y="5" width="16" height="32" fill="white" stroke="black" stroke-width="2"/>
+</g>
+</g>
+<rect id="windowFrame02" x="727" y="1" width="10" height="58" fill="white" stroke="black" stroke-width="2"/>
+</g>
+</svg>

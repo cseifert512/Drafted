@@ -1,0 +1,11 @@
+<svg width="802" height="939" viewBox="0 0 802 939" fill="none" xmlns="http://www.w3.org/2000/svg">
+<g id="garagedoor_Single_8ft">
+<rect id="doorOpening" width="64" height="768" transform="matrix(-4.37114e-08 1 1 4.37114e-08 17 874)" fill="white"/>
+<rect id="doorFrame02" width="64" height="16" transform="matrix(-4.37114e-08 1 1 4.37114e-08 785 874)" fill="#3F3F3F" stroke="black" stroke-width="2"/>
+<rect id="doorFrame01" width="64" height="16" transform="matrix(-4.37114e-08 1 1 4.37114e-08 1 874)" fill="#3F3F3F" stroke="black" stroke-width="2"/>
+<rect id="doorPanel" width="24" height="768" transform="matrix(-4.37114e-08 1 1 4.37114e-08 17 874)" fill="white" stroke="black" stroke-width="6"/>
+<rect id="doorOverhead" x="17" y="874" width="768" height="768" transform="rotate(-90 17 874)" stroke="black" stroke-width="6" stroke-dasharray="32 16"/>
+<rect id="OverheadOpener" x="361" y="83" width="80" height="80" transform="rotate(-90 361 83)" stroke="black" stroke-width="6" stroke-dasharray="32 16"/>
+<rect id="OverheadBelt" x="393" y="874" width="791" height="16" transform="rotate(-90 393 874)" stroke="black" stroke-width="6" stroke-dasharray="32 16"/>
+</g>
+</svg>

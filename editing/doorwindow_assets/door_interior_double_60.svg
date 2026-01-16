@@ -1,0 +1,43 @@
+<svg width="550" height="293" viewBox="0 0 550 293" fill="none" xmlns="http://www.w3.org/2000/svg">
+<g id="door_interiorDoubleSwing_60in">
+<rect id="doorOpening" x="34.25" y="247.25" width="481.5" height="37.5" fill="white" stroke="#8E8E8E" stroke-width="0.5"/>
+<path id="doorSwing" d="M275 248C275 115.452 167.548 8 35 8" stroke="black" stroke-width="6" stroke-dasharray="20 20"/>
+<g id="doorFrame_interior_hinge">
+<rect id="doorTrim_outside" x="1" y="284" width="32" height="8" fill="#3F3F3F" stroke="black" stroke-width="2"/>
+<rect id="doorTrim_inside" x="1" y="240" width="32" height="8" fill="#3F3F3F" stroke="black" stroke-width="2"/>
+<rect id="doorJamb_hinge" x="35" y="248" width="36" height="8" transform="rotate(90 35 248)" fill="#3F3F3F" stroke="black" stroke-width="2"/>
+</g>
+<g id="doorPanel">
+<g id="ext_lines02">
+<path id="ext2_3" d="M35 256L35 248" stroke="black" stroke-width="2"/>
+<path id="ext2_2" d="M46 256L46 248" stroke="black" stroke-width="2"/>
+<path id="ext2_1" d="M28 248L53 248" stroke="black" stroke-width="2"/>
+</g>
+<rect id="panel_rect" x="35" y="248" width="240" height="11" transform="rotate(-90 35 248)" fill="black" stroke="black" stroke-width="2"/>
+<g id="ext_lines01">
+<path id="ext1_3" d="M35 8L35 -3.57628e-07" stroke="black" stroke-width="2"/>
+<path id="ext1_2" d="M46 8L46 -1.19209e-07" stroke="black" stroke-width="2"/>
+<path id="ext1_1" d="M28 8L53 8" stroke="black" stroke-width="2"/>
+</g>
+</g>
+<path id="doorSwing_2" d="M275 248C275 115.452 382.452 8 515 8" stroke="black" stroke-width="6" stroke-dasharray="20 20"/>
+<g id="doorFrame_interior_hinge_2">
+<rect id="doorTrim_outside_2" width="32" height="8" transform="matrix(-1 0 0 1 549 284)" fill="#3F3F3F" stroke="black" stroke-width="2"/>
+<rect id="doorTrim_inside_2" width="32" height="8" transform="matrix(-1 0 0 1 549 240)" fill="#3F3F3F" stroke="black" stroke-width="2"/>
+<rect id="doorJamb_hinge_2" width="36" height="8" transform="matrix(4.37114e-08 1 1 -4.37114e-08 515 248)" fill="#3F3F3F" stroke="black" stroke-width="2"/>
+</g>
+<g id="doorPanel_2">
+<g id="ext_lines02_2">
+<path id="ext2_3_2" d="M515 256L515 248" stroke="black" stroke-width="2"/>
+<path id="ext2_2_2" d="M504 256L504 248" stroke="black" stroke-width="2"/>
+<path id="ext2_1_2" d="M522 248L497 248" stroke="black" stroke-width="2"/>
+</g>
+<rect id="panel_rect_2" width="240" height="11" transform="matrix(4.37114e-08 -1 -1 -4.37114e-08 515 248)" fill="black" stroke="black" stroke-width="2"/>
+<g id="ext_lines01_2">
+<path id="ext1_3_2" d="M515 8L515 -3.57628e-07" stroke="black" stroke-width="2"/>
+<path id="ext1_2_2" d="M504 8L504 -1.19209e-07" stroke="black" stroke-width="2"/>
+<path id="ext1_1_2" d="M522 8L497 8" stroke="black" stroke-width="2"/>
+</g>
+</g>
+</g>
+</svg>

@@ -2,7 +2,9 @@
  * Type definitions for door and window openings in floor plans
  */
 
-// Opening types
+import type { AssetCategory, DoorWindowAsset } from './assetManifest';
+
+// Legacy opening types (kept for backward compatibility)
 export type OpeningType = 
   | 'interior_door' 
   | 'exterior_door' 
@@ -31,7 +33,7 @@ export interface WallSegment {
   length: number; // in SVG units (1px = 2 inches)
 }
 
-// Opening placement specification
+// Legacy opening placement specification (kept for backward compatibility)
 export interface OpeningPlacement {
   id: string;
   type: OpeningType;
@@ -39,6 +41,57 @@ export interface OpeningPlacement {
   positionOnWall: number; // 0-1 along wall segment
   widthInches: number;
   swingDirection?: 'left' | 'right';
+}
+
+// New asset-based opening placement
+export interface AssetOpeningPlacement {
+  id: string;
+  assetFilename: string;
+  assetCategory: AssetCategory;
+  wallId: string;
+  positionOnWall: number; // 0-1 along wall segment
+  widthInches: number;
+  swingDirection?: 'left' | 'right';
+  flipHorizontal?: boolean;
+}
+
+// Convert asset category to legacy opening type (for API compatibility)
+export function assetCategoryToOpeningType(category: AssetCategory): OpeningType {
+  switch (category) {
+    case 'DoorInteriorSingle':
+    case 'DoorInteriorDouble':
+    case 'DoorInteriorBifold':
+      return 'interior_door';
+    case 'DoorExteriorSingle':
+    case 'DoorExteriorDouble':
+      return 'exterior_door';
+    case 'DoorExteriorSliding':
+      return 'sliding_door';
+    case 'DoorExteriorBifold':
+      return 'french_door';
+    case 'GarageSingle':
+    case 'GarageDouble':
+      return 'exterior_door';
+    case 'Window':
+    default:
+      return 'window';
+  }
+}
+
+// Convert asset to legacy opening placement (for API compatibility)
+export function assetToOpeningPlacement(
+  asset: DoorWindowAsset,
+  wallId: string,
+  positionOnWall: number,
+  swingDirection?: 'left' | 'right'
+): Omit<OpeningPlacement, 'id'> {
+  return {
+    type: assetCategoryToOpeningType(asset.category),
+    wallId,
+    positionOnWall,
+    widthInches: asset.inches,
+    swingDirection,
+  };
 }
 
 // Job status for background rendering
