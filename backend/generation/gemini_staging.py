@@ -137,40 +137,45 @@ ROOM_PROMPTS: Dict[str, str] = {
 OPENING_EDIT_SYSTEM_PROMPT = """
 You are performing a MINIMAL LOCAL EDIT on an EXISTING photorealistic floor plan image.
 
+### FIND THE EDIT LOCATION ###
+
+Look for the BRIGHT BLUE HIGHLIGHTED AREA with the label "ADD DOOR HERE".
+This is a semi-transparent blue rectangle with arrows pointing to it.
+The blue area is covering part of a BLACK WALL - that's where you add the door.
+
 ### THIS IS AN INPAINTING TASK - NOT A GENERATION TASK ###
 
 The input is a COMPLETE, FINISHED floor plan. Your job is to make ONE tiny change:
-- Insert a door/window at the location marked by the BLUE RECTANGLE
+- Find the blue highlighted area labeled "ADD DOOR HERE"
+- Insert a door/window EXACTLY at that blue highlighted location
+- Remove the blue highlight and label in your output
 - That's it. Nothing else changes.
 
 ### ABSOLUTE RULES - VIOLATING THESE IS FAILURE ###
 
-1. **DO NOT ADD ANYTHING NEW TO THE FLOOR PLAN**:
+1. **DOOR GOES EXACTLY WHERE THE BLUE HIGHLIGHT IS**:
+   - Find the blue semi-transparent rectangle
+   - Add the door ONLY at that EXACT location
+   - Do NOT add doors anywhere else
+   - Do NOT modify any other doors in the floor plan
+
+2. **DO NOT ADD ANYTHING NEW TO THE FLOOR PLAN**:
    - Do NOT add new rooms
    - Do NOT add new walls
    - Do NOT extend the floor plan
    - Do NOT add new furniture or objects
-   - Do NOT add new hallways or areas
-   - The floor plan is COMPLETE - you are only inserting a door in an existing wall
+   - The floor plan is COMPLETE - you are only inserting a door where the blue highlight is
 
-2. **DO NOT CHANGE THE IMAGE SIZE OR CROP**:
+3. **DO NOT CHANGE THE IMAGE SIZE OR CROP**:
    - Output must be the EXACT same dimensions as input
    - Do NOT zoom in or out
    - Do NOT crop or extend the canvas
-   - Every pixel outside the blue box area should be IDENTICAL to the input
-
-3. **ONLY MODIFY THE BLUE BOX AREA**:
-   - The BLUE RECTANGLE marks where to insert the door/window
-   - ONLY change pixels within and immediately adjacent to this blue box
-   - The door replaces a section of the existing black wall
-   - Remove the blue annotation lines in your output
 
 4. **PRESERVE EVERYTHING ELSE PIXEL-PERFECT**:
    - All furniture must stay exactly where it is
    - All flooring patterns must be identical
-   - All other walls must be unchanged
-   - All other rooms must be unchanged
-   - If a pixel is more than ~20 pixels from the blue box, it should be IDENTICAL to input
+   - All OTHER walls and doors must be unchanged
+   - If a pixel is not under the blue highlight, it should be IDENTICAL to input
 """
 
 # Detailed opening type descriptions for prompts
@@ -260,8 +265,10 @@ def build_opening_edit_prompt(
     prompt = f"""
 **TASK: LOCAL INPAINTING - Insert a door/window into an EXISTING floor plan**
 
-This floor plan is COMPLETE. Do NOT add any new rooms, walls, or areas.
-Your ONLY job: insert the specified opening where the BLUE RECTANGLE is.
+STEP 1: Find the BRIGHT BLUE HIGHLIGHTED AREA labeled "ADD DOOR HERE"
+STEP 2: Add the door EXACTLY at that blue highlighted location on the wall
+STEP 3: Remove the blue highlight and label
+STEP 4: Output the image unchanged everywhere else
 
 {type_description}
 
@@ -274,27 +281,27 @@ Your ONLY job: insert the specified opening where the BLUE RECTANGLE is.
         prompt += f"- Swing Direction: Door swings to the {swing_direction}\n"
     
     prompt += """
-**WHAT TO DO**:
-1. Find the BLUE RECTANGLE on the black wall
-2. Replace that section of wall with the specified door/window
-3. Remove the blue annotation lines
-4. Output the image - same size, same everything else
+**CRITICAL - WHERE TO ADD THE DOOR**:
+- Look for the BLUE SEMI-TRANSPARENT RECTANGLE with "ADD DOOR HERE" label
+- The blue highlight is covering part of a BLACK WALL
+- Add the door EXACTLY where this blue highlight is - NOWHERE ELSE
+- Do NOT modify any other doors or openings in the floor plan
 
-**WHAT NOT TO DO** (CRITICAL):
+**WHAT NOT TO DO** (FAILURE CONDITIONS):
+- Do NOT add doors anywhere except the blue highlighted area
+- Do NOT modify existing doors elsewhere in the plan
 - Do NOT add new rooms or extend the floor plan
-- Do NOT add new walls or hallways  
-- Do NOT add new furniture or objects
-- Do NOT change ANYTHING outside the immediate blue box area
+- Do NOT add new walls, hallways, furniture, or objects
+- Do NOT change ANYTHING outside the blue highlighted area
 - Do NOT resize or crop the image
-- Do NOT regenerate the floor plan - just insert the door
 
 **PIXEL PRESERVATION**:
-- Every pixel more than 30 pixels away from the blue box should be UNCHANGED
+- Every pixel NOT under the blue highlight should be UNCHANGED
 - The floor plan boundaries stay exactly the same
-- All existing furniture, flooring, and details remain identical
-- ONLY the wall section at the blue box changes
+- All existing furniture, flooring, doors, and details remain identical
+- ONLY the wall section under the blue highlight changes
 
-**OUTPUT**: Return the SAME floor plan image with ONLY the door/window added where the blue box was. Image dimensions must match input exactly.
+**OUTPUT**: Return the SAME floor plan with ONLY the door added where the blue highlight was. Remove the blue highlight and label. Everything else must be IDENTICAL to input.
 """
     
     return prompt

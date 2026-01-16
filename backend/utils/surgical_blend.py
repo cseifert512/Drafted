@@ -829,14 +829,65 @@ def annotate_png_for_opening_edit(
         for x, y in box_corners_svg
     ]
     
-    # Draw BLUE BOX for opening location (3px thick)
-    BLUE = (0, 0, 255)
+    # === Draw HIGHLY VISIBLE blue annotation ===
+    # Convert to RGBA for transparency support
+    if img.mode != 'RGBA':
+        img = img.convert('RGBA')
+    
+    # Create overlay for semi-transparent fill
+    overlay = Image.new('RGBA', img.size, (0, 0, 0, 0))
+    overlay_draw = ImageDraw.Draw(overlay)
+    
+    # Draw semi-transparent blue filled rectangle (very visible)
+    BLUE_FILL = (0, 100, 255, 120)  # Semi-transparent bright blue
+    BLUE_OUTLINE = (0, 0, 255)  # Solid blue for outline
+    
+    overlay_draw.polygon(box_corners_png, fill=BLUE_FILL)
+    
+    # Draw thick outline (8px) for extra visibility
     for i in range(len(box_corners_png)):
         p1 = box_corners_png[i]
         p2 = box_corners_png[(i + 1) % len(box_corners_png)]
-        draw.line([p1, p2], fill=BLUE, width=4)
+        overlay_draw.line([p1, p2], fill=BLUE_OUTLINE, width=8)
     
-    print(f"[ANNOTATE] Blue box at PNG center ({png_center_x}, {png_center_y})")
+    # Add "ADD DOOR HERE" label with arrow pointing to the box
+    try:
+        # Try to load a readable font
+        font_size = max(24, int(min(width, height) / 30))
+        try:
+            font = ImageFont.truetype("arial.ttf", font_size)
+        except:
+            try:
+                font = ImageFont.truetype("Arial.ttf", font_size)
+            except:
+                font = ImageFont.load_default()
+        
+        # Position label above the blue box
+        label_text = "▼ ADD DOOR HERE ▼"
+        label_x = png_center_x
+        label_y = png_center_y - 60  # Above the box
+        
+        # Draw text with white outline for visibility
+        for dx in [-2, -1, 0, 1, 2]:
+            for dy in [-2, -1, 0, 1, 2]:
+                overlay_draw.text((label_x + dx, label_y + dy), label_text, 
+                                  fill=(255, 255, 255, 255), font=font, anchor='mm')
+        overlay_draw.text((label_x, label_y), label_text, 
+                          fill=(0, 0, 255, 255), font=font, anchor='mm')
+        
+    except Exception as e:
+        print(f"[ANNOTATE] Warning: Could not add text label: {e}")
+    
+    # Composite the overlay onto the original image
+    img = Image.alpha_composite(img, overlay)
+    
+    # Convert back to RGB for saving as PNG
+    img = img.convert('RGB')
+    
+    # Update draw object to point to the composited image
+    draw = ImageDraw.Draw(img)
+    
+    print(f"[ANNOTATE] Blue box at PNG center ({png_center_x}, {png_center_y}) with label")
     
     # NOTE: Red boundary removed - we now only use the blue box and instruct
     # Gemini to ONLY modify the blue box area and not touch anything else.
