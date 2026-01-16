@@ -135,97 +135,24 @@ ROOM_PROMPTS: Dict[str, str] = {
 # =============================================================================
 
 OPENING_EDIT_SYSTEM_PROMPT = """
-You are editing an ARCHITECTURAL FLOOR PLAN - a TOP-DOWN ORTHOGRAPHIC VIEW seen from DIRECTLY ABOVE.
+You are editing a TOP-DOWN FLOOR PLAN. Add a door where the RED BOX is.
 
-### CRITICAL: THIS IS A TOP-DOWN PLAN VIEW ###
-
-This image is a floor plan viewed from 90 degrees above - like looking straight down at a dollhouse with the roof removed.
-- Everything is seen from DIRECTLY ABOVE
-- There is NO perspective, NO 3D angles, NO isometric view
-- Walls appear as thick black lines
-- Doors appear as FLAT RECTANGLES seen from above (not 3D)
-
-### HOW DOORS LOOK IN A FLOOR PLAN (TOP-DOWN VIEW) ###
-
-In a top-down floor plan, a door is rendered as:
-- A FLAT rectangular panel (the door leaf) - seen from above, it's just a thin rectangle
-- A door frame (gap in the black wall)
-- Optionally a curved arc showing the door swing path
-- NO 3D PERSPECTIVE - the door is completely flat, viewed from above
-- Look at the OTHER doors in this floor plan - your door must match that same style
-
-### FIND THE EDIT LOCATION ###
-
-Look for the BRIGHT BLUE HIGHLIGHTED AREA labeled "ADD DOOR HERE".
-The blue area is covering part of a BLACK WALL - add the door there.
-
-### ABSOLUTE RULES ###
-
-1. **DOOR STYLE**: The door must be rendered in TOP-DOWN PLAN VIEW matching existing doors
-   - Flat, seen from directly above
-   - NO perspective warping
-   - NO 3D effects
-   - Match the style of other doors already in the floor plan
-
-2. **DOOR LOCATION**: Add the door ONLY at the blue highlighted area
-   - Do NOT add doors anywhere else
-   - Do NOT modify any other doors
-
-3. **PRESERVE EVERYTHING ELSE**: 
-   - All furniture, flooring, other walls/doors must be UNCHANGED
-   - Output same dimensions as input
+RULES:
+1. Add the door at the RED BOX location only
+2. Door must be flat/top-down view - match the style of other doors in this plan
+3. Remove the red box in your output
+4. Do NOT change anything else - same image, just with a door added
 """
 
-# Detailed opening type descriptions for prompts - all emphasize TOP-DOWN PLAN VIEW
+# Opening type descriptions - keep simple
 OPENING_TYPE_PROMPTS: Dict[str, str] = {
-    "interior_door": """
-**OPENING TYPE: Interior Hinged Door (TOP-DOWN PLAN VIEW)**
-- In plan view: a thin rectangle (door panel) + gap in wall (door frame)
-- Door panel is a FLAT rectangle seen from above - like a piece of paper
-- May include a curved arc showing the swing direction
-- Match the style of existing doors in this floor plan
-- NO 3D perspective - completely flat, viewed from directly above
-""",
-    "exterior_door": """
-**OPENING TYPE: Exterior Entry Door (TOP-DOWN PLAN VIEW)**
-- In plan view: a rectangular door panel in a gap in the exterior wall
-- Slightly thicker/more substantial than interior doors
-- FLAT top-down view - no perspective or 3D effects
-- Match the rendering style of other doors in this floor plan
-""",
-    "sliding_door": """
-**OPENING TYPE: Sliding Glass Door (TOP-DOWN PLAN VIEW)**
-- In plan view: two overlapping rectangular panels
-- Thin lines representing the glass panels seen from above
-- Show the track/rail as thin parallel lines
-- FLAT top-down view - no perspective
-""",
-    "french_door": """
-**OPENING TYPE: French Double Doors (TOP-DOWN PLAN VIEW)**
-- In plan view: two rectangular door panels that meet in the middle
-- Gap in wall with two door leaves
-- FLAT top-down orthographic view
-- Match style of other doors in the floor plan
-""",
-    "window": """
-**OPENING TYPE: Standard Window (TOP-DOWN PLAN VIEW)**
-- In plan view: a thin rectangular frame in the wall
-- Shows as a gap in the black wall with frame lines
-- May show glass as a lighter fill
-- FLAT top-down view - no perspective
-""",
-    "picture_window": """
-**OPENING TYPE: Picture Window (TOP-DOWN PLAN VIEW)**
-- In plan view: a wider rectangular opening in the wall
-- Simple frame lines, minimal detail
-- FLAT top-down view
-""",
-    "bay_window": """
-**OPENING TYPE: Bay Window (TOP-DOWN PLAN VIEW)**
-- In plan view: an angular protrusion from the wall
-- Multiple window segments at angles
-- FLAT top-down orthographic view
-""",
+    "interior_door": "Interior door - flat rectangle with door frame, top-down view",
+    "exterior_door": "Exterior door - solid door panel in wall opening, top-down view", 
+    "sliding_door": "Sliding glass door - two overlapping panels, top-down view",
+    "french_door": "French doors - two door panels meeting in middle, top-down view",
+    "window": "Window - rectangular frame in wall, top-down view",
+    "picture_window": "Picture window - wide rectangular opening, top-down view",
+    "bay_window": "Bay window - angled window projection, top-down view",
 }
 
 
@@ -248,52 +175,24 @@ def build_opening_edit_prompt(
     # Get type-specific description
     type_description = OPENING_TYPE_PROMPTS.get(
         opening_type,
-        f"**OPENING TYPE: {opening_type.replace('_', ' ').title()}**\n- Standard opening\n"
+        f"{opening_type.replace('_', ' ').title()}"
     )
     
-    # Build the prompt
-    prompt = f"""
-**TASK: Add a door to this TOP-DOWN ARCHITECTURAL FLOOR PLAN**
+    # Build simple prompt
+    prompt = f"""Add a {type_description} at the RED BOX location.
 
-This is a floor plan viewed from DIRECTLY ABOVE (90 degrees, orthographic).
-The door you add must be in the SAME TOP-DOWN STYLE as existing doors in this image.
-
-STEP 1: Find the BRIGHT BLUE HIGHLIGHTED AREA labeled "ADD DOOR HERE"
-STEP 2: Look at how OTHER DOORS in this floor plan are rendered (flat, top-down)
-STEP 3: Add a door in that SAME FLAT TOP-DOWN STYLE at the blue location
-STEP 4: Remove the blue highlight and output
-
-{type_description}
-
-**OPENING SPECIFICATIONS**:
-- Width: {width_inches} inches (approximately {width_inches / 12:.1f} feet)
+Width: {width_inches} inches
 """
     
     # Add swing direction for doors
     if swing_direction and "door" in opening_type:
-        prompt += f"- Swing Direction: Door swings to the {swing_direction}\n"
+        prompt += f"Swing: {swing_direction}\n"
     
     prompt += """
-**CRITICAL - DOOR RENDERING STYLE**:
-- This is a TOP-DOWN PLAN VIEW - everything is seen from directly above
-- The door must be FLAT - a rectangular panel viewed from above
-- NO 3D PERSPECTIVE - no vanishing points, no depth illusion
-- NO WARPING or tilting - the door is perfectly flat
-- MATCH THE STYLE of other doors already in this floor plan
-- Look at existing doors in the image and copy that exact rendering style
-
-**WHERE TO ADD THE DOOR**:
-- Find the BLUE HIGHLIGHTED AREA with "ADD DOOR HERE" label
-- Add the door EXACTLY at that location in the black wall
-- Do NOT add doors anywhere else
-- Do NOT modify any other existing doors
-
-**PRESERVE EVERYTHING ELSE**:
-- Every pixel NOT under the blue highlight should be UNCHANGED
-- All furniture, flooring, other doors must remain identical
-- Same image dimensions as input
-
-**OUTPUT**: The same floor plan with a FLAT TOP-DOWN door added at the blue highlight. Remove the blue highlight. Match the style of existing doors in the plan.
+Instructions:
+1. Add the door/window at the RED BOX - match the style of other doors in this plan
+2. Remove the red box
+3. Keep everything else exactly the same
 """
     
     return prompt
