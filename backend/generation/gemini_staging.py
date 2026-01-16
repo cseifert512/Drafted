@@ -459,14 +459,34 @@ def remove_existing_text_labels(svg: str) -> str:
     """
     import re
     
-    # Remove all <text> elements that contain generic room IDs like R001, R002, etc.
-    cleaned = re.sub(r'<text[^>]*>R\d+</text>', '', svg, flags=re.IGNORECASE)
+    cleaned = svg
     
-    # Also remove any <text> elements inside groups that look like room labels
-    cleaned = re.sub(r'<g[^>]*id="[^"]*label[^"]*"[^>]*>[\s\S]*?</g>', '', cleaned, flags=re.IGNORECASE)
+    # Pattern 1: Simple <text>R001</text> with possible whitespace
+    cleaned = re.sub(r'<text[^>]*>\s*R\d+\s*</text>', '', cleaned, flags=re.IGNORECASE)
     
-    # Remove empty groups that might be left over
+    # Pattern 2: <text> with <tspan> inside: <text><tspan>R001</tspan></text>
+    cleaned = re.sub(r'<text[^>]*>\s*<tspan[^>]*>\s*R\d+\s*</tspan>\s*</text>', '', cleaned, flags=re.IGNORECASE)
+    
+    # Pattern 3: Any <text> element whose content is ONLY "R" followed by digits (multi-line)
+    cleaned = re.sub(r'<text[^>]*>[\s\n]*R\d{1,4}[\s\n]*</text>', '', cleaned, flags=re.IGNORECASE)
+    
+    # Pattern 4: Remove ALL text elements that contain R followed by 2-4 digits anywhere
+    cleaned = re.sub(r'<text\b[^>]*>[^<]*\bR\d{2,4}\b[^<]*</text>', '', cleaned, flags=re.IGNORECASE)
+    
+    # Pattern 5: Remove text elements inside any group with "label" or "text" in id/class
+    cleaned = re.sub(r'<g[^>]*(?:id|class)="[^"]*(?:label|text|room)[^"]*"[^>]*>[\s\S]*?</g>', '', cleaned, flags=re.IGNORECASE)
+    
+    # Pattern 6: Remove any standalone tspan with R001 pattern
+    cleaned = re.sub(r'<tspan[^>]*>\s*R\d+\s*</tspan>', '', cleaned, flags=re.IGNORECASE)
+    
+    # Clean up empty groups and text elements
     cleaned = re.sub(r'<g[^>]*>\s*</g>', '', cleaned)
+    cleaned = re.sub(r'<text[^>]*>\s*</text>', '', cleaned)
+    
+    # Log what we removed for debugging
+    original_text_count = len(re.findall(r'<text', svg, re.IGNORECASE))
+    cleaned_text_count = len(re.findall(r'<text', cleaned, re.IGNORECASE))
+    print(f"[remove_existing_text_labels] Removed {original_text_count - cleaned_text_count} text elements")
     
     return cleaned
 

@@ -335,16 +335,36 @@ function getRoomTypeFromFill(fill: string | null): string | null {
  * We remove these so we can add proper room type labels.
  */
 function removeExistingTextLabels(svg: string): string {
-  // Remove all <text> elements that contain generic room IDs like R001, R002, etc.
-  // Match: <text ...>R001</text> or <text ...>R012</text>
-  let cleaned = svg.replace(/<text[^>]*>R\d+<\/text>/gi, '');
+  let cleaned = svg;
   
-  // Also remove any <text> elements inside groups that look like room labels
-  // This catches nested structures like <g id="labels"><text>R001</text></g>
-  cleaned = cleaned.replace(/<g[^>]*id="[^"]*label[^"]*"[^>]*>[\s\S]*?<\/g>/gi, '');
+  // Pattern 1: Simple <text>R001</text> with possible whitespace
+  cleaned = cleaned.replace(/<text[^>]*>\s*R\d+\s*<\/text>/gi, '');
   
-  // Remove empty groups that might be left over
+  // Pattern 2: <text> with <tspan> inside: <text><tspan>R001</tspan></text>
+  cleaned = cleaned.replace(/<text[^>]*>\s*<tspan[^>]*>\s*R\d+\s*<\/tspan>\s*<\/text>/gi, '');
+  
+  // Pattern 3: Any <text> element whose content is ONLY "R" followed by digits
+  // This is more aggressive - matches multi-line text elements
+  cleaned = cleaned.replace(/<text[^>]*>[\s\n]*R\d{1,4}[\s\n]*<\/text>/gi, '');
+  
+  // Pattern 4: Remove ALL text elements that contain R followed by 2-4 digits anywhere
+  // This catches cases like <text x="100" y="200" font-size="12">R001</text>
+  cleaned = cleaned.replace(/<text\b[^>]*>[^<]*\bR\d{2,4}\b[^<]*<\/text>/gi, '');
+  
+  // Pattern 5: Remove text elements inside any group with "label" or "text" in id/class
+  cleaned = cleaned.replace(/<g[^>]*(?:id|class)="[^"]*(?:label|text|room)[^"]*"[^>]*>[\s\S]*?<\/g>/gi, '');
+  
+  // Pattern 6: Remove any standalone tspan with R001 pattern
+  cleaned = cleaned.replace(/<tspan[^>]*>\s*R\d+\s*<\/tspan>/gi, '');
+  
+  // Clean up empty groups and text elements
   cleaned = cleaned.replace(/<g[^>]*>\s*<\/g>/g, '');
+  cleaned = cleaned.replace(/<text[^>]*>\s*<\/text>/g, '');
+  
+  // Log what we removed for debugging
+  const originalTextCount = (svg.match(/<text/gi) || []).length;
+  const cleanedTextCount = (cleaned.match(/<text/gi) || []).length;
+  console.log(`[removeExistingTextLabels] Removed ${originalTextCount - cleanedTextCount} text elements`);
   
   return cleaned;
 }
