@@ -35,7 +35,7 @@ interface UseOpeningEditorOptions {
   planId: string | null;
   canonicalRoomKeys: string[];
   pngDimensions: { width: number; height: number } | null;
-  onRenderComplete?: (newImageBase64: string, modifiedSvg: string) => void;
+  onRenderComplete?: (newImageBase64: string, modifiedSvg: string, rawPngBase64?: string, geminiPrompt?: string) => void;
 }
 
 export function useOpeningEditor(options: UseOpeningEditorOptions) {
@@ -140,7 +140,7 @@ export function useOpeningEditor(options: UseOpeningEditorOptions) {
     setActiveJobs(prev => [...prev, job]);
 
     try {
-      // Call API
+      // Call API with wall coordinates for accurate surgical blending
       const result = await addOpening({
         planId,
         svg,
@@ -154,6 +154,12 @@ export function useOpeningEditor(options: UseOpeningEditorOptions) {
           swingDirection: opening.swingDirection,
         },
         canonicalRoomKeys,
+        wallCoords: {
+          startX: selectedWall.start.x,
+          startY: selectedWall.start.y,
+          endX: selectedWall.end.x,
+          endY: selectedWall.end.y,
+        },
       });
 
       if (!result.success) {
@@ -180,7 +186,12 @@ export function useOpeningEditor(options: UseOpeningEditorOptions) {
 
           // Handle completion
           if (status.status === 'complete' && status.renderedImageBase64) {
-            onRenderComplete?.(status.renderedImageBase64, result.modifiedSvg);
+            onRenderComplete?.(
+              status.renderedImageBase64, 
+              result.modifiedSvg,
+              status.rawPngBase64,
+              status.geminiPrompt
+            );
             
             // Remove completed job after delay
             setTimeout(() => {

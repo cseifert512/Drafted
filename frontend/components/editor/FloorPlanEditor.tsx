@@ -97,6 +97,14 @@ export function FloorPlanEditor({
   // Gemini debug modal
   const [showGeminiDebug, setShowGeminiDebug] = useState(false);
   
+  // Track current Gemini input data (updates with each operation)
+  const [currentRawPngBase64, setCurrentRawPngBase64] = useState<string | undefined>(
+    initialPlan?.raw_png_base64
+  );
+  const [currentGeminiPrompt, setCurrentGeminiPrompt] = useState<string | undefined>(
+    initialPlan?.gemini_prompt
+  );
+  
   // Opening editor hook
   const openingEditor = useOpeningEditor({
     svg: initialPlan?.svg || null,
@@ -105,20 +113,36 @@ export function FloorPlanEditor({
     planId: initialPlan?.id || null,
     canonicalRoomKeys: initialPlan?.rooms?.map(r => r.canonical_key) || [],
     pngDimensions,
-    onRenderComplete: (newImageBase64, modifiedSvg) => {
+    onRenderComplete: (newImageBase64, modifiedSvg, rawPngBase64, geminiPrompt) => {
       console.log('[FloorPlanEditor] Opening render complete');
       // Save current image to history before updating (for undo)
       pushToHistory(currentRenderedImage);
       setCurrentRenderedImage(newImageBase64);
+      
+      // Update Gemini debug data to reflect current state
+      if (rawPngBase64) {
+        setCurrentRawPngBase64(rawPngBase64);
+        console.log('[FloorPlanEditor] Updated Gemini input PNG');
+      }
+      if (geminiPrompt) {
+        setCurrentGeminiPrompt(geminiPrompt);
+        console.log('[FloorPlanEditor] Updated Gemini prompt');
+      }
     },
   });
   
-  // Update current rendered image when initialPlan changes
+  // Update current state when initialPlan changes
   useEffect(() => {
     if (initialPlan?.rendered_image_base64) {
       setCurrentRenderedImage(initialPlan.rendered_image_base64);
     }
-  }, [initialPlan?.rendered_image_base64]);
+    if (initialPlan?.raw_png_base64) {
+      setCurrentRawPngBase64(initialPlan.raw_png_base64);
+    }
+    if (initialPlan?.gemini_prompt) {
+      setCurrentGeminiPrompt(initialPlan.gemini_prompt);
+    }
+  }, [initialPlan?.rendered_image_base64, initialPlan?.raw_png_base64, initialPlan?.gemini_prompt]);
   
   // Get PNG dimensions when image loads
   const handleImageLoad = useCallback((e: React.SyntheticEvent<HTMLImageElement>) => {
@@ -396,8 +420,8 @@ export function FloorPlanEditor({
       <GeminiDebugModal
         isOpen={showGeminiDebug}
         onClose={() => setShowGeminiDebug(false)}
-        rawPngBase64={initialPlan?.raw_png_base64}
-        geminiPrompt={initialPlan?.gemini_prompt}
+        rawPngBase64={currentRawPngBase64}
+        geminiPrompt={currentGeminiPrompt}
         planId={initialPlan?.id}
       />
       

@@ -75,13 +75,13 @@ export function EditorCanvas({
       const parts = viewBoxMatch[1].split(/[\s,]+/).map(parseFloat);
       if (parts.length === 4) {
         return { width: parts[2], height: parts[3] };
+        }
       }
-    }
     
     // Fallback to width/height attributes
     const widthMatch = svg.match(/width="(\d+(?:\.\d+)?)"/);
     const heightMatch = svg.match(/height="(\d+(?:\.\d+)?)"/);
-    if (widthMatch && heightMatch) {
+      if (widthMatch && heightMatch) {
       return { width: parseFloat(widthMatch[1]), height: parseFloat(heightMatch[1]) };
     }
     
@@ -119,7 +119,7 @@ export function EditorCanvas({
     const heightMatch = svg.match(/height="([^"]+)"/);
     const svgWidth = widthMatch ? widthMatch[1] : 'auto';
     const svgHeight = heightMatch ? heightMatch[1] : 'auto';
-    
+  
     // Parse numeric dimensions
     const svgWidthNum = parseFloat(svgWidth) || 0;
     const svgHeightNum = parseFloat(svgHeight) || 0;
@@ -150,7 +150,7 @@ export function EditorCanvas({
     
     // Count wall segments
     const wallCount = (svg.match(/<(?:polyline|polygon)[^>]*(?:stroke|fill)="black"/g) || []).length;
-    
+  
     // Calculate dimension mismatch
     const renderWidth = imageDimensions?.width || 0;
     const renderHeight = imageDimensions?.height || 0;
@@ -185,32 +185,32 @@ export function EditorCanvas({
       style={{ cursor: isEditingEnabled ? 'crosshair' : 'default' }}
     >
       {/* Content container - sized to content */}
-      <div 
+      <div
         className="relative bg-white shadow-lg"
-        style={{ 
+        style={{
           width: displayDimensions.width,
           height: displayDimensions.height,
-        }}
-      >
+          }}
+        >
         {/* SVG layer - shown when in SVG mode */}
         {displayMode === 'svg' && (croppedSvgContent || rawSvgContent) && (
-          <div
+            <div
             dangerouslySetInnerHTML={{ __html: croppedSvgContent || rawSvgContent || '' }}
-            style={{ 
-              position: 'absolute',
-              top: 0,
-              left: 0,
+              style={{ 
+                position: 'absolute',
+                top: 0,
+                left: 0,
               width: '100%',
               height: '100%',
-            }}
-          />
-        )}
-        
+              }}
+            />
+          )}
+          
         {/* Rendered image - shown when in rendered mode, preserves natural AR */}
         {displayMode === 'rendered' && renderedImageBase64 && (
-          <img
+            <img
             ref={imgRef}
-            src={`data:image/png;base64,${renderedImageBase64}`}
+              src={`data:image/png;base64,${renderedImageBase64}`}
             alt="Rendered floor plan"
             style={{ 
               display: 'block',
@@ -241,18 +241,18 @@ export function EditorCanvas({
                 return svgStr;
               })()
             }}
-            style={{ 
-              position: 'absolute',
-              top: 0,
-              left: 0,
+              style={{ 
+                position: 'absolute',
+                top: 0,
+                left: 0,
               width: '100%',
               height: '100%',
               opacity: debugOpacity,
               pointerEvents: 'none',
               mixBlendMode: 'multiply',
             }}
-          />
-        )}
+            />
+          )}
         
         {/* Wall highlight layer - overlays on rendered image */}
         {wallHighlightLayer}
@@ -307,17 +307,17 @@ export function EditorCanvas({
             {/* Dimension comparison */}
             <div className="border-t border-gray-700 pt-1.5 mt-1.5">
               <div className="font-bold text-yellow-400 mb-1">📐 Dimensions</div>
-              <div>
+        <div>
                 <span className="text-gray-400">SVG:</span>{' '}
                 <span className="text-cyan-400">{debugInfo.svgWidth} × {debugInfo.svgHeight}</span>
-              </div>
-              <div>
+        </div>
+        <div>
                 <span className="text-gray-400">Render:</span>{' '}
                 <span className="text-purple-400">
                   {imageDimensions ? `${imageDimensions.width} × ${imageDimensions.height}` : 'loading...'}
                 </span>
-              </div>
-              <div>
+        </div>
+        <div>
                 <span className="text-gray-400">Scale:</span>{' '}
                 <span className={debugInfo.dimensionsMismatch ? 'text-red-400' : 'text-green-400'}>
                   {debugInfo.widthRatio}x W, {debugInfo.heightRatio}x H
@@ -336,12 +336,12 @@ export function EditorCanvas({
                 <span className="text-gray-400">viewBox:</span>{' '}
                 <span className="text-cyan-400 text-[10px]">{debugInfo.viewBox}</span>
               </div>
-            </div>
+        </div>
             
             {/* Room info */}
             <div className="border-t border-gray-700 pt-1.5 mt-1.5">
               <div className="font-bold text-orange-400 mb-1">🏠 Rooms</div>
-              <div>
+        <div>
                 <span className="text-gray-400">Count:</span>{' '}
                 <span className="text-orange-400">{debugInfo.roomCount}</span>
                 {debugInfo.hasRoomLabels && (

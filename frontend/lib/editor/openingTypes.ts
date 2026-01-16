@@ -82,6 +82,8 @@ export interface OpeningStatusResponse {
   jobId: string;
   status: OpeningJobStatus;
   renderedImageBase64?: string;
+  rawPngBase64?: string;     // PNG sent to Gemini (for debug)
+  geminiPrompt?: string;     // Prompt sent to Gemini (for debug)
   error?: string;
 }
 

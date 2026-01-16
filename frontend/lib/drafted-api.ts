@@ -329,8 +329,9 @@ export async function addOpening(request: {
   renderedImageBase64: string;
   opening: Omit<OpeningPlacement, 'id'>;
   canonicalRoomKeys: string[];
+  wallCoords?: { startX: number; startY: number; endX: number; endY: number };
 }): Promise<AddOpeningResponse> {
-  console.log('Adding opening:', request.opening.type);
+  console.log('Adding opening:', request.opening.type, 'with wall coords:', request.wallCoords);
   
   const response = await fetch(`${BACKEND_URL}/api/drafted/openings/add`, {
     method: 'POST',
@@ -346,6 +347,12 @@ export async function addOpening(request: {
         position_on_wall: request.opening.positionOnWall,
         width_inches: request.opening.widthInches,
         swing_direction: request.opening.swingDirection,
+        wall_coords: request.wallCoords ? {
+          start_x: request.wallCoords.startX,
+          start_y: request.wallCoords.startY,
+          end_x: request.wallCoords.endX,
+          end_y: request.wallCoords.endY,
+        } : null,
       },
       canonical_room_keys: request.canonicalRoomKeys,
     }),
@@ -385,6 +392,8 @@ export async function getOpeningStatus(jobId: string): Promise<OpeningStatusResp
     jobId: data.job_id,
     status: data.status as OpeningJobStatus,
     renderedImageBase64: data.rendered_image_base64,
+    rawPngBase64: data.raw_png_base64,
+    geminiPrompt: data.gemini_prompt,
     error: data.error,
   };
 }

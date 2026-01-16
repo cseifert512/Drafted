@@ -54,6 +54,14 @@ class DraftedEditRequest(BaseModel):
 # OPENING (DOOR/WINDOW) MODELS
 # =============================================================================
 
+class WallCoordinates(BaseModel):
+    """Wall segment coordinates in SVG space."""
+    start_x: float
+    start_y: float
+    end_x: float
+    end_y: float
+
+
 class OpeningPlacement(BaseModel):
     """Specification for a door or window placement."""
     type: str  # interior_door, exterior_door, sliding_door, french_door, window, picture_window, bay_window
@@ -61,6 +69,7 @@ class OpeningPlacement(BaseModel):
     position_on_wall: float  # 0-1 along the wall segment
     width_inches: float
     swing_direction: Optional[str] = None  # left, right (for doors)
+    wall_coords: Optional[WallCoordinates] = None  # Actual wall coordinates for surgical blending
 
 
 class AddOpeningRequest(BaseModel):
@@ -89,6 +98,8 @@ class OpeningStatusResponse(BaseModel):
     job_id: str
     status: str
     rendered_image_base64: Optional[str] = None
+    raw_png_base64: Optional[str] = None  # PNG sent to Gemini (for debug)
+    gemini_prompt: Optional[str] = None   # Prompt sent to Gemini (for debug)
     error: Optional[str] = None
 
 
@@ -714,7 +725,7 @@ async def add_opening(request: AddOpeningRequest):
             "height": float(viewbox_parts[3]),
         }
         
-        # Create opening with generated ID
+        # Create opening with generated ID (including wall coordinates for surgical blending)
         opening_with_id = {
             "id": opening_id,
             "type": request.opening.type,
@@ -722,6 +733,12 @@ async def add_opening(request: AddOpeningRequest):
             "position_on_wall": request.opening.position_on_wall,
             "width_inches": request.opening.width_inches,
             "swing_direction": request.opening.swing_direction,
+            "wall_coords": {
+                "start_x": request.opening.wall_coords.start_x,
+                "start_y": request.opening.wall_coords.start_y,
+                "end_x": request.opening.wall_coords.end_x,
+                "end_y": request.opening.wall_coords.end_y,
+            } if request.opening.wall_coords else None,
         }
         
         # Generate preview overlay SVG (simple symbol for immediate display)
@@ -791,6 +808,8 @@ async def get_opening_status(job_id: str):
         job_id=job_id,
         status=job["status"],
         rendered_image_base64=job.get("rendered_image_base64"),
+        raw_png_base64=job.get("raw_png_base64"),
+        gemini_prompt=job.get("gemini_prompt"),
         error=job.get("error"),
     )
 
@@ -852,13 +871,62 @@ async def _process_opening_render(job_id: str):
         if str(gen_dir) not in sys.path:
             sys.path.insert(0, str(gen_dir))
         
-        from gemini_staging import stage_floor_plan as do_stage
+        from gemini_staging import stage_floor_plan as do_stage, process_svg_to_png
         
         # Re-render with Gemini
+        print(f"[RENDER] Starting Gemini staging for job {job_id}")
+        print(f"[RENDER] Opening type: {job['opening']['type']}")
+        print(f"[RENDER] Wall coords: {job['opening'].get('wall_coords')}")
+        print(f"[RENDER] Modified SVG has opening: {'id=\"openings\"' in job['modified_svg']}")
+        
+        # DEBUG: Save modified SVG and PNG to debug folder
+        debug_dir = Path(__file__).parent.parent.parent / "debug_blend" / job_id
+        debug_dir.mkdir(parents=True, exist_ok=True)
+        
+        # Verify opening was added to SVG
+        modified_svg = job["modified_svg"]
+        has_openings_group = 'id="openings"' in modified_svg
+        has_opening_element = f'id="{job["opening"]["id"]}"' in modified_svg
+        opening_count = modified_svg.count('class="opening')
+        print(f"[DEBUG] SVG verification:")
+        print(f"[DEBUG]   - Has openings group: {has_openings_group}")
+        print(f"[DEBUG]   - Has our opening element: {has_opening_element}")
+        print(f"[DEBUG]   - Total opening elements: {opening_count}")
+        
+        # Save modified SVG
+        svg_path = debug_dir / "00_modified_svg.svg"
+        with open(svg_path, 'w', encoding='utf-8') as f:
+            f.write(modified_svg)
+        print(f"[DEBUG] Saved modified SVG to: {svg_path}")
+        
+        # Try to render SVG to PNG and save it (what Gemini will see)
+        try:
+            png_result = process_svg_to_png(job["modified_svg"])
+            if png_result.get("png_data"):
+                png_path = debug_dir / "00_gemini_input.png"
+                with open(png_path, 'wb') as f:
+                    f.write(png_result["png_data"])
+                print(f"[DEBUG] Saved Gemini input PNG to: {png_path}")
+                print(f"[DEBUG] PNG dimensions: {png_result.get('width')}x{png_result.get('height')}")
+        except Exception as e:
+            import traceback
+            print(f"[DEBUG] Failed to save Gemini input PNG: {e}")
+            traceback.print_exc()
+        
         stage_result = await do_stage(
             svg=job["modified_svg"],
             canonical_room_keys=job["canonical_room_keys"],
         )
+        
+        print(f"[RENDER] Staging result: success={stage_result.success}, error={stage_result.error}")
+        
+        # Save debug data (raw PNG and prompt sent to Gemini)
+        if stage_result.raw_png:
+            job["raw_png_base64"] = base64.b64encode(stage_result.raw_png).decode('utf-8')
+            print(f"[RENDER] Saved raw_png_base64 to job ({len(stage_result.raw_png)} bytes)")
+        if stage_result.gemini_prompt:
+            job["gemini_prompt"] = stage_result.gemini_prompt
+            print(f"[RENDER] Saved gemini_prompt to job ({len(stage_result.gemini_prompt)} chars)")
         
         if not stage_result.success:
             job["status"] = "failed"
@@ -868,35 +936,30 @@ async def _process_opening_render(job_id: str):
         # Update status to blending
         job["status"] = "blending"
         
-        # Determine if we need surgical blending (doors) or full render (windows)
-        opening_type = job["opening"]["type"]
-        affects_lighting = "window" in opening_type or opening_type in ["sliding_door", "french_door"]
+        # Apply surgical blending for ALL opening types (doors and windows)
+        # smart_blend_for_opening chooses the right strategy based on opening type
+        original_image = base64.b64decode(job["original_rendered_image"])
+        new_image = stage_result.staged_image
         
-        if affects_lighting:
-            # Use full new render for windows (lighting changes are intentional)
-            final_image = stage_result.staged_image
-        else:
-            # Apply surgical blending for doors
-            original_image = base64.b64decode(job["original_rendered_image"])
-            new_image = stage_result.staged_image
-            
-            # Import blending utility
-            utils_dir = Path(__file__).parent.parent / "utils"
-            if str(utils_dir) not in sys.path:
-                sys.path.insert(0, str(utils_dir))
-            
-            try:
-                from surgical_blend import surgical_blend
-                final_image = surgical_blend(
-                    original_image,
-                    new_image,
-                    job["opening"],
-                    job["modified_svg"],
-                )
-            except ImportError:
-                # Fallback: use full new render if blending not available
-                print("[WARN] surgical_blend not available, using full render")
-                final_image = new_image
+        # Import blending utility
+        utils_dir = Path(__file__).parent.parent / "utils"
+        if str(utils_dir) not in sys.path:
+            sys.path.insert(0, str(utils_dir))
+        
+        try:
+            from surgical_blend import smart_blend_for_opening
+            print(f"[BLEND] Applying smart blend for {job['opening']['type']}")
+            final_image = smart_blend_for_opening(
+                original_image,
+                new_image,
+                job["opening"],
+                job["modified_svg"],
+                job_id=job_id,  # Pass job_id for debug output
+            )
+        except ImportError as e:
+            # Fallback: use full new render if blending not available
+            print(f"[WARN] smart_blend_for_opening not available ({e}), using full render")
+            final_image = new_image
         
         # Update job with final image
         job["status"] = "complete"
@@ -950,88 +1013,342 @@ def _generate_preview_overlay(opening: Dict[str, Any], viewbox: Dict[str, float]
 
 def _add_opening_to_svg(svg: str, opening: Dict[str, Any]) -> str:
     """
-    Add an opening symbol to the SVG.
+    Add an opening symbol to the SVG using the EXACT Drafted convention:
+    - <g> with transform and data-role="opening-asset" attributes
+    - <image> with embedded base64 SVG graphic
     
-    This modifies the SVG to include:
-    1. A wall gap (white rectangle to "cut" the wall)
-    2. The appropriate door/window symbol
+    This matches how Drafted natively renders doors/windows in SVG output.
     """
     import re
+    import math
+    import base64
     
     opening_id = opening["id"]
     opening_type = opening["type"]
     width_inches = opening["width_inches"]
-    width_svg = width_inches / 2  # 1px = 2 inches
+    length_px = width_inches / 2  # 1px = 2 inches (Drafted SVG scale)
+    position_on_wall = opening.get("position_on_wall", 0.5)
+    wall_coords = opening.get("wall_coords")
     
-    # Generate the opening symbol
-    # Note: Actual positioning requires wall data which would be passed from frontend
-    # For now, we create a group that can be positioned
+    if not wall_coords:
+        print("[SVG] WARNING: No wall_coords provided, cannot place opening")
+        return svg
     
+    # Extract wall coordinates
+    start_x = wall_coords["start_x"]
+    start_y = wall_coords["start_y"]
+    end_x = wall_coords["end_x"]
+    end_y = wall_coords["end_y"]
+    
+    # Calculate wall direction and angle
+    wall_dx = end_x - start_x
+    wall_dy = end_y - start_y
+    wall_length = math.sqrt(wall_dx * wall_dx + wall_dy * wall_dy)
+    wall_angle_rad = math.atan2(wall_dy, wall_dx)
+    wall_angle_deg = math.degrees(wall_angle_rad)
+    
+    # The embedded window/door SVG is drawn HORIZONTALLY by default.
+    # To make it parallel to the wall, rotate it by the wall's angle.
+    rotation_deg = wall_angle_deg
+    
+    # Normalized wall direction vector
+    dir_x = wall_dx / wall_length if wall_length > 0 else 1
+    dir_y = wall_dy / wall_length if wall_length > 0 else 0
+    
+    # Normal vector (perpendicular to wall) for wall gap
+    normal_x = -dir_y
+    normal_y = dir_x
+    
+    # Calculate opening center position on wall
+    center_x = start_x + wall_dx * position_on_wall
+    center_y = start_y + wall_dy * position_on_wall
+    
+    # Calculate opening start/end points along wall for the wall gap
+    half_width = length_px / 2
+    open_start_x = center_x - dir_x * half_width
+    open_start_y = center_y - dir_y * half_width
+    open_end_x = center_x + dir_x * half_width
+    open_end_y = center_y + dir_y * half_width
+    
+    print(f"[SVG] Adding {opening_type} (Drafted format)")
+    print(f"[SVG]   Center: ({center_x:.3f}, {center_y:.3f})")
+    print(f"[SVG]   Rotation: {rotation_deg:.3f} degrees (parallel to wall)")
+    print(f"[SVG]   Width: {width_inches} inches, Length: {length_px} px")
+    
+    # Determine opening kind for data attributes
     if "door" in opening_type:
-        if opening_type == "sliding_door":
-            symbol = f'''
-            <g id="{opening_id}" class="opening door sliding-door" data-opening-type="{opening_type}">
-                <rect class="wall-gap" width="{width_svg}" height="8" fill="white"/>
-                <line x1="0" y1="4" x2="{width_svg/2}" y2="4" stroke="#666" stroke-width="2"/>
-                <line x1="{width_svg/2}" y1="4" x2="{width_svg}" y2="4" stroke="#333" stroke-width="3"/>
-            </g>
-            '''
-        elif opening_type == "french_door":
-            symbol = f'''
-            <g id="{opening_id}" class="opening door french-door" data-opening-type="{opening_type}">
-                <rect class="wall-gap" width="{width_svg}" height="8" fill="white"/>
-                <line x1="0" y1="4" x2="{width_svg/2}" y2="4" stroke="#333" stroke-width="2"/>
-                <line x1="{width_svg/2}" y1="4" x2="{width_svg}" y2="4" stroke="#333" stroke-width="2"/>
-            </g>
-            '''
-        else:
-            # Interior or exterior door
-            swing = opening.get("swing_direction", "right")
-            sweep_flag = 1 if swing == "right" else 0
-            symbol = f'''
-            <g id="{opening_id}" class="opening door" data-opening-type="{opening_type}">
-                <rect class="wall-gap" width="{width_svg}" height="6" fill="white"/>
-                <path d="M 0,3 A {width_svg},{width_svg} 0 0 {sweep_flag} {width_svg},{width_svg + 3}" 
-                      fill="none" stroke="#666" stroke-width="1" stroke-dasharray="4,3"/>
-                <line x1="0" y1="3" x2="{width_svg}" y2="3" stroke="#333" stroke-width="2"/>
-            </g>
-            '''
+        opening_kind = "door-interior-single" if "interior" in opening_type else "door-exterior-single"
+        if "sliding" in opening_type:
+            opening_kind = "door-sliding-glass"
+        elif "french" in opening_type:
+            opening_kind = "door-french"
+        data_type = "door"
+        is_exterior = "exterior" in opening_type or opening_type == "sliding_door"
     else:
-        # Window types
-        if opening_type == "bay_window":
-            depth = width_svg * 0.3
-            symbol = f'''
-            <g id="{opening_id}" class="opening window bay-window" data-opening-type="{opening_type}">
-                <rect class="wall-gap" width="{width_svg}" height="8" fill="white"/>
-                <path d="M 0,4 L {width_svg/3},{4 + depth} L {width_svg*2/3},{4 + depth} L {width_svg},4" 
-                      fill="none" stroke="#222" stroke-width="3"/>
-            </g>
-            '''
-        else:
-            # Standard or picture window
-            symbol = f'''
-            <g id="{opening_id}" class="opening window" data-opening-type="{opening_type}">
-                <rect class="wall-gap" width="{width_svg}" height="6" fill="white"/>
-                <line x1="0" y1="3" x2="{width_svg}" y2="3" stroke="#333" stroke-width="3"/>
-                <line x1="2" y1="1" x2="{width_svg - 2}" y2="1" stroke="#666" stroke-width="1"/>
-                <line x1="2" y1="5" x2="{width_svg - 2}" y2="5" stroke="#666" stroke-width="1"/>
-            </g>
-            '''
+        opening_kind = "window"
+        if "picture" in opening_type:
+            opening_kind = "window-picture"
+        elif "bay" in opening_type:
+            opening_kind = "window-bay"
+        data_type = "window"
+        is_exterior = True  # Windows are exterior
     
-    # Check if there's already an openings group
-    if 'id="openings"' in svg:
-        # Add to existing group
+    # Generate the embedded SVG for the opening asset
+    # These match the Drafted convention: white background, black strokes
+    base_svg = _generate_opening_base_svg(opening_type, width_inches)
+    base64_svg = base64.b64encode(base_svg.encode('utf-8')).decode('utf-8')
+    
+    # Calculate image positioning
+    # The image is placed at the center, with width = length_px and small height
+    img_width = length_px
+    img_height = length_px * 0.375  # Aspect ratio from Drafted (3.75/10 ≈ 0.375)
+    img_x = center_x - img_width / 2
+    img_y = center_y - img_height / 2
+    
+    # Create the opening asset group matching Drafted convention exactly
+    # Note: Drafted uses both href AND xlink:href for SVG 1.x/2.x compatibility
+    opening_group = f'''
+        <g transform="rotate({rotation_deg:.3f} {center_x:.3f} {center_y:.3f})" 
+           data-role="opening-asset" 
+           data-opening-type="{data_type}" 
+           data-opening-kind="{opening_kind}" 
+           data-width-in="{width_inches}" 
+           data-length-px="{length_px:.0f}" 
+           data-anchor="center" 
+           data-flip-y="false" 
+           data-room-a="OUTSIDE" 
+           data-room-b="INTERIOR"
+           data-door-exterior="{str(is_exterior).lower()}"
+           id="{opening_id}">
+            <image href="data:image/svg+xml;base64,{base64_svg}" 
+                   xlink:href="data:image/svg+xml;base64,{base64_svg}"
+                   x="{img_x:.3f}" 
+                   y="{img_y:.3f}" 
+                   width="{img_width:.3f}" 
+                   height="{img_height:.3f}" 
+                   preserveAspectRatio="xMidYMid meet"/>
+        </g>'''
+    
+    # Ensure SVG has xlink namespace for embedded images
+    if 'xmlns:xlink' not in svg:
+        svg = svg.replace(
+            'xmlns="http://www.w3.org/2000/svg"',
+            'xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink"'
+        )
+    
+    # === CREATE WALL GAP (white polygon to "break" the wall) ===
+    # This goes in the "walls-openings-white" group to mask/cut the wall
+    gap_half_thickness = 4  # Wall thickness / 2 (walls are ~8px thick)
+    gap_points = [
+        (open_start_x - normal_x * gap_half_thickness, open_start_y - normal_y * gap_half_thickness),
+        (open_end_x - normal_x * gap_half_thickness, open_end_y - normal_y * gap_half_thickness),
+        (open_end_x + normal_x * gap_half_thickness, open_end_y + normal_y * gap_half_thickness),
+        (open_start_x + normal_x * gap_half_thickness, open_start_y + normal_y * gap_half_thickness),
+    ]
+    gap_polygon_points = " ".join([f"{p[0]:.3f},{p[1]:.3f}" for p in gap_points])
+    wall_gap = f'<polygon points="{gap_polygon_points}" fill="white" stroke="none" data-opening-id="{opening_id}"/>'
+    
+    print(f"[SVG] Wall gap polygon: {gap_polygon_points}")
+    
+    # Add wall gap to walls-openings-white group (creates the "break" in the wall)
+    if '<g id="walls-openings-white"' in svg:
+        # Insert into existing walls-openings-white group
         svg = re.sub(
-            r'(<g[^>]*id="openings"[^>]*>)',
-            f'\\1\n    {symbol}',
+            r'(<g id="walls-openings-white"[^>]*>)',
+            f'\\1\n        {wall_gap}',
             svg
         )
     else:
-        # Create new openings group before closing </svg>
-        openings_group = f'''
-  <g id="openings" class="openings-layer">
-    {symbol}
-  </g>'''
-        svg = svg.replace('</svg>', f'{openings_group}\n</svg>')
+        # If no walls-openings-white group exists, create one before walls-exterior
+        if '<g id="walls-exterior">' in svg:
+            svg = svg.replace(
+                '<g id="walls-exterior">',
+                f'<g id="walls-openings-white">\n        {wall_gap}\n        </g>\n        <g id="walls-exterior">'
+            )
     
+    # Find or create opening-assets group
+    if '<g id="opening-assets">' in svg:
+        # Insert into existing opening-assets group
+        svg = svg.replace(
+            '<g id="opening-assets">',
+            f'<g id="opening-assets">{opening_group}'
+        )
+    elif '</svg>' in svg:
+        # Create opening-assets group before </svg>
+        svg = svg.replace(
+            '</svg>',
+            f'    <g id="opening-assets">{opening_group}\n    </g>\n</svg>'
+        )
+    
+    print(f"[SVG] Successfully added opening with wall gap in Drafted format")
     return svg
+
+
+def _generate_opening_base_svg(opening_type: str, width_inches: int) -> str:
+    """
+    Generate the base SVG content for an opening asset.
+    This SVG will be base64-encoded and embedded in the <image> tag.
+    
+    Matches the Drafted convention:
+    - White background rectangles
+    - Black stroke outlines
+    - Proper frame elements for windows
+    - Swing arcs for doors
+    """
+    # SVG dimensions based on width (8px per inch is Drafted's scale for embedded SVGs)
+    svg_width = width_inches * 8
+    svg_height = 60  # Standard height for opening assets
+    
+    if "window" in opening_type:
+        # Window SVG matching Drafted's window_single_casement format
+        frame_width = 10
+        panel_margin = 4
+        panel_height = 32
+        
+        svg_content = f'''<svg width="{svg_width + 2}" height="{svg_height}" viewBox="0 0 {svg_width + 2} {svg_height}" fill="none" xmlns="http://www.w3.org/2000/svg">
+<g id="window_{opening_type}_{width_inches}in">
+<rect x="1" y="1" width="{svg_width}" height="{svg_height - 2}" fill="white"/>
+<rect x="1" y="1" width="{svg_width}" height="{svg_height - 2}" stroke="black" stroke-width="2"/>
+<rect id="windowFrame01" x="1" y="1" width="{frame_width}" height="{svg_height - 2}" fill="white" stroke="black" stroke-width="2"/>
+<g id="windowContainer">
+<g id="windowPanel">
+<rect x="{frame_width + 1}" y="{panel_margin + 1}" width="{svg_width - 2 * frame_width - 2}" height="{panel_height}" stroke="black" stroke-width="2"/>
+<rect id="windowMullion01" x="{frame_width + 1}" y="{panel_margin + 1}" width="16" height="{panel_height}" fill="white" stroke="black" stroke-width="2"/>
+<rect id="windowGlass" x="{frame_width + 17}" y="{panel_margin + 15}" width="{svg_width - 2 * frame_width - 34}" height="4" fill="white" stroke="black" stroke-width="2"/>
+<rect id="windowMullion02" x="{svg_width - frame_width - 15}" y="{panel_margin + 1}" width="16" height="{panel_height}" fill="white" stroke="black" stroke-width="2"/>
+</g>
+</g>
+<rect id="windowFrame02" x="{svg_width - frame_width + 1}" y="1" width="{frame_width}" height="{svg_height - 2}" fill="white" stroke="black" stroke-width="2"/>
+</g>
+</svg>'''
+    
+    elif "sliding" in opening_type:
+        # Sliding door SVG
+        svg_height = 80
+        svg_content = f'''<svg width="{svg_width + 2}" height="{svg_height}" viewBox="0 0 {svg_width + 2} {svg_height}" fill="none" xmlns="http://www.w3.org/2000/svg">
+<g id="door_sliding_{width_inches}in">
+<rect id="doorOpening" x="1" y="1" width="{svg_width}" height="{svg_height - 2}" fill="#f0f0f0" stroke="none"/>
+<rect x="1" y="1" width="{svg_width // 2}" height="{svg_height - 2}" fill="none" stroke="black" stroke-width="2"/>
+<rect x="{svg_width // 2 + 1}" y="1" width="{svg_width // 2}" height="{svg_height - 2}" fill="none" stroke="black" stroke-width="3"/>
+<line x1="{svg_width // 2}" y1="10" x2="{svg_width // 2}" y2="{svg_height - 10}" stroke="black" stroke-width="1"/>
+</g>
+</svg>'''
+    
+    else:
+        # Standard door SVG with swing arc (matching Drafted's door_interiorSingleSwing format)
+        svg_height = 300  # Doors need more height for swing arc
+        swing_radius = svg_width - 35  # Radius for swing arc
+        
+        svg_content = f'''<svg width="{svg_width + 2}" height="{svg_height}" viewBox="0 0 {svg_width + 2} {svg_height}" fill="none" xmlns="http://www.w3.org/2000/svg">
+<g id="door_single_{width_inches}in">
+<rect id="doorOpening" x="34.25" y="{svg_height - 45}" width="{svg_width - 33}" height="37.5" stroke-width="0.5" fill="#fffdf5" stroke="none"/>
+<path id="doorSwing" d="M {svg_width - 10} {svg_height - 44} C {svg_width - 10} {(svg_height - 44) // 2} {svg_width // 2} 8 35 8" stroke="black" stroke-width="6" stroke-dasharray="20 20"/>
+<g id="doorFrame_interior">
+<rect id="doorTrim_outside" x="1" y="{svg_height - 8}" width="32" height="8" fill="#3F3F3F" stroke="black" stroke-width="2"/>
+<rect id="doorTrim_inside" x="1" y="{svg_height - 52}" width="32" height="8" fill="#3F3F3F" stroke="black" stroke-width="2"/>
+<rect id="doorJamb" x="35" y="{svg_height - 44}" width="36" height="8" transform="rotate(90 35 {svg_height - 44})" fill="#3F3F3F" stroke="black" stroke-width="2"/>
+</g>
+<rect id="doorPanel" x="36" y="8" width="8" height="{svg_height - 52}" fill="#3F3F3F" stroke="black" stroke-width="2"/>
+</g>
+</svg>'''
+    
+    return svg_content
+
+
+# =============================================================================
+# DEBUG ENDPOINTS
+# =============================================================================
+
+@router.get("/debug/blend-jobs")
+async def list_blend_debug_jobs():
+    """
+    List all debug blend jobs (when DEBUG_BLEND=true).
+    
+    To enable debug mode, set environment variable:
+    SET DEBUG_BLEND=true (Windows) or export DEBUG_BLEND=true (Unix)
+    """
+    debug_dir = Path(__file__).parent.parent.parent / "debug_blend"
+    
+    if not debug_dir.exists():
+        return {
+            "enabled": os.environ.get("DEBUG_BLEND", "false").lower() == "true",
+            "message": "No debug output yet. Set DEBUG_BLEND=true and try an opening operation.",
+            "jobs": []
+        }
+    
+    jobs = []
+    for job_dir in sorted(debug_dir.iterdir(), reverse=True):
+        if job_dir.is_dir():
+            files = list(job_dir.glob("*.png"))
+            jobs.append({
+                "job_id": job_dir.name,
+                "files": [f.name for f in sorted(files)],
+                "file_count": len(files),
+            })
+    
+    return {
+        "enabled": os.environ.get("DEBUG_BLEND", "false").lower() == "true",
+        "debug_dir": str(debug_dir),
+        "jobs": jobs[:10],  # Last 10 jobs
+    }
+
+
+@router.get("/debug/blend-jobs/{job_id}/{filename}")
+async def get_blend_debug_file(job_id: str, filename: str):
+    """
+    Get a specific debug file from a blend job.
+    Supports both .png and .svg files.
+    """
+    from fastapi.responses import FileResponse
+    
+    debug_dir = Path(__file__).parent.parent.parent / "debug_blend"
+    filepath = debug_dir / job_id / filename
+    
+    if not filepath.exists():
+        raise HTTPException(status_code=404, detail=f"Debug file not found: {job_id}/{filename}")
+    
+    # Determine media type
+    if filename.endswith('.svg'):
+        media_type = "image/svg+xml"
+    elif filename.endswith('.png'):
+        media_type = "image/png"
+    else:
+        media_type = "application/octet-stream"
+    
+    return FileResponse(filepath, media_type=media_type)
+
+
+@router.get("/debug/opening-job/{job_id}")
+async def get_opening_job_debug(job_id: str):
+    """
+    Get detailed debug info for an opening job, including the modified SVG content.
+    """
+    if job_id not in _opening_jobs:
+        raise HTTPException(status_code=404, detail=f"Job {job_id} not found")
+    
+    job = _opening_jobs[job_id]
+    
+    # Check for openings group in the modified SVG
+    has_openings = 'id="openings"' in job.get("modified_svg", "")
+    
+    # Find opening symbols
+    import re
+    opening_symbols = re.findall(r'<g[^>]*class="opening[^"]*"[^>]*>', job.get("modified_svg", ""))
+    
+    # Check debug files
+    debug_dir = Path(__file__).parent.parent.parent / "debug_blend" / job_id
+    debug_files = []
+    if debug_dir.exists():
+        debug_files = [f.name for f in debug_dir.glob("*")]
+    
+    return {
+        "job_id": job_id,
+        "status": job.get("status"),
+        "opening": job.get("opening"),
+        "has_openings_group": has_openings,
+        "opening_symbols_found": len(opening_symbols),
+        "opening_symbols": opening_symbols[:5],  # First 5
+        "debug_files": debug_files,
+        "svg_length": len(job.get("modified_svg", "")),
+        "error": job.get("error"),
+    }

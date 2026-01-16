@@ -1074,7 +1074,12 @@ def process_svg_to_png(svg: str) -> Dict[str, Any]:
     polygon_count = len(re.findall(r'<polygon[^>]*>', svg, re.IGNORECASE))
     path_count = len(re.findall(r'<path[^>]*>', svg, re.IGNORECASE))
     rect_count = len(re.findall(r'<rect[^>]*>', svg, re.IGNORECASE))
-    print(f"[DEBUG] SVG input: {len(svg)} chars, {text_count} text elements, {polygon_count} polygons, {path_count} paths, {rect_count} rects")
+    line_count = len(re.findall(r'<line[^>]*>', svg, re.IGNORECASE))
+    opening_count = svg.count('class="opening')
+    has_openings = 'id="openings"' in svg
+    print(f"[DEBUG] SVG input: {len(svg)} chars")
+    print(f"[DEBUG]   Elements: {text_count} text, {polygon_count} polygons, {path_count} paths, {rect_count} rects, {line_count} lines")
+    print(f"[DEBUG]   Openings: has_openings_group={has_openings}, opening_elements={opening_count}")
     
     # Step 0: Pre-process SVG
     processed_svg = preprocess_svg(svg)
