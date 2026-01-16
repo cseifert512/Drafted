@@ -367,16 +367,104 @@ def preprocess_svg(svg: str) -> str:
     return processed
 
 
+# Color-to-room-type mapping based on SVG fill colors
+# These match the training colors used in floor plan generation
+COLOR_TO_ROOM_TYPE: Dict[str, str] = {
+    # Primary suite
+    'f4a460': 'Primary Bedroom',
+    'ffd700': 'Primary Bathroom', 
+    'daa520': 'Primary Closet',
+    # Bedrooms & baths
+    'ff8c00': 'Bedroom',
+    'ff69b4': 'Bathroom',
+    # Living spaces  
+    '87ceeb': 'Living Room',
+    'add8e6': 'Family Room',
+    'b0e0e6': 'Den',
+    'a8d5e5': 'Living Room',  # Light blue variant
+    # Kitchen & dining
+    '98fb98': 'Kitchen',
+    '90ee90': 'Kitchen',
+    'ff7f50': 'Kitchen',  # Coral/orange kitchen
+    'dda0dd': 'Dining Room',
+    'ee82ee': 'Nook',
+    'e6e6fa': 'Bedroom',  # Lavender bedroom
+    # Utility
+    'd3d3d3': 'Laundry',
+    'c0c0c0': 'Garage',
+    'a9a9a9': 'Storage',
+    'bc8f8f': 'Mudroom',
+    # Flex spaces
+    'f0e68c': 'Office',
+    'fafad2': 'Rec Room',
+    'ffe4c4': 'Theater',
+    'ffdead': 'Gym',
+    'ffe4b5': 'Foyer',
+    # Outdoor
+    '7cfc00': 'Outdoor Living',
+    '9acd32': 'Front Porch',
+    '00ced1': 'Pool',
+    '40e0d0': 'Sunroom',
+    # Pantry & bar
+    'deb887': 'Pantry',
+    'f5deb3': 'Bar',
+}
+
+
+def get_room_type_from_fill(fill: str) -> Optional[str]:
+    """Get room type from fill color using color mapping."""
+    if not fill:
+        return None
+    
+    # Normalize: remove # and lowercase
+    normalized = fill.lower().lstrip('#')
+    
+    # Direct match
+    if normalized in COLOR_TO_ROOM_TYPE:
+        return COLOR_TO_ROOM_TYPE[normalized]
+    
+    # Try fuzzy matching for close colors
+    try:
+        r = int(normalized[0:2], 16)
+        g = int(normalized[2:4], 16)
+        b = int(normalized[4:6], 16)
+    except (ValueError, IndexError):
+        return None
+    
+    best_match = None
+    best_dist = 100  # Max color distance threshold
+    
+    for color_hex, room_type in COLOR_TO_ROOM_TYPE.items():
+        try:
+            cr = int(color_hex[0:2], 16)
+            cg = int(color_hex[2:4], 16)
+            cb = int(color_hex[4:6], 16)
+        except (ValueError, IndexError):
+            continue
+        
+        # Euclidean distance in RGB space
+        dist = ((r - cr) ** 2 + (g - cg) ** 2 + (b - cb) ** 2) ** 0.5
+        if dist < best_dist:
+            best_dist = dist
+            best_match = room_type
+    
+    return best_match
+
+
 def add_room_labels_to_svg(svg: str) -> str:
     """
     Add text labels to each room in the SVG.
     This helps Gemini identify room types and render appropriate furniture/materials.
     
+    Labels are determined by:
+    1. data-room-type attribute (if present)
+    2. Fill color mapping (most reliable)
+    3. data-room-id (skipped if generic like R001)
+    
     Labels are added at the centroid of each room polygon.
     """
     import re
     
-    # Find all room polygons with data-room-id or data-room-type
     room_polygons = []
     
     # Pattern to match room polygons with their attributes
@@ -390,16 +478,36 @@ def add_room_labels_to_svg(svg: str) -> str:
         attrs_after = match.group(3)
         full_attrs = attrs_before + attrs_after
         
-        # Extract room-id or room-type
-        room_id_match = re.search(r'data-room-id="([^"]+)"', full_attrs)
-        room_type_match = re.search(r'data-room-type="([^"]+)"', full_attrs)
+        # Extract fill color
+        fill_match = re.search(r'fill="([^"]+)"', full_attrs)
+        fill = fill_match.group(1) if fill_match else None
         
+        # Skip walls and non-room polygons
+        if fill and fill.lower() in ('none', '#ffffff', 'white', '#000000', 'black'):
+            continue
+        
+        # Determine room name (priority: data-room-type > fill color > data-room-id)
         room_name = None
-        if room_type_match:
-            room_name = room_type_match.group(1)
-        elif room_id_match:
-            room_name = room_id_match.group(1)
         
+        # 1. Check for explicit room type attribute
+        room_type_match = re.search(r'data-room-type="([^"]+)"', full_attrs)
+        if room_type_match:
+            room_name = format_room_name(room_type_match.group(1))
+        
+        # 2. Try to determine from fill color (MOST RELIABLE)
+        if not room_name and fill:
+            room_name = get_room_type_from_fill(fill)
+        
+        # 3. Fall back to room ID (but skip generic IDs like R001)
+        if not room_name:
+            room_id_match = re.search(r'data-room-id="([^"]+)"', full_attrs)
+            if room_id_match:
+                room_id = room_id_match.group(1)
+                # Skip generic IDs like R001, R002, etc.
+                if not re.match(r'^R\d+$', room_id, re.IGNORECASE):
+                    room_name = format_room_name(room_id)
+        
+        # Skip if we couldn't determine a meaningful room name
         if not room_name:
             continue
         
@@ -408,16 +516,16 @@ def add_room_labels_to_svg(svg: str) -> str:
         if not centroid:
             continue
         
-        # Format the room name for display (e.g., "primary_bedroom" -> "Primary Bedroom")
-        display_name = format_room_name(room_name)
-        
         room_polygons.append({
-            'name': display_name,
+            'name': room_name,
             'centroid': centroid,
         })
     
     if not room_polygons:
+        print(f"[add_room_labels_to_svg] No room polygons found to label")
         return svg
+    
+    print(f"[add_room_labels_to_svg] Adding labels for {len(room_polygons)} rooms: {[r['name'] for r in room_polygons]}")
     
     # Generate text labels SVG
     labels_svg = '\n  <!-- Room Labels for Gemini -->\n  <g id="room-labels" font-family="Arial, sans-serif" font-weight="bold" text-anchor="middle" dominant-baseline="middle">\n'
@@ -426,11 +534,11 @@ def add_room_labels_to_svg(svg: str) -> str:
         cx, cy = room['centroid']
         name = room['name']
         
-        # Calculate font size based on name length (smaller for longer names)
-        font_size = max(8, min(14, 120 // max(len(name), 1)))
+        # Calculate font size based on name length (larger for visibility)
+        font_size = max(10, min(16, 140 // max(len(name), 1)))
         
-        # Add text with black outline for visibility
-        labels_svg += f'''    <text x="{cx:.1f}" y="{cy:.1f}" font-size="{font_size}" fill="#333333" stroke="white" stroke-width="3" paint-order="stroke">{name}</text>
+        # Add text with white outline for visibility
+        labels_svg += f'''    <text x="{cx:.1f}" y="{cy:.1f}" font-size="{font_size}" fill="#333333" stroke="white" stroke-width="4" paint-order="stroke">{name}</text>
 '''
     
     labels_svg += '  </g>\n'
