@@ -104,6 +104,9 @@ export function FloorPlanEditor({
   const [currentGeminiPrompt, setCurrentGeminiPrompt] = useState<string | undefined>(
     initialPlan?.gemini_prompt
   );
+  const [currentModifiedSvg, setCurrentModifiedSvg] = useState<string | undefined>(
+    initialPlan?.svg
+  );
   
   // Opening editor hook
   const openingEditor = useOpeningEditor({
@@ -127,6 +130,10 @@ export function FloorPlanEditor({
       if (geminiPrompt) {
         setCurrentGeminiPrompt(geminiPrompt);
         console.log('[FloorPlanEditor] Updated Gemini prompt');
+      }
+      if (modifiedSvg) {
+        setCurrentModifiedSvg(modifiedSvg);
+        console.log('[FloorPlanEditor] Updated modified SVG');
       }
     },
   });
@@ -422,6 +429,7 @@ export function FloorPlanEditor({
         onClose={() => setShowGeminiDebug(false)}
         rawPngBase64={currentRawPngBase64}
         geminiPrompt={currentGeminiPrompt}
+        modifiedSvg={currentModifiedSvg}
         planId={initialPlan?.id}
       />
       
