@@ -62,18 +62,16 @@ export function OpeningDragOverlay({
   }, [wall, centerPosition, currentWidthInches, snappedWidthInches, mapper]);
   
   // Calculate popover position (above the opening)
+  // The overlay is positioned inside the image container which matches PNG dimensions,
+  // so we use center coordinates directly (same as the SVG visualization)
   const popoverPosition = useMemo(() => {
-    if (!openingCoords || !containerRef.current) return { x: 0, y: 0 };
-    
-    const rect = containerRef.current.getBoundingClientRect();
-    const scaleX = rect.width / mapper!.pngDimensions.width;
-    const scaleY = rect.height / mapper!.pngDimensions.height;
+    if (!openingCoords) return { x: 0, y: 0 };
     
     return {
-      x: openingCoords.center.x * scaleX,
-      y: openingCoords.center.y * scaleY - 20, // 20px above center
+      x: openingCoords.center.x,
+      y: openingCoords.center.y - 40, // 40px above center to clear the opening rectangle
     };
-  }, [openingCoords, containerRef, mapper]);
+  }, [openingCoords]);
   
   // Don't render if idle or no data
   if (phase === 'idle' || !wall || !mapper || !openingCoords) {
