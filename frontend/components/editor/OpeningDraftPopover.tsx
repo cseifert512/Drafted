@@ -30,9 +30,12 @@ import {
 // TYPES
 // =============================================================================
 
+type PopoverPlacement = 'top' | 'left' | 'right';
+
 interface OpeningDraftPopoverProps {
   isVisible: boolean;
   position: { x: number; y: number };
+  placement?: PopoverPlacement; // 'top' = above, 'left' = to the left, 'right' = to the right
   matchedAsset: DoorWindowAsset | null;
   currentWidthInches: number;
   snappedWidthInches: number | null;
@@ -63,6 +66,7 @@ const CATEGORY_GROUP_ICONS: Record<CategoryGroup, React.ComponentType<{ classNam
 export function OpeningDraftPopover({
   isVisible,
   position,
+  placement = 'top',
   matchedAsset,
   currentWidthInches,
   snappedWidthInches,
@@ -144,6 +148,36 @@ export function OpeningDraftPopover({
   const displayWidth = snappedWidthInches ?? Math.round(currentWidthInches);
   const Icon = CATEGORY_GROUP_ICONS[categoryGroup];
   
+  // Get transform and animation based on placement
+  const getTransformAndAnimation = () => {
+    switch (placement) {
+      case 'left':
+        return {
+          transform: 'translate(-100%, -50%)', // Right edge at position, vertically centered
+          initial: { opacity: 0, x: 10, scale: 0.95 },
+          animate: { opacity: 1, x: 0, scale: 1 },
+          exit: { opacity: 0, x: 10, scale: 0.95 },
+        };
+      case 'right':
+        return {
+          transform: 'translate(0%, -50%)', // Left edge at position, vertically centered
+          initial: { opacity: 0, x: -10, scale: 0.95 },
+          animate: { opacity: 1, x: 0, scale: 1 },
+          exit: { opacity: 0, x: -10, scale: 0.95 },
+        };
+      case 'top':
+      default:
+        return {
+          transform: 'translate(-50%, -100%)', // Bottom edge at position, horizontally centered
+          initial: { opacity: 0, y: 10, scale: 0.95 },
+          animate: { opacity: 1, y: 0, scale: 1 },
+          exit: { opacity: 0, y: 10, scale: 0.95 },
+        };
+    }
+  };
+  
+  const transformConfig = getTransformAndAnimation();
+  
   return (
     <AnimatePresence>
       <motion.div
@@ -151,11 +185,11 @@ export function OpeningDraftPopover({
         style={{
           left: position.x,
           top: position.y,
-          transform: 'translate(-50%, -100%)',
+          transform: transformConfig.transform,
         }}
-        initial={{ opacity: 0, y: 10, scale: 0.95 }}
-        animate={{ opacity: 1, y: 0, scale: 1 }}
-        exit={{ opacity: 0, y: 10, scale: 0.95 }}
+        initial={transformConfig.initial}
+        animate={transformConfig.animate}
+        exit={transformConfig.exit}
         transition={{ duration: 0.15 }}
       >
         {/* Main popover container */}
@@ -330,15 +364,37 @@ export function OpeningDraftPopover({
           </div>
         </div>
         
-        {/* Arrow pointing down */}
-        <div 
-          className="absolute left-1/2 -translate-x-1/2 -bottom-2 w-0 h-0"
-          style={{
-            borderLeft: '8px solid transparent',
-            borderRight: '8px solid transparent',
-            borderTop: '8px solid white',
-          }}
-        />
+        {/* Arrow pointer - direction based on placement */}
+        {placement === 'top' && (
+          <div 
+            className="absolute left-1/2 -translate-x-1/2 -bottom-2 w-0 h-0"
+            style={{
+              borderLeft: '8px solid transparent',
+              borderRight: '8px solid transparent',
+              borderTop: '8px solid white',
+            }}
+          />
+        )}
+        {placement === 'left' && (
+          <div 
+            className="absolute top-1/2 -translate-y-1/2 -right-2 w-0 h-0"
+            style={{
+              borderTop: '8px solid transparent',
+              borderBottom: '8px solid transparent',
+              borderLeft: '8px solid white',
+            }}
+          />
+        )}
+        {placement === 'right' && (
+          <div 
+            className="absolute top-1/2 -translate-y-1/2 -left-2 w-0 h-0"
+            style={{
+              borderTop: '8px solid transparent',
+              borderBottom: '8px solid transparent',
+              borderRight: '8px solid white',
+            }}
+          />
+        )}
       </motion.div>
     </AnimatePresence>
   );

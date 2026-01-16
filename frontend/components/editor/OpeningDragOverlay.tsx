@@ -61,17 +61,48 @@ export function OpeningDragOverlay({
     return openingToPngCoords(wall, centerPosition, displayWidth, mapper);
   }, [wall, centerPosition, currentWidthInches, snappedWidthInches, mapper]);
   
-  // Calculate popover position (above the opening)
-  // The overlay is positioned inside the image container which matches PNG dimensions,
-  // so we use center coordinates directly (same as the SVG visualization)
-  const popoverPosition = useMemo(() => {
-    if (!openingCoords) return { x: 0, y: 0 };
+  // Determine wall orientation for popover placement
+  const wallOrientation = useMemo(() => {
+    if (!wall) return 'horizontal';
+    return getWallOrientation(wall);
+  }, [wall]);
+  
+  // Calculate popover position and placement based on wall orientation
+  // - Horizontal walls: popover appears 50px above the opening edge
+  // - Vertical walls: popover appears 50px to the left of the opening edge
+  const popoverConfig = useMemo(() => {
+    if (!openingCoords) return { position: { x: 0, y: 0 }, placement: 'top' as const };
     
-    return {
-      x: openingCoords.center.x,
-      y: openingCoords.center.y - 40, // 40px above center to clear the opening rectangle
-    };
-  }, [openingCoords]);
+    const ARROW_OFFSET = 50; // pixels from the opening edge to arrow tip
+    const { center, start, end } = openingCoords;
+    
+    // Calculate the half-width of the opening in screen pixels
+    const halfWidthPx = Math.sqrt(
+      Math.pow(end.x - start.x, 2) + Math.pow(end.y - start.y, 2)
+    ) / 2;
+    
+    if (wallOrientation === 'horizontal') {
+      // For horizontal walls, the opening extends left/right
+      // Place popover above: offset from top edge of the opening rectangle
+      return {
+        position: {
+          x: center.x,
+          y: center.y - 25 - ARROW_OFFSET, // 25px is half the rectangle height, plus offset
+        },
+        placement: 'top' as const,
+      };
+    } else {
+      // For vertical walls, the opening extends up/down
+      // Place popover to the left: offset from left edge of the opening rectangle
+      return {
+        position: {
+          x: center.x - halfWidthPx - ARROW_OFFSET, // Left edge minus offset
+          y: center.y,
+        },
+        placement: 'left' as const,
+      };
+    }
+  }, [openingCoords, wallOrientation]);
   
   // Don't render if idle or no data
   if (phase === 'idle' || !wall || !mapper || !openingCoords) {
@@ -306,7 +337,8 @@ export function OpeningDragOverlay({
       {isDraft && (
         <OpeningDraftPopover
           isVisible={true}
-          position={popoverPosition}
+          position={popoverConfig.position}
+          placement={popoverConfig.placement}
           matchedAsset={matchedAsset}
           currentWidthInches={currentWidthInches}
           snappedWidthInches={snappedWidthInches}

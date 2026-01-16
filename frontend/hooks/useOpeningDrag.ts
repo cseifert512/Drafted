@@ -47,6 +47,7 @@ export interface DragHandlers {
   onDragEnd: () => void;
   onConfirm: () => void;
   onCancel: () => void;
+  onRenderComplete: () => void; // Reset to idle after render completes
   setCategoryGroup: (group: CategoryGroup) => void;
   setSwingDirection: (direction: 'left' | 'right') => void;
   setSelectedAsset: (asset: DoorWindowAsset) => void;
@@ -394,6 +395,17 @@ export function useOpeningDrag(options: UseOpeningDragOptions): [DragState, Drag
     dragStartScreenRef.current = null;
   }, []);
   
+  // Reset to idle after render completes (success or failure)
+  const handleRenderComplete = useCallback(() => {
+    console.log('[useOpeningDrag] Render complete, resetting to idle');
+    setPhase('idle');
+    setWall(null);
+    setCenterPosition(0.5);
+    setCurrentWidthInches(DEFAULT_START_WIDTH_INCHES);
+    setSelectedAssetState(null);
+    dragStartScreenRef.current = null;
+  }, []);
+  
   const handleSetCategoryGroup = useCallback((group: CategoryGroup) => {
     setCategoryGroup(group);
     setSelectedAssetState(null); // Clear manual selection when changing groups
@@ -415,6 +427,7 @@ export function useOpeningDrag(options: UseOpeningDragOptions): [DragState, Drag
     onDragEnd,
     onConfirm: handleConfirm,
     onCancel: handleCancel,
+    onRenderComplete: handleRenderComplete,
     setCategoryGroup: handleSetCategoryGroup,
     setSwingDirection: handleSetSwingDirection,
     setSelectedAsset: handleSetSelectedAsset,

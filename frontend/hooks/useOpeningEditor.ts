@@ -69,6 +69,9 @@ export function useOpeningEditor(options: UseOpeningEditorOptions) {
   const [activeJobs, setActiveJobs] = useState<OpeningJob[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [selectedExistingOpening, setSelectedExistingOpening] = useState<DetectedOpening | null>(null);
+  
+  // Ref for drag handlers to avoid circular dependency
+  const dragHandlersRef = useRef<DragHandlers | null>(null);
 
   // Extract walls from SVG
   const walls = useMemo(() => {
@@ -223,6 +226,9 @@ export function useOpeningEditor(options: UseOpeningEditorOptions) {
               status.geminiPrompt
             );
             
+            // Reset drag state to idle
+            dragHandlersRef.current?.onRenderComplete();
+            
             // Remove completed job after delay
             setTimeout(() => {
               setActiveJobs(prev => prev.filter(j => j.jobId !== result.jobId));
@@ -234,6 +240,8 @@ export function useOpeningEditor(options: UseOpeningEditorOptions) {
             setError(status.error || 'Render failed');
             // Remove failed opening
             setOpenings(prev => prev.filter(o => o.id !== opening.id));
+            // Reset drag state to idle
+            dragHandlersRef.current?.onRenderComplete();
           }
         }
       ).catch(err => {
@@ -265,6 +273,9 @@ export function useOpeningEditor(options: UseOpeningEditorOptions) {
     containerRef,
     onConfirm: handleDragConfirm,
   });
+  
+  // Keep ref updated for use in callbacks
+  dragHandlersRef.current = dragHandlers;
 
   // ==========================================================================
   // WALL INTERACTION HANDLERS
