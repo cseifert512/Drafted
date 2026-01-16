@@ -166,6 +166,9 @@ export function useDraftedGeneration(): UseDraftedGenerationReturn {
           rendered_image_base64: result.staged_image_base64,
           // Store cropped_svg for proper overlay alignment
           cropped_svg: result.cropped_svg || plan.svg,
+          // Store debug data: raw PNG sent to Gemini and prompt used
+          raw_png_base64: result.raw_png_base64,
+          gemini_prompt: result.gemini_prompt,
           is_rendering: false,
         };
       } else {

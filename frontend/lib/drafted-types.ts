@@ -122,6 +122,9 @@ export interface DraftedPlan {
   // Rendered (staged) image from Gemini
   rendered_image_base64?: string;
   is_rendering?: boolean;
+  // Debug data: PNG sent to Gemini and full prompt used
+  raw_png_base64?: string;
+  gemini_prompt?: string;
 }
 
 // Edit history entry

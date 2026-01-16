@@ -287,3 +287,4 @@ export function getWallLengthPng(
   return Math.sqrt((end.x - start.x) ** 2 + (end.y - start.y) ** 2);
 }
 
+

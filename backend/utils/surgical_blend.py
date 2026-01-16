@@ -334,3 +334,4 @@ def smart_blend_for_opening(
             feather_radius=20,
         )
 
+

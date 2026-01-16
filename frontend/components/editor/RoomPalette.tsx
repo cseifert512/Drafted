@@ -246,3 +246,4 @@ export function RoomPalette({ roomTypes, onAddRoom, isOpen, onToggle }: RoomPale
 
 
 
+

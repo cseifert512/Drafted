@@ -486,6 +486,9 @@ async def stage_floor_plan(request: StageRequest):
             if result.cropped_svg:
                 response["cropped_svg"] = result.cropped_svg
             
+            if result.gemini_prompt:
+                response["gemini_prompt"] = result.gemini_prompt
+            
             print(f"[OK] Staging complete in {result.elapsed_seconds:.1f}s")
             return response
         else:

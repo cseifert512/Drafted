@@ -17,6 +17,9 @@ export { WallHighlightLayer, WallTooltip } from './WallHighlightLayer';
 export { OpeningPlacementModal } from './OpeningPlacementModal';
 export { OpeningPreviewOverlay, RenderProgress } from './OpeningPreviewOverlay';
 
+// Debug Components
+export { GeminiDebugModal } from './GeminiDebugModal';
+
 
 
 

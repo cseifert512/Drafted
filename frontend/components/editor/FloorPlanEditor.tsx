@@ -8,12 +8,16 @@ import {
   FileCode,
   DoorOpen,
   Bug,
+  Undo2,
+  Redo2,
+  Eye,
 } from 'lucide-react';
 import { useOpeningEditor } from '@/hooks/useOpeningEditor';
 import { EditorCanvas } from './EditorCanvas';
 import { WallHighlightLayer } from './WallHighlightLayer';
 import { OpeningPlacementModal } from './OpeningPlacementModal';
 import { OpeningPreviewOverlay, RenderProgress } from './OpeningPreviewOverlay';
+import { GeminiDebugModal } from './GeminiDebugModal';
 import type { DraftedPlan, RoomTypeDefinition } from '@/lib/drafted-types';
 
 interface FloorPlanEditorProps {
@@ -35,12 +39,63 @@ export function FloorPlanEditor({
     initialPlan?.rendered_image_base64
   );
   
+  // Undo/Redo history for rendered images
+  const [imageHistory, setImageHistory] = useState<string[]>([]);
+  const [imageFuture, setImageFuture] = useState<string[]>([]);
+  
+  // Push current image to history when it changes (for undo support)
+  const pushToHistory = useCallback((prevImage: string | undefined) => {
+    if (prevImage) {
+      setImageHistory(prev => [...prev, prevImage]);
+      setImageFuture([]); // Clear redo stack on new change
+    }
+  }, []);
+  
+  // Undo - restore previous image
+  const handleUndo = useCallback(() => {
+    if (imageHistory.length === 0) return;
+    
+    const prevImage = imageHistory[imageHistory.length - 1];
+    const newHistory = imageHistory.slice(0, -1);
+    
+    // Push current to future (for redo)
+    if (currentRenderedImage) {
+      setImageFuture(prev => [...prev, currentRenderedImage]);
+    }
+    
+    setImageHistory(newHistory);
+    setCurrentRenderedImage(prevImage);
+  }, [imageHistory, currentRenderedImage]);
+  
+  // Redo - restore next image
+  const handleRedo = useCallback(() => {
+    if (imageFuture.length === 0) return;
+    
+    const nextImage = imageFuture[imageFuture.length - 1];
+    const newFuture = imageFuture.slice(0, -1);
+    
+    // Push current to history (for undo)
+    if (currentRenderedImage) {
+      setImageHistory(prev => [...prev, currentRenderedImage]);
+    }
+    
+    setImageFuture(newFuture);
+    setCurrentRenderedImage(nextImage);
+  }, [imageFuture, currentRenderedImage]);
+  
+  // Check if undo/redo are available
+  const canUndo = imageHistory.length > 0;
+  const canRedo = imageFuture.length > 0;
+  
   // Toggle between SVG and rendered view
   const [showRenderedOverlay, setShowRenderedOverlay] = useState(true);
   
   // Debug mode: overlay SVG on render
   const [debugOverlay, setDebugOverlay] = useState(false);
   const [debugOpacity, setDebugOpacity] = useState(0.5);
+  
+  // Gemini debug modal
+  const [showGeminiDebug, setShowGeminiDebug] = useState(false);
   
   // Opening editor hook
   const openingEditor = useOpeningEditor({
@@ -52,6 +107,8 @@ export function FloorPlanEditor({
     pngDimensions,
     onRenderComplete: (newImageBase64, modifiedSvg) => {
       console.log('[FloorPlanEditor] Opening render complete');
+      // Save current image to history before updating (for undo)
+      pushToHistory(currentRenderedImage);
       setCurrentRenderedImage(newImageBase64);
     },
   });
@@ -207,11 +264,54 @@ export function FloorPlanEditor({
                 />
               </div>
             )}
+            
+            {/* View Gemini Input Button */}
+            <button
+              onClick={() => setShowGeminiDebug(true)}
+              disabled={!hasRenderedImage}
+              className={`px-3 py-1.5 rounded-lg transition-colors text-xs font-medium flex items-center gap-1.5 ${
+                'bg-purple-100 text-purple-600 hover:bg-purple-200'
+              } ${!hasRenderedImage ? 'opacity-50 cursor-not-allowed' : ''}`}
+              title="View exact PNG and prompt sent to Gemini API"
+            >
+              <Eye className="w-3.5 h-3.5" />
+              <span>Gemini Input</span>
+            </button>
           </div>
         </div>
         
         {/* Right: Actions */}
         <div className="flex items-center gap-2">
+          {/* Undo/Redo buttons */}
+          <div className="flex items-center gap-1 mr-2">
+            <button
+              onClick={handleUndo}
+              disabled={!canUndo}
+              className={`p-2 rounded-lg transition-colors ${
+                canUndo 
+                  ? 'hover:bg-drafted-bg text-drafted-black' 
+                  : 'text-gray-300 cursor-not-allowed'
+              }`}
+              title={canUndo ? `Undo (${imageHistory.length} steps)` : 'Nothing to undo'}
+            >
+              <Undo2 className="w-4 h-4" />
+            </button>
+            <button
+              onClick={handleRedo}
+              disabled={!canRedo}
+              className={`p-2 rounded-lg transition-colors ${
+                canRedo 
+                  ? 'hover:bg-drafted-bg text-drafted-black' 
+                  : 'text-gray-300 cursor-not-allowed'
+              }`}
+              title={canRedo ? `Redo (${imageFuture.length} steps)` : 'Nothing to redo'}
+            >
+              <Redo2 className="w-4 h-4" />
+            </button>
+          </div>
+          
+          <div className="w-px h-6 bg-drafted-border" />
+          
           <button
             onClick={handleExportSvg}
             disabled={!initialPlan?.svg}
@@ -290,6 +390,15 @@ export function FloorPlanEditor({
         positionOnWall={openingEditor.selectedPosition}
         onClose={openingEditor.handleCancelModal}
         onConfirm={openingEditor.handleConfirmOpening}
+      />
+      
+      {/* Gemini Debug Modal */}
+      <GeminiDebugModal
+        isOpen={showGeminiDebug}
+        onClose={() => setShowGeminiDebug(false)}
+        rawPngBase64={initialPlan?.raw_png_base64}
+        geminiPrompt={initialPlan?.gemini_prompt}
+        planId={initialPlan?.id}
       />
       
       {/* Render Progress (for multiple openings) */}

@@ -167,6 +167,7 @@ export async function stageFloorPlan(
   raw_png_base64?: string;
   cropped_svg?: string;
   aspect_ratio?: string;
+  gemini_prompt?: string;
   elapsed_seconds?: number;
   error?: string;
 }> {

@@ -25,8 +25,8 @@ import httpx
 # Try to import cairosvg for high-quality SVG to PNG conversion
 try:
     import cairosvg
-    # Test if Cairo library is actually available
-    cairosvg.svg2png(bytestring=b'<svg xmlns="http://www.w3.org/2000/svg"></svg>')
+    # Test if Cairo library is actually available (use valid SVG with dimensions)
+    cairosvg.svg2png(bytestring=b'<svg xmlns="http://www.w3.org/2000/svg" width="10" height="10"></svg>')
     HAS_CAIROSVG = True
     print("[OK] cairosvg available with Cairo library")
 except Exception as e:
@@ -142,6 +142,7 @@ class StagingResult:
     raw_png: Optional[bytes] = None  # Pre-processed PNG sent to Gemini
     cropped_svg: Optional[str] = None  # SVG with adjusted viewBox
     aspect_ratio: Optional[str] = None  # Best-fit aspect ratio used
+    gemini_prompt: Optional[str] = None  # Full prompt sent to Gemini (system + user prompt)
     error: Optional[str] = None
     elapsed_seconds: float = 0
 
@@ -347,22 +348,44 @@ def calculate_output_dimensions(
 def preprocess_svg(svg: str) -> str:
     """
     Pre-process SVG for Gemini rendering.
-    - Ensure proper stroke widths
-    - Add room labels so Gemini knows room types
-    - Recolor kitchen polygons if needed (matching helpers.tts)
+    - Ensure proper stroke widths for thick black walls
+    - Preserve all original labels, colors, doors, windows
     """
-    # Ensure wall strokes are visible
     processed = svg
     
-    # Make sure stroke-width is set for walls
-    if 'stroke-width' not in processed:
-        processed = processed.replace(
-            'stroke="black"',
-            'stroke="black" stroke-width="2"'
+    # Ensure walls have proper stroke-width for thick black walls
+    # The SVG from the generator should already have this, but we ensure it
+    
+    # Add stroke-width to elements that have stroke="black" but no stroke-width
+    if 'stroke="black"' in processed:
+        # Only add stroke-width if not already present on the same element
+        # This regex finds stroke="black" NOT followed by stroke-width within the same tag
+        processed = re.sub(
+            r'(<[^>]*stroke="black")(?![^>]*stroke-width)([^>]*>)',
+            r'\1 stroke-width="4"\2',
+            processed
         )
     
-    # Add room labels to help Gemini identify room types
-    processed = add_room_labels_to_svg(processed)
+    # Ensure minimum stroke-width of 3 for walls (for visibility)
+    # Replace stroke-width values less than 3 with 3 for black strokes
+    def ensure_min_stroke_width(match):
+        element = match.group(0)
+        if 'stroke="black"' in element or "stroke='black'" in element:
+            sw_match = re.search(r'stroke-width="([^"]+)"', element)
+            if sw_match:
+                try:
+                    sw = float(sw_match.group(1))
+                    if sw < 3:
+                        element = element.replace(f'stroke-width="{sw_match.group(1)}"', 'stroke-width="4"')
+                except ValueError:
+                    pass
+        return element
+    
+    # Apply to polygons, polylines, lines, paths, and rects
+    processed = re.sub(r'<(?:polygon|polyline|line|path|rect)[^>]*>', ensure_min_stroke_width, processed)
+    
+    # NOTE: The SVG from the generator already has correct room labels (e.g., "Primary Bedroom", 
+    # "Kitchen", etc.) - we preserve these as-is, DO NOT remove or regenerate them!
     
     return processed
 
@@ -754,10 +777,10 @@ def svg_to_png(
 
 def render_svg_with_pil(svg: str, width: int, height: int) -> bytes:
     """
-    Basic SVG to PNG rendering using PIL.
-    Handles simple shapes like rectangles, polygons, and lines.
+    Enhanced SVG to PNG rendering using PIL.
+    Handles shapes, text labels, paths (door swings), and proper stroke widths.
     """
-    from PIL import ImageDraw
+    from PIL import ImageDraw, ImageFont
     
     img = Image.new('RGB', (width, height), 'white')
     draw = ImageDraw.Draw(img)
@@ -787,19 +810,39 @@ def render_svg_with_pil(svg: str, width: int, height: int) -> bytes:
             return None
         if color_str.startswith('#'):
             return color_str
-        # Common color names
+        # Extended color names
         colors = {
             'black': '#000000', 'white': '#FFFFFF', 'red': '#FF0000',
             'green': '#00FF00', 'blue': '#0000FF', 'gray': '#808080',
-            'lightgray': '#D3D3D3', 'darkgray': '#A9A9A9',
+            'lightgray': '#D3D3D3', 'darkgray': '#A9A9A9', 'grey': '#808080',
+            'lightgrey': '#D3D3D3', 'darkgrey': '#A9A9A9',
+            'coral': '#FF7F50', 'salmon': '#FA8072', 'pink': '#FFC0CB',
+            'lavender': '#E6E6FA', 'lightblue': '#ADD8E6', 'skyblue': '#87CEEB',
+            'lightgreen': '#90EE90', 'palegreen': '#98FB98', 'orange': '#FFA500',
+            'gold': '#FFD700', 'khaki': '#F0E68C', 'plum': '#DDA0DD',
+            'violet': '#EE82EE', 'tan': '#D2B48C', 'beige': '#F5F5DC',
         }
         return colors.get(color_str.lower(), '#000000')
     
-    # Draw polygons
-    for match in re.finditer(r'<polygon[^>]*points="([^"]+)"[^>]*/?>', svg):
+    def get_stroke_width(element_str):
+        """Extract stroke-width from element, default to scaled value."""
+        sw_match = re.search(r'stroke-width="([^"]+)"', element_str)
+        if sw_match:
+            try:
+                sw = float(sw_match.group(1))
+                # Scale stroke width proportionally
+                return max(1, int(sw * min(scale_x, scale_y)))
+            except ValueError:
+                pass
+        return max(2, int(2 * min(scale_x, scale_y)))  # Default thick walls
+    
+    # Draw polygons (rooms)
+    for match in re.finditer(r'<polygon[^>]*points="([^"]+)"[^>]*/?>', svg, re.IGNORECASE):
         points_str = match.group(1)
-        fill_match = re.search(r'fill="([^"]+)"', match.group(0))
-        stroke_match = re.search(r'stroke="([^"]+)"', match.group(0))
+        element = match.group(0)
+        fill_match = re.search(r'fill="([^"]+)"', element)
+        stroke_match = re.search(r'stroke="([^"]+)"', element)
+        stroke_width = get_stroke_width(element)
         
         fill = parse_color(fill_match.group(1)) if fill_match else None
         stroke = parse_color(stroke_match.group(1)) if stroke_match else '#000000'
@@ -811,13 +854,17 @@ def render_svg_with_pil(svg: str, width: int, height: int) -> bytes:
             points.append(transform_point(x, y))
         
         if len(points) >= 3:
-            if fill:
-                draw.polygon(points, fill=fill, outline=stroke)
-            elif stroke:
-                draw.polygon(points, outline=stroke)
+            if fill and fill != 'none':
+                draw.polygon(points, fill=fill)
+            if stroke and stroke != 'none':
+                # Draw outline with proper width
+                for i in range(len(points)):
+                    p1 = points[i]
+                    p2 = points[(i + 1) % len(points)]
+                    draw.line([p1, p2], fill=stroke, width=stroke_width)
     
-    # Draw rectangles
-    for match in re.finditer(r'<rect[^>]*/?>', svg):
+    # Draw rectangles (windows, doors)
+    for match in re.finditer(r'<rect[^>]*/?>', svg, re.IGNORECASE):
         rect_str = match.group(0)
         x_match = re.search(r'\bx="([^"]+)"', rect_str)
         y_match = re.search(r'\by="([^"]+)"', rect_str)
@@ -825,6 +872,7 @@ def render_svg_with_pil(svg: str, width: int, height: int) -> bytes:
         h_match = re.search(r'\bheight="([^"]+)"', rect_str)
         fill_match = re.search(r'fill="([^"]+)"', rect_str)
         stroke_match = re.search(r'stroke="([^"]+)"', rect_str)
+        stroke_width = get_stroke_width(rect_str)
         
         if w_match and h_match:
             x = float(x_match.group(1)) if x_match else 0
@@ -838,18 +886,19 @@ def render_svg_with_pil(svg: str, width: int, height: int) -> bytes:
             x1, y1 = transform_point(x, y)
             x2, y2 = transform_point(x + w, y + h)
             
-            if fill:
-                draw.rectangle([x1, y1, x2, y2], fill=fill, outline=stroke)
-            elif stroke:
-                draw.rectangle([x1, y1, x2, y2], outline=stroke)
+            if fill and fill != 'none':
+                draw.rectangle([x1, y1, x2, y2], fill=fill)
+            if stroke and stroke != 'none':
+                draw.rectangle([x1, y1, x2, y2], outline=stroke, width=stroke_width)
     
-    # Draw lines/polylines
-    for match in re.finditer(r'<(?:polyline|line)[^>]*/?>', svg):
+    # Draw lines/polylines (walls, paths)
+    for match in re.finditer(r'<(?:polyline|line)[^>]*/?>', svg, re.IGNORECASE):
         line_str = match.group(0)
         stroke_match = re.search(r'stroke="([^"]+)"', line_str)
         stroke = parse_color(stroke_match.group(1)) if stroke_match else '#000000'
+        stroke_width = get_stroke_width(line_str)
         
-        if 'polyline' in line_str:
+        if 'polyline' in line_str.lower():
             points_match = re.search(r'points="([^"]+)"', line_str)
             if points_match:
                 points = []
@@ -857,7 +906,153 @@ def render_svg_with_pil(svg: str, width: int, height: int) -> bytes:
                     x, y = float(coord_match.group(1)), float(coord_match.group(2))
                     points.append(transform_point(x, y))
                 if len(points) >= 2:
-                    draw.line(points, fill=stroke, width=2)
+                    draw.line(points, fill=stroke, width=stroke_width)
+        else:
+            # Line element
+            x1_match = re.search(r'\bx1="([^"]+)"', line_str)
+            y1_match = re.search(r'\by1="([^"]+)"', line_str)
+            x2_match = re.search(r'\bx2="([^"]+)"', line_str)
+            y2_match = re.search(r'\by2="([^"]+)"', line_str)
+            if x1_match and y1_match and x2_match and y2_match:
+                x1, y1 = transform_point(float(x1_match.group(1)), float(y1_match.group(1)))
+                x2, y2 = transform_point(float(x2_match.group(1)), float(y2_match.group(1)))
+                draw.line([x1, y1, x2, y2], fill=stroke, width=stroke_width)
+    
+    # Draw paths (door swings - simplified arc rendering)
+    for match in re.finditer(r'<path[^>]*d="([^"]+)"[^>]*/?>', svg, re.IGNORECASE):
+        path_d = match.group(1)
+        element = match.group(0)
+        stroke_match = re.search(r'stroke="([^"]+)"', element)
+        stroke = parse_color(stroke_match.group(1)) if stroke_match else '#000000'
+        stroke_width = get_stroke_width(element)
+        
+        # Parse basic path commands (M, L, A, Q, C)
+        points = []
+        current_x, current_y = 0, 0
+        
+        # Extract move and line commands
+        for cmd in re.finditer(r'([MLHVCSQTAZ])([^MLHVCSQTAZ]*)', path_d, re.IGNORECASE):
+            command = cmd.group(1).upper()
+            params = [float(x) for x in re.findall(r'[+-]?[\d.]+', cmd.group(2))]
+            
+            if command == 'M' and len(params) >= 2:
+                current_x, current_y = params[0], params[1]
+                points.append(transform_point(current_x, current_y))
+            elif command == 'L' and len(params) >= 2:
+                current_x, current_y = params[0], params[1]
+                points.append(transform_point(current_x, current_y))
+            elif command == 'H' and len(params) >= 1:
+                current_x = params[0]
+                points.append(transform_point(current_x, current_y))
+            elif command == 'V' and len(params) >= 1:
+                current_y = params[0]
+                points.append(transform_point(current_x, current_y))
+            elif command == 'A' and len(params) >= 7:
+                # Arc: approximate with line to endpoint
+                end_x, end_y = params[5], params[6]
+                # Add intermediate points for arc approximation
+                mid_x = (current_x + end_x) / 2
+                mid_y = (current_y + end_y) / 2
+                points.append(transform_point(mid_x, mid_y))
+                current_x, current_y = end_x, end_y
+                points.append(transform_point(current_x, current_y))
+        
+        if len(points) >= 2 and stroke:
+            # Check if dashed (door swing)
+            is_dashed = 'stroke-dasharray' in element
+            if is_dashed:
+                # Draw dashed line
+                for i in range(0, len(points) - 1, 2):
+                    if i + 1 < len(points):
+                        draw.line([points[i], points[i + 1]], fill=stroke, width=max(1, stroke_width // 2))
+            else:
+                draw.line(points, fill=stroke, width=stroke_width)
+    
+    # Draw text labels (room names)
+    # Try to load a font, fall back to default if not available
+    try:
+        # Calculate base font size based on image dimensions
+        base_font_size = max(12, int(min(width, height) / 40))
+        font = ImageFont.truetype("arial.ttf", base_font_size)
+        small_font = ImageFont.truetype("arial.ttf", int(base_font_size * 0.8))
+    except (IOError, OSError):
+        font = ImageFont.load_default()
+        small_font = font
+    
+    for match in re.finditer(r'<text[^>]*>([^<]+)</text>', svg, re.IGNORECASE):
+        text_content = match.group(1).strip()
+        element = match.group(0)
+        
+        # Get position
+        x_match = re.search(r'\bx="([^"]+)"', element)
+        y_match = re.search(r'\by="([^"]+)"', element)
+        
+        if x_match and y_match and text_content:
+            x = float(x_match.group(1))
+            y = float(y_match.group(1))
+            tx, ty = transform_point(x, y)
+            
+            # Get fill color
+            fill_match = re.search(r'fill="([^"]+)"', element)
+            fill = parse_color(fill_match.group(1)) if fill_match else '#333333'
+            
+            # Get font size from element if specified
+            fs_match = re.search(r'font-size="([^"]+)"', element)
+            use_font = font
+            if fs_match:
+                try:
+                    fs = float(re.sub(r'[^0-9.]', '', fs_match.group(1)))
+                    if fs < base_font_size * 0.9:
+                        use_font = small_font
+                except ValueError:
+                    pass
+            
+            # Draw text with optional stroke (for visibility)
+            stroke_match = re.search(r'stroke="([^"]+)"', element)
+            if stroke_match:
+                stroke_color = parse_color(stroke_match.group(1))
+                if stroke_color:
+                    # Draw outline by drawing text offset in all directions
+                    for dx, dy in [(-1, -1), (-1, 1), (1, -1), (1, 1), (-1, 0), (1, 0), (0, -1), (0, 1)]:
+                        draw.text((tx + dx, ty + dy), text_content, fill=stroke_color, font=use_font, anchor='mm')
+            
+            draw.text((tx, ty), text_content, fill=fill, font=use_font, anchor='mm')
+    
+    # Also handle text with tspan children
+    for match in re.finditer(r'<text[^>]*>(.*?)</text>', svg, re.IGNORECASE | re.DOTALL):
+        text_element = match.group(0)
+        content = match.group(1)
+        
+        # Skip if already processed (simple text)
+        if '<tspan' not in content:
+            continue
+        
+        # Get text position
+        x_match = re.search(r'\bx="([^"]+)"', text_element)
+        y_match = re.search(r'\by="([^"]+)"', text_element)
+        
+        if x_match and y_match:
+            base_x = float(x_match.group(1))
+            base_y = float(y_match.group(1))
+            
+            # Extract tspan content
+            for tspan in re.finditer(r'<tspan[^>]*>([^<]+)</tspan>', content, re.IGNORECASE):
+                tspan_content = tspan.group(1).strip()
+                tspan_element = tspan.group(0)
+                
+                # Get tspan position (may override base position)
+                tx_match = re.search(r'\bx="([^"]+)"', tspan_element)
+                ty_match = re.search(r'\by="([^"]+)"', tspan_element)
+                
+                x = float(tx_match.group(1)) if tx_match else base_x
+                y = float(ty_match.group(1)) if ty_match else base_y
+                
+                tx, ty = transform_point(x, y)
+                
+                fill_match = re.search(r'fill="([^"]+)"', tspan_element) or re.search(r'fill="([^"]+)"', text_element)
+                fill = parse_color(fill_match.group(1)) if fill_match else '#333333'
+                
+                draw.text((tx, ty), tspan_content, fill=fill, font=font, anchor='mm')
     
     buffer = io.BytesIO()
     img.save(buffer, format='PNG')
@@ -874,8 +1069,19 @@ def process_svg_to_png(svg: str) -> Dict[str, Any]:
         - cropped_svg: SVG with adjusted viewBox
         - aspect_ratio: Best-fit aspect ratio used
     """
+    # Debug: Log SVG content summary
+    text_count = len(re.findall(r'<text[^>]*>', svg, re.IGNORECASE))
+    polygon_count = len(re.findall(r'<polygon[^>]*>', svg, re.IGNORECASE))
+    path_count = len(re.findall(r'<path[^>]*>', svg, re.IGNORECASE))
+    rect_count = len(re.findall(r'<rect[^>]*>', svg, re.IGNORECASE))
+    print(f"[DEBUG] SVG input: {len(svg)} chars, {text_count} text elements, {polygon_count} polygons, {path_count} paths, {rect_count} rects")
+    
     # Step 0: Pre-process SVG
     processed_svg = preprocess_svg(svg)
+    
+    # Debug: Log after preprocessing
+    text_count_after = len(re.findall(r'<text[^>]*>', processed_svg, re.IGNORECASE))
+    print(f"[DEBUG] After preprocessing: {text_count_after} text elements (should match input)")
     
     # Step 1: Get floorplan bounds
     bounds = get_floorplan_bounds(processed_svg)
@@ -1136,12 +1342,16 @@ class GeminiStaging:
             elapsed = time.time() - start_time
             print(f"[OK] Staging complete in {elapsed:.1f}s")
             
+            # Construct full prompt for debugging
+            full_prompt = SYSTEM_PROMPT + "\n\n" + prompt
+            
             return StagingResult(
                 success=True,
                 staged_image=staged_image,
                 raw_png=png_buffer,
                 cropped_svg=cropped_svg,
                 aspect_ratio=aspect_ratio,
+                gemini_prompt=full_prompt,
                 elapsed_seconds=elapsed,
             )
             

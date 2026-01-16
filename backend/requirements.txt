@@ -32,7 +32,7 @@ aiohttp==3.9.3
 httpx==0.28.1
 
 # SVG to PNG conversion for Gemini staging
-# cairosvg==2.7.1  # Requires native Cairo library
-svglib==1.5.1
+cairosvg==2.7.1  # Requires native Cairo library - best quality
+svglib==1.5.1  # Fallback if Cairo not available
 reportlab==4.1.0
 

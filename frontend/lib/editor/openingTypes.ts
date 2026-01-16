@@ -207,3 +207,4 @@ export function svgPixelsToInches(pixels: number): number {
   return pixels * SVG_INCHES_PER_PIXEL;
 }
 
+
