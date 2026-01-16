@@ -131,6 +131,187 @@ ROOM_PROMPTS: Dict[str, str] = {
 
 
 # =============================================================================
+# OPENING EDIT PROMPTS (for prompt-based door/window placement)
+# =============================================================================
+
+OPENING_EDIT_SYSTEM_PROMPT = """
+You are performing a MINIMAL LOCAL EDIT on an EXISTING photorealistic floor plan image.
+
+### THIS IS AN INPAINTING TASK - NOT A GENERATION TASK ###
+
+The input is a COMPLETE, FINISHED floor plan. Your job is to make ONE tiny change:
+- Insert a door/window at the location marked by the BLUE RECTANGLE
+- That's it. Nothing else changes.
+
+### ABSOLUTE RULES - VIOLATING THESE IS FAILURE ###
+
+1. **DO NOT ADD ANYTHING NEW TO THE FLOOR PLAN**:
+   - Do NOT add new rooms
+   - Do NOT add new walls
+   - Do NOT extend the floor plan
+   - Do NOT add new furniture or objects
+   - Do NOT add new hallways or areas
+   - The floor plan is COMPLETE - you are only inserting a door in an existing wall
+
+2. **DO NOT CHANGE THE IMAGE SIZE OR CROP**:
+   - Output must be the EXACT same dimensions as input
+   - Do NOT zoom in or out
+   - Do NOT crop or extend the canvas
+   - Every pixel outside the blue box area should be IDENTICAL to the input
+
+3. **ONLY MODIFY THE BLUE BOX AREA**:
+   - The BLUE RECTANGLE marks where to insert the door/window
+   - ONLY change pixels within and immediately adjacent to this blue box
+   - The door replaces a section of the existing black wall
+   - Remove the blue annotation lines in your output
+
+4. **PRESERVE EVERYTHING ELSE PIXEL-PERFECT**:
+   - All furniture must stay exactly where it is
+   - All flooring patterns must be identical
+   - All other walls must be unchanged
+   - All other rooms must be unchanged
+   - If a pixel is more than ~20 pixels from the blue box, it should be IDENTICAL to input
+"""
+
+# Detailed opening type descriptions for prompts
+OPENING_TYPE_PROMPTS: Dict[str, str] = {
+    "interior_door": """
+**OPENING TYPE: Interior Hinged Door**
+- Standard interior door with wooden panel
+- Show door frame (white/cream trim) from above
+- Show door panel (can be white, wood-grain, or match room style)
+- Door should appear slightly ajar or closed
+- Include realistic shadow under the door
+""",
+    "exterior_door": """
+**OPENING TYPE: Exterior Entry Door**
+- Solid exterior door (typically darker/heavier than interior)
+- Show substantial door frame and threshold
+- Door can have small window panels or be solid
+- Include weather stripping/threshold detail if visible
+- May show hint of outdoor lighting/shadow
+""",
+    "sliding_door": """
+**OPENING TYPE: Sliding Glass Door**
+- Large glass panels with thin metal/aluminum frame
+- Show glass reflection and slight transparency
+- One panel typically overlaps the other
+- May show outdoor patio/yard through the glass
+- Include track/rail at bottom if visible from above
+""",
+    "french_door": """
+**OPENING TYPE: French Double Doors**
+- Two doors that open in the middle
+- Glass panes divided by mullions (grid pattern)
+- White or cream colored frames
+- Show both door panels from above
+- Elegant, traditional appearance
+""",
+    "window": """
+**OPENING TYPE: Standard Window**
+- Casement or double-hung window
+- White frame with glass panes
+- Show window frame clearly from above
+- May show slight outdoor color/light through glass
+- Clean, simple residential window appearance
+""",
+    "picture_window": """
+**OPENING TYPE: Picture Window**
+- Large single fixed glass pane
+- Minimal frame, maximum glass area
+- Shows clear view/reflection
+- No mullions or dividers
+- Modern, clean appearance
+""",
+    "bay_window": """
+**OPENING TYPE: Bay Window**
+- Projecting window with multiple panes
+- Typically 3 window sections at angles
+- Creates small alcove/nook in the wall
+- White frames with clear glass
+- May show window seat or plants
+""",
+}
+
+
+def build_opening_edit_prompt(
+    opening_type: str,
+    width_inches: float,
+    swing_direction: Optional[str] = None,
+) -> str:
+    """
+    Build a detailed prompt for editing a floor plan to add an opening.
+    
+    Args:
+        opening_type: Type of opening (interior_door, window, etc.)
+        width_inches: Width of the opening in inches
+        swing_direction: For doors, which way it swings (left/right)
+        
+    Returns:
+        Complete prompt string for Gemini
+    """
+    # Get type-specific description
+    type_description = OPENING_TYPE_PROMPTS.get(
+        opening_type,
+        f"**OPENING TYPE: {opening_type.replace('_', ' ').title()}**\n- Standard opening\n"
+    )
+    
+    # Build the prompt
+    prompt = f"""
+**TASK: LOCAL INPAINTING - Insert a door/window into an EXISTING floor plan**
+
+This floor plan is COMPLETE. Do NOT add any new rooms, walls, or areas.
+Your ONLY job: insert the specified opening where the BLUE RECTANGLE is.
+
+{type_description}
+
+**OPENING SPECIFICATIONS**:
+- Width: {width_inches} inches (approximately {width_inches / 12:.1f} feet)
+"""
+    
+    # Add swing direction for doors
+    if swing_direction and "door" in opening_type:
+        prompt += f"- Swing Direction: Door swings to the {swing_direction}\n"
+    
+    prompt += """
+**WHAT TO DO**:
+1. Find the BLUE RECTANGLE on the black wall
+2. Replace that section of wall with the specified door/window
+3. Remove the blue annotation lines
+4. Output the image - same size, same everything else
+
+**WHAT NOT TO DO** (CRITICAL):
+- Do NOT add new rooms or extend the floor plan
+- Do NOT add new walls or hallways  
+- Do NOT add new furniture or objects
+- Do NOT change ANYTHING outside the immediate blue box area
+- Do NOT resize or crop the image
+- Do NOT regenerate the floor plan - just insert the door
+
+**PIXEL PRESERVATION**:
+- Every pixel more than 30 pixels away from the blue box should be UNCHANGED
+- The floor plan boundaries stay exactly the same
+- All existing furniture, flooring, and details remain identical
+- ONLY the wall section at the blue box changes
+
+**OUTPUT**: Return the SAME floor plan image with ONLY the door/window added where the blue box was. Image dimensions must match input exactly.
+"""
+    
+    return prompt
+
+
+@dataclass
+class OpeningEditResult:
+    """Result from opening edit operation."""
+    success: bool
+    edited_image: Optional[bytes] = None  # Final edited image
+    annotated_png: Optional[bytes] = None  # PNG with blue box and red boundary (for debug)
+    prompt_used: Optional[str] = None  # Full prompt sent to Gemini
+    error: Optional[str] = None
+    elapsed_seconds: float = 0
+
+
+# =============================================================================
 # DATA CLASSES
 # =============================================================================
 
@@ -1393,6 +1574,189 @@ async def stage_floor_plan(
     """
     client = GeminiStaging(api_key=api_key)
     return await client.stage_floor_plan(svg, canonical_room_keys)
+
+
+# =============================================================================
+# OPENING EDIT FUNCTION (prompt-based door/window placement)
+# =============================================================================
+
+async def edit_floor_plan_with_opening(
+    annotated_png: bytes,
+    opening: Dict[str, Any],
+    api_key: Optional[str] = None,
+    max_retries: int = 5,
+    retry_delay_ms: int = 5000,
+) -> OpeningEditResult:
+    """
+    Edit a floor plan to add a door or window using prompt-based constraints.
+    
+    This function takes a PNG that has been annotated with:
+    - BLUE BOX: Where the opening should be placed
+    - RED BOUNDARY: The edit constraint (don't modify outside this)
+    
+    And sends it to Gemini with specific instructions to add the opening.
+    
+    Args:
+        annotated_png: PNG bytes with blue box and red boundary annotations
+        opening: Opening specification dict with type, width_inches, swing_direction
+        api_key: Gemini API key (optional, uses env var if not provided)
+        max_retries: Maximum retry attempts for transient errors
+        retry_delay_ms: Base delay between retries in milliseconds
+        
+    Returns:
+        OpeningEditResult with the edited image
+    """
+    import time
+    start_time = time.time()
+    
+    # Get API key
+    api_key = api_key or os.getenv("GEMINI_API_KEY")
+    if not api_key:
+        return OpeningEditResult(
+            success=False,
+            error="GEMINI_API_KEY not set",
+            elapsed_seconds=time.time() - start_time,
+        )
+    
+    try:
+        # Build the opening-specific prompt
+        opening_type = opening.get("type", "interior_door")
+        width_inches = opening.get("width_inches", 36)
+        swing_direction = opening.get("swing_direction")
+        
+        user_prompt = build_opening_edit_prompt(
+            opening_type=opening_type,
+            width_inches=width_inches,
+            swing_direction=swing_direction,
+        )
+        
+        # Combine system prompt and user prompt
+        full_prompt = OPENING_EDIT_SYSTEM_PROMPT + "\n\n" + user_prompt
+        
+        print(f"[OPENING_EDIT] Editing floor plan to add {opening_type} ({width_inches}in)")
+        print(f"[OPENING_EDIT] Prompt length: {len(full_prompt)} chars")
+        
+        # Encode image
+        png_base64 = base64.b64encode(annotated_png).decode('utf-8')
+        
+        # Call Gemini API with retry logic
+        url = f"https://generativelanguage.googleapis.com/v1beta/models/{GEMINI_CONFIG['model']}:generateContent"
+        
+        headers = {
+            "Content-Type": "application/json",
+        }
+        
+        payload = {
+            "contents": [{
+                "parts": [
+                    {
+                        "inlineData": {
+                            "mimeType": "image/png",
+                            "data": png_base64,
+                        }
+                    },
+                    {"text": full_prompt},
+                ]
+            }],
+            "generationConfig": {
+                "responseModalities": ["TEXT", "IMAGE"],
+                "temperature": 0.1,  # Very low temperature for minimal, conservative edits
+                "topK": 20,
+                "topP": 0.7,
+            },
+        }
+        
+        last_error = None
+        
+        for attempt in range(max_retries):
+            try:
+                print(f"[OPENING_EDIT] Calling Gemini (attempt {attempt + 1}/{max_retries})...")
+                
+                async with httpx.AsyncClient(timeout=180.0) as client:
+                    response = await client.post(
+                        f"{url}?key={api_key}",
+                        json=payload,
+                        headers=headers,
+                    )
+                    
+                    if response.status_code == 200:
+                        data = response.json()
+                        
+                        # Extract image from response
+                        if "candidates" in data and len(data["candidates"]) > 0:
+                            candidate = data["candidates"][0]
+                            if "content" in candidate and "parts" in candidate["content"]:
+                                for part in candidate["content"]["parts"]:
+                                    if "inlineData" in part:
+                                        inline_data = part["inlineData"]
+                                        if "data" in inline_data:
+                                            edited_image = base64.b64decode(inline_data["data"])
+                                            elapsed = time.time() - start_time
+                                            
+                                            print(f"[OPENING_EDIT] Success! Edited image: {len(edited_image)} bytes in {elapsed:.1f}s")
+                                            
+                                            return OpeningEditResult(
+                                                success=True,
+                                                edited_image=edited_image,
+                                                annotated_png=annotated_png,
+                                                prompt_used=full_prompt,
+                                                elapsed_seconds=elapsed,
+                                            )
+                        
+                        last_error = Exception("No image returned from Gemini")
+                        print(f"[OPENING_EDIT] No image in response")
+                        
+                    elif response.status_code == 429:
+                        # Rate limited
+                        last_error = Exception("429 Rate limited")
+                        print(f"[OPENING_EDIT] Rate limited, will retry...")
+                        
+                    else:
+                        error_text = response.text[:500]
+                        last_error = Exception(f"API error {response.status_code}: {error_text}")
+                        print(f"[OPENING_EDIT] API error: {response.status_code}")
+                        
+                        # Non-retryable error (client error)
+                        if response.status_code < 500 and response.status_code != 429:
+                            break
+                        
+            except Exception as e:
+                last_error = e
+                print(f"[OPENING_EDIT] Exception: {e}")
+                
+                # Check if retryable
+                message = str(e).lower()
+                retryable = any(code in message for code in ["429", "resource_exhausted", "500", "502", "503", "504"])
+                if not retryable:
+                    break
+            
+            # Wait before retry
+            if attempt < max_retries - 1:
+                delay_sec = retry_delay_ms / 1000
+                print(f"[OPENING_EDIT] Retrying in {delay_sec}s...")
+                await asyncio.sleep(delay_sec)
+        
+        # All retries failed
+        elapsed = time.time() - start_time
+        error_msg = str(last_error) if last_error else "Unknown error"
+        
+        return OpeningEditResult(
+            success=False,
+            annotated_png=annotated_png,
+            prompt_used=full_prompt,
+            error=error_msg,
+            elapsed_seconds=elapsed,
+        )
+        
+    except Exception as e:
+        elapsed = time.time() - start_time
+        print(f"[OPENING_EDIT] Failed: {e}")
+        
+        return OpeningEditResult(
+            success=False,
+            error=str(e),
+            elapsed_seconds=elapsed,
+        )
 
 
 # =============================================================================

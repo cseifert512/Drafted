@@ -845,13 +845,16 @@ async def remove_opening(plan_id: str, opening_id: str):
 
 async def _process_opening_render(job_id: str):
     """
-    Background task to re-render a floor plan with a new opening.
+    Background task to edit a floor plan to add an opening.
     
-    This function:
-    1. Updates job status to 'rendering'
-    2. Sends modified SVG to Gemini for re-render
-    3. Applies surgical blending (for doors) or uses full render (for windows)
-    4. Updates job with final image
+    NEW APPROACH (prompt-based):
+    1. Takes the ALREADY RENDERED floor plan PNG
+    2. Annotates it with BLUE BOX (opening location) and RED BOUNDARY (edit limit)
+    3. Sends to Gemini with explicit instructions
+    4. Returns Gemini's output directly (NO surgical blending needed)
+    
+    The SVG is still modified and saved for vector export, but the PNG
+    edit happens via the annotation + prompt approach.
     """
     import base64
     import sys
@@ -866,105 +869,108 @@ async def _process_opening_render(job_id: str):
         # Update status
         job["status"] = "rendering"
         
-        # Import staging module
+        # Import required modules
         gen_dir = Path(__file__).parent.parent / "generation"
+        utils_dir = Path(__file__).parent.parent / "utils"
         if str(gen_dir) not in sys.path:
             sys.path.insert(0, str(gen_dir))
+        if str(utils_dir) not in sys.path:
+            sys.path.insert(0, str(utils_dir))
         
-        from gemini_staging import stage_floor_plan as do_stage, process_svg_to_png
+        from gemini_staging import edit_floor_plan_with_opening
+        from surgical_blend import annotate_png_for_opening_edit
         
-        # Re-render with Gemini
-        print(f"[RENDER] Starting Gemini staging for job {job_id}")
+        print(f"[RENDER] Starting prompt-based opening edit for job {job_id}")
         print(f"[RENDER] Opening type: {job['opening']['type']}")
         print(f"[RENDER] Wall coords: {job['opening'].get('wall_coords')}")
-        print(f"[RENDER] Modified SVG has opening: {'id=\"openings\"' in job['modified_svg']}")
         
-        # DEBUG: Save modified SVG and PNG to debug folder
+        # DEBUG: Save modified SVG to debug folder
         debug_dir = Path(__file__).parent.parent.parent / "debug_blend" / job_id
         debug_dir.mkdir(parents=True, exist_ok=True)
         
-        # Verify opening was added to SVG
+        # Save modified SVG (for vector export reference)
         modified_svg = job["modified_svg"]
-        has_openings_group = 'id="openings"' in modified_svg
-        has_opening_element = f'id="{job["opening"]["id"]}"' in modified_svg
-        opening_count = modified_svg.count('class="opening')
-        print(f"[DEBUG] SVG verification:")
-        print(f"[DEBUG]   - Has openings group: {has_openings_group}")
-        print(f"[DEBUG]   - Has our opening element: {has_opening_element}")
-        print(f"[DEBUG]   - Total opening elements: {opening_count}")
-        
-        # Save modified SVG
         svg_path = debug_dir / "00_modified_svg.svg"
         with open(svg_path, 'w', encoding='utf-8') as f:
             f.write(modified_svg)
         print(f"[DEBUG] Saved modified SVG to: {svg_path}")
         
-        # Try to render SVG to PNG and save it (what Gemini will see)
-        try:
-            png_result = process_svg_to_png(job["modified_svg"])
-            if png_result.get("png_data"):
-                png_path = debug_dir / "00_gemini_input.png"
-                with open(png_path, 'wb') as f:
-                    f.write(png_result["png_data"])
-                print(f"[DEBUG] Saved Gemini input PNG to: {png_path}")
-                print(f"[DEBUG] PNG dimensions: {png_result.get('width')}x{png_result.get('height')}")
-        except Exception as e:
-            import traceback
-            print(f"[DEBUG] Failed to save Gemini input PNG: {e}")
-            traceback.print_exc()
+        # =====================================================================
+        # NEW APPROACH: Annotate the ORIGINAL rendered PNG, don't re-render SVG
+        # =====================================================================
         
-        stage_result = await do_stage(
-            svg=job["modified_svg"],
-            canonical_room_keys=job["canonical_room_keys"],
+        # Get the original rendered floor plan PNG
+        original_png = base64.b64decode(job["original_rendered_image"])
+        print(f"[RENDER] Original PNG size: {len(original_png)} bytes")
+        
+        # Use the CROPPED SVG for coordinate transformation - this has the viewBox
+        # that matches the rendered PNG (after process_svg_to_png adjusted it)
+        # Fall back to original_svg only if cropped_svg is not available
+        svg_for_coords = job.get("cropped_svg") or job.get("original_svg", modified_svg)
+        print(f"[RENDER] Using {'cropped_svg' if job.get('cropped_svg') else 'original_svg'} for coordinates")
+        
+        # Step 1: Annotate the PNG with blue box and red boundary
+        print(f"[RENDER] Annotating PNG with blue box and red boundary...")
+        annotated_png, annotation_metadata = annotate_png_for_opening_edit(
+            original_png=original_png,
+            opening=job["opening"],
+            svg=svg_for_coords,
+            boundary_padding_px=30,  # Expand room boundary slightly
+            job_id=job_id,
         )
         
-        print(f"[RENDER] Staging result: success={stage_result.success}, error={stage_result.error}")
-        
-        # Save debug data (raw PNG and prompt sent to Gemini)
-        if stage_result.raw_png:
-            job["raw_png_base64"] = base64.b64encode(stage_result.raw_png).decode('utf-8')
-            print(f"[RENDER] Saved raw_png_base64 to job ({len(stage_result.raw_png)} bytes)")
-        if stage_result.gemini_prompt:
-            job["gemini_prompt"] = stage_result.gemini_prompt
-            print(f"[RENDER] Saved gemini_prompt to job ({len(stage_result.gemini_prompt)} chars)")
-        
-        if not stage_result.success:
+        if "error" in annotation_metadata:
             job["status"] = "failed"
-            job["error"] = stage_result.error or "Staging failed"
+            job["error"] = f"Annotation failed: {annotation_metadata['error']}"
             return
         
-        # Update status to blending
-        job["status"] = "blending"
+        print(f"[RENDER] Annotation complete. Blue box at: {annotation_metadata.get('blue_box_center_png')}")
+        print(f"[RENDER] Room: {annotation_metadata.get('room_id')}")
         
-        # Apply surgical blending for ALL opening types (doors and windows)
-        # smart_blend_for_opening chooses the right strategy based on opening type
-        original_image = base64.b64decode(job["original_rendered_image"])
-        new_image = stage_result.staged_image
+        # Save annotated PNG for debugging
+        annotated_path = debug_dir / "01_annotated_input.png"
+        with open(annotated_path, 'wb') as f:
+            f.write(annotated_png)
+        print(f"[DEBUG] Saved annotated PNG to: {annotated_path}")
         
-        # Import blending utility
-        utils_dir = Path(__file__).parent.parent / "utils"
-        if str(utils_dir) not in sys.path:
-            sys.path.insert(0, str(utils_dir))
+        # Also save in job for API response (for debugging)
+        job["raw_png_base64"] = base64.b64encode(annotated_png).decode('utf-8')
         
-        try:
-            from surgical_blend import smart_blend_for_opening
-            print(f"[BLEND] Applying smart blend for {job['opening']['type']}")
-            final_image = smart_blend_for_opening(
-                original_image,
-                new_image,
-                job["opening"],
-                job["modified_svg"],
-                job_id=job_id,  # Pass job_id for debug output
-            )
-        except ImportError as e:
-            # Fallback: use full new render if blending not available
-            print(f"[WARN] smart_blend_for_opening not available ({e}), using full render")
-            final_image = new_image
+        # Step 2: Send annotated PNG to Gemini with opening-specific prompt
+        print(f"[RENDER] Sending to Gemini for prompt-based edit...")
+        edit_result = await edit_floor_plan_with_opening(
+            annotated_png=annotated_png,
+            opening=job["opening"],
+        )
+        
+        # Save the prompt used
+        if edit_result.prompt_used:
+            job["gemini_prompt"] = edit_result.prompt_used
+            print(f"[RENDER] Prompt length: {len(edit_result.prompt_used)} chars")
+        
+        if not edit_result.success:
+            job["status"] = "failed"
+            job["error"] = edit_result.error or "Gemini edit failed"
+            print(f"[RENDER] Edit failed: {edit_result.error}")
+            return
+        
+        # Step 3: Use Gemini's output directly (NO surgical blending needed!)
+        final_image = edit_result.edited_image
+        print(f"[RENDER] Edit complete! Final image: {len(final_image)} bytes")
+        
+        # Save final image for debugging
+        final_path = debug_dir / "02_gemini_output.png"
+        with open(final_path, 'wb') as f:
+            f.write(final_image)
+        print(f"[DEBUG] Saved final image to: {final_path}")
         
         # Update job with final image
         job["status"] = "complete"
         job["rendered_image_base64"] = base64.b64encode(final_image).decode('utf-8')
         job["completed_at"] = __import__('time').time()
+        job["edit_elapsed_seconds"] = edit_result.elapsed_seconds
+        
+        print(f"[RENDER] Job {job_id} complete in {edit_result.elapsed_seconds:.1f}s")
         
     except Exception as e:
         import traceback
