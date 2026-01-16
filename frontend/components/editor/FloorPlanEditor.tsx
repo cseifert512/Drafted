@@ -15,8 +15,8 @@ import {
 import { useOpeningEditor } from '@/hooks/useOpeningEditor';
 import { EditorCanvas } from './EditorCanvas';
 import { WallHighlightLayer } from './WallHighlightLayer';
-import { OpeningPlacementModal } from './OpeningPlacementModal';
 import { OpeningPreviewOverlay, RenderProgress } from './OpeningPreviewOverlay';
+import { OpeningDragOverlay } from './OpeningDragOverlay';
 import { GeminiDebugModal } from './GeminiDebugModal';
 import type { DraftedPlan, RoomTypeDefinition } from '@/lib/drafted-types';
 
@@ -108,7 +108,7 @@ export function FloorPlanEditor({
     initialPlan?.svg
   );
   
-  // Opening editor hook
+  // Opening editor hook with CAD-style drag support
   const openingEditor = useOpeningEditor({
     svg: initialPlan?.svg || null,
     croppedSvg: initialPlan?.cropped_svg || null,
@@ -116,6 +116,7 @@ export function FloorPlanEditor({
     planId: initialPlan?.id || null,
     canonicalRoomKeys: initialPlan?.rooms?.map(r => r.canonical_key) || [],
     pngDimensions,
+    containerRef: canvasContainerRef as React.RefObject<HTMLElement>,
     onRenderComplete: (newImageBase64, modifiedSvg, rawPngBase64, geminiPrompt) => {
       console.log('[FloorPlanEditor] Opening render complete');
       // Save current image to history before updating (for undo)
@@ -190,6 +191,9 @@ export function FloorPlanEditor({
   // Error state
   const [error, setError] = useState<string | null>(null);
   
+  // Check if we should disable wall highlights (during drag/draft)
+  const shouldDisableWallHighlights = openingEditor.isDragging;
+  
   return (
     <div className="h-full flex flex-col bg-drafted-bg">
       {/* Toolbar */}
@@ -202,7 +206,11 @@ export function FloorPlanEditor({
           <div>
             <h2 className="font-semibold text-drafted-black text-sm">Floor Plan Editor</h2>
             <p className="text-xs text-drafted-gray">
-              {openingEditor.isEnabled ? 'Click a wall to add door/window' : 'View and edit floor plan'}
+              {openingEditor.isDragging 
+                ? 'Drag to set opening width, then confirm' 
+                : openingEditor.isEnabled 
+                ? 'Click a wall to add door/window' 
+                : 'View and edit floor plan'}
             </p>
           </div>
         </div>
@@ -357,7 +365,7 @@ export function FloorPlanEditor({
           
       {/* Canvas */}
       <div className="flex-1 overflow-hidden">
-        <div ref={canvasContainerRef} className="h-full p-4">
+        <div ref={canvasContainerRef} className="h-full p-4 relative">
           <EditorCanvas
             rawSvgContent={initialPlan?.svg}
             croppedSvgContent={initialPlan?.cropped_svg}
@@ -368,20 +376,29 @@ export function FloorPlanEditor({
             debugOverlay={debugOverlay}
             debugOpacity={debugOpacity}
             wallHighlightLayer={
-              openingEditor.isEnabled && showRenderedOverlay ? (
+              openingEditor.isEnabled && showRenderedOverlay && !shouldDisableWallHighlights ? (
                 <WallHighlightLayer
                   walls={openingEditor.walls}
                   mapper={openingEditor.mapper}
                   hoveredWallId={openingEditor.hoveredWallId}
-                  selectedWallId={openingEditor.selectedWall?.id || null}
+                  selectedWallId={openingEditor.dragState.wall?.id || null}
                   onWallHover={openingEditor.setHoveredWallId}
                   onWallClick={openingEditor.handleWallClick}
-                  disabled={openingEditor.isModalOpen}
+                  disabled={false}
                 />
               ) : null
             }
             openingPreview={
-              openingEditor.activeJob ? (
+              // Show drag overlay during CAD-style placement
+              openingEditor.dragState.phase !== 'idle' ? (
+                <OpeningDragOverlay
+                  dragState={openingEditor.dragState}
+                  dragHandlers={openingEditor.dragHandlers}
+                  mapper={openingEditor.mapper}
+                  containerRef={canvasContainerRef as React.RefObject<HTMLElement>}
+                />
+              ) : openingEditor.activeJob ? (
+                // Show render progress overlay for active jobs
                 <OpeningPreviewOverlay
                   opening={openingEditor.activeJob.opening}
                   wall={openingEditor.activeJob.wall}
@@ -408,20 +425,14 @@ export function FloorPlanEditor({
           ) : (
             <span className="text-amber-600">No rendered image</span>
           )}
-          {openingEditor.isEnabled && (
+          {openingEditor.isDragging && (
+            <span className="text-orange-600">• Placing opening</span>
+          )}
+          {openingEditor.isEnabled && !openingEditor.isDragging && (
             <span className="text-orange-600">• Editing mode</span>
           )}
         </div>
       </div>
-      
-      {/* Opening Placement Modal */}
-      <OpeningPlacementModal
-        isOpen={openingEditor.isModalOpen}
-        wall={openingEditor.selectedWall}
-        positionOnWall={openingEditor.selectedPosition}
-        onClose={openingEditor.handleCancelModal}
-        onConfirm={openingEditor.handleConfirmOpening}
-      />
       
       {/* Gemini Debug Modal */}
       <GeminiDebugModal

@@ -16,6 +16,8 @@ export * from './openingTypes';
 export * from './wallDetection';
 export * from './coordinateMapping';
 export * from './svgOpenings';
+export * from './openingDetection';
+export * from './assetManifest';
 
 
 

@@ -16,6 +16,8 @@ export { CompareView } from './CompareView';
 export { WallHighlightLayer, WallTooltip } from './WallHighlightLayer';
 export { OpeningPlacementModal } from './OpeningPlacementModal';
 export { OpeningPreviewOverlay, RenderProgress } from './OpeningPreviewOverlay';
+export { OpeningDragOverlay } from './OpeningDragOverlay';
+export { OpeningDraftPopover } from './OpeningDraftPopover';
 
 // Debug Components
 export { GeminiDebugModal } from './GeminiDebugModal';

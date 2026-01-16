@@ -12,7 +12,7 @@ interface WallHighlightLayerProps {
   hoveredWallId: string | null;
   selectedWallId: string | null;
   onWallHover: (wallId: string | null) => void;
-  onWallClick: (wall: WallSegment, positionOnWall: number) => void;
+  onWallClick: (wall: WallSegment, positionOnWall: number, screenPoint?: Point) => void;
   filterExteriorOnly?: boolean;
   disabled?: boolean;
 }
@@ -77,7 +77,8 @@ export function WallHighlightLayer({
       ((svgX - wall.start.x) * wallDx + (svgY - wall.start.y) * wallDy) / (wallLength * wallLength)
     ));
 
-    onWallClick(wall, t);
+    // Pass screen coordinates for drag initialization
+    onWallClick(wall, t, { x: e.clientX, y: e.clientY });
   }, [disabled, mapper, onWallClick]);
 
   if (!mapper || visibleWalls.length === 0) {

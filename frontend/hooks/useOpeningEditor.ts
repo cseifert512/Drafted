@@ -3,24 +3,32 @@
  * 
  * Handles:
  * - Wall detection and highlighting
- * - Opening placement UI state
+ * - CAD-style drag-to-define-width placement
  * - API calls for adding/removing openings
  * - Render job polling
  * - Asset-based opening placement
  */
 
-import { useState, useCallback, useMemo } from 'react';
+import { useState, useCallback, useMemo, useRef, useEffect } from 'react';
 import type { 
   WallSegment, 
   OpeningPlacement, 
   OpeningJobStatus,
+  Point,
 } from '@/lib/editor/openingTypes';
 import { assetToOpeningPlacement } from '@/lib/editor/openingTypes';
 import { extractWallSegments } from '@/lib/editor/wallDetection';
 import { createMapperFromSvg, type CoordinateMapper } from '@/lib/editor/coordinateMapping';
 import { validateOpeningPlacement, generateOpeningId } from '@/lib/editor/svgOpenings';
-import { addOpening, pollOpeningStatus, type OpeningStatusResponse } from '@/lib/drafted-api';
+import { addOpening, pollOpeningStatus } from '@/lib/drafted-api';
+import type { OpeningStatusResponse } from '@/lib/editor/openingTypes';
 import type { DoorWindowAsset } from '@/lib/editor/assetManifest';
+import { useOpeningDrag, type DragState, type DragHandlers } from './useOpeningDrag';
+import { 
+  detectOpeningsFromSvg, 
+  findOpeningWall,
+  type DetectedOpening 
+} from '@/lib/editor/openingDetection';
 
 interface OpeningJob {
   jobId: string;
@@ -38,6 +46,7 @@ interface UseOpeningEditorOptions {
   planId: string | null;
   canonicalRoomKeys: string[];
   pngDimensions: { width: number; height: number } | null;
+  containerRef: React.RefObject<HTMLElement>;
   onRenderComplete?: (newImageBase64: string, modifiedSvg: string, rawPngBase64?: string, geminiPrompt?: string) => void;
 }
 
@@ -49,18 +58,17 @@ export function useOpeningEditor(options: UseOpeningEditorOptions) {
     planId,
     canonicalRoomKeys,
     pngDimensions,
+    containerRef,
     onRenderComplete,
   } = options;
 
   // State
   const [isEnabled, setIsEnabled] = useState(false);
   const [hoveredWallId, setHoveredWallId] = useState<string | null>(null);
-  const [selectedWall, setSelectedWall] = useState<WallSegment | null>(null);
-  const [selectedPosition, setSelectedPosition] = useState<number>(0.5);
-  const [isModalOpen, setIsModalOpen] = useState(false);
   const [openings, setOpenings] = useState<OpeningPlacement[]>([]);
   const [activeJobs, setActiveJobs] = useState<OpeningJob[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const [selectedExistingOpening, setSelectedExistingOpening] = useState<DetectedOpening | null>(null);
 
   // Extract walls from SVG
   const walls = useMemo(() => {
@@ -84,32 +92,43 @@ export function useOpeningEditor(options: UseOpeningEditorOptions) {
     }
   }, [croppedSvg, pngDimensions]);
 
-  // Handle wall click
-  const handleWallClick = useCallback((wall: WallSegment, positionOnWall: number) => {
-    if (!isEnabled) return;
-    
-    setSelectedWall(wall);
-    setSelectedPosition(positionOnWall);
-    setIsModalOpen(true);
-  }, [isEnabled]);
+  // Detect existing openings from SVG
+  const existingOpenings = useMemo((): DetectedOpening[] => {
+    if (!svg) return [];
+    try {
+      const detected = detectOpeningsFromSvg(svg);
+      console.log('[useOpeningEditor] Detected existing openings:', detected.length);
+      return detected;
+    } catch (e) {
+      console.error('[useOpeningEditor] Failed to detect openings:', e);
+      return [];
+    }
+  }, [svg]);
 
-  // Handle opening placement confirmation (new asset-based version)
-  const handleConfirmOpening = useCallback(async (config: {
+  // ==========================================================================
+  // CAD-STYLE DRAG PLACEMENT
+  // ==========================================================================
+
+  // Handle drag confirmation - this is called when user clicks the checkmark
+  const handleDragConfirm = useCallback(async (config: {
+    wall: WallSegment;
+    positionOnWall: number;
     asset: DoorWindowAsset;
-    widthInches: number;
-    swingDirection?: 'left' | 'right';
+    swingDirection: 'left' | 'right';
   }) => {
-    if (!selectedWall || !svg || !croppedSvg || !renderedImageBase64 || !planId) {
+    if (!svg || !croppedSvg || !renderedImageBase64 || !planId) {
       setError('Missing required data for opening placement');
       return;
     }
 
+    const { wall, positionOnWall, asset, swingDirection } = config;
+
     // Convert asset to legacy opening placement for API compatibility
     const openingSpec = assetToOpeningPlacement(
-      config.asset,
-      selectedWall.id,
-      selectedPosition,
-      config.swingDirection
+      asset,
+      wall.id,
+      positionOnWall,
+      swingDirection
     );
 
     // Create opening placement with ID
@@ -121,7 +140,7 @@ export function useOpeningEditor(options: UseOpeningEditorOptions) {
     // Validate placement
     const validation = validateOpeningPlacement(
       openingSpec,
-      selectedWall,
+      wall,
       openings
     );
 
@@ -130,10 +149,6 @@ export function useOpeningEditor(options: UseOpeningEditorOptions) {
       return;
     }
 
-    // Close modal
-    setIsModalOpen(false);
-    setSelectedWall(null);
-
     // Add to local state immediately
     setOpenings(prev => [...prev, opening]);
 
@@ -141,9 +156,9 @@ export function useOpeningEditor(options: UseOpeningEditorOptions) {
     const job: OpeningJob = {
       jobId: '', // Will be set after API call
       opening,
-      wall: selectedWall,
+      wall,
       status: 'pending',
-      asset: config.asset,
+      asset,
     };
     setActiveJobs(prev => [...prev, job]);
 
@@ -163,17 +178,17 @@ export function useOpeningEditor(options: UseOpeningEditorOptions) {
         },
         canonicalRoomKeys,
         wallCoords: {
-          startX: selectedWall.start.x,
-          startY: selectedWall.start.y,
-          endX: selectedWall.end.x,
-          endY: selectedWall.end.y,
+          startX: wall.start.x,
+          startY: wall.start.y,
+          endX: wall.end.x,
+          endY: wall.end.y,
         },
         // Pass asset info for enhanced Gemini prompts
         assetInfo: {
-          filename: config.asset.filename,
-          category: config.asset.category,
-          displayName: config.asset.displayName,
-          description: config.asset.description,
+          filename: asset.filename,
+          category: asset.category,
+          displayName: asset.displayName,
+          description: asset.description,
         },
       });
 
@@ -235,8 +250,6 @@ export function useOpeningEditor(options: UseOpeningEditorOptions) {
       setActiveJobs(prev => prev.filter(j => j.opening.id !== opening.id));
     }
   }, [
-    selectedWall, 
-    selectedPosition, 
     svg, 
     croppedSvg, 
     renderedImageBase64, 
@@ -246,21 +259,73 @@ export function useOpeningEditor(options: UseOpeningEditorOptions) {
     onRenderComplete,
   ]);
 
-  // Cancel modal
-  const handleCancelModal = useCallback(() => {
-    setIsModalOpen(false);
-    setSelectedWall(null);
-  }, []);
+  // Initialize drag hook
+  const [dragState, dragHandlers] = useOpeningDrag({
+    mapper,
+    containerRef,
+    onConfirm: handleDragConfirm,
+  });
+
+  // ==========================================================================
+  // WALL INTERACTION HANDLERS
+  // ==========================================================================
+
+  // Handle wall click - starts drag interaction
+  const handleWallClick = useCallback((
+    wall: WallSegment, 
+    positionOnWall: number,
+    screenPoint?: Point
+  ) => {
+    if (!isEnabled) return;
+    
+    // Start drag interaction
+    dragHandlers.onDragStart(
+      wall, 
+      positionOnWall, 
+      screenPoint || { x: 0, y: 0 }
+    );
+  }, [isEnabled, dragHandlers]);
+
+  // Handle mouse move during drag
+  const handleMouseMove = useCallback((e: MouseEvent) => {
+    if (dragState.phase === 'dragging') {
+      dragHandlers.onDragMove({ x: e.clientX, y: e.clientY });
+    }
+  }, [dragState.phase, dragHandlers]);
+
+  // Handle mouse up to end drag
+  const handleMouseUp = useCallback(() => {
+    if (dragState.phase === 'dragging') {
+      dragHandlers.onDragEnd();
+    }
+  }, [dragState.phase, dragHandlers]);
+
+  // Add/remove global mouse listeners for drag
+  useEffect(() => {
+    if (dragState.phase === 'dragging') {
+      window.addEventListener('mousemove', handleMouseMove);
+      window.addEventListener('mouseup', handleMouseUp);
+      
+      return () => {
+        window.removeEventListener('mousemove', handleMouseMove);
+        window.removeEventListener('mouseup', handleMouseUp);
+      };
+    }
+  }, [dragState.phase, handleMouseMove, handleMouseUp]);
+
+  // ==========================================================================
+  // OTHER HANDLERS
+  // ==========================================================================
 
   // Toggle editing mode
   const toggleEnabled = useCallback(() => {
     setIsEnabled(prev => !prev);
     if (isEnabled) {
-      // Disable - clear selection
+      // Disable - clear selection and cancel any draft
       setHoveredWallId(null);
-      setSelectedWall(null);
+      dragHandlers.onCancel();
     }
-  }, [isEnabled]);
+  }, [isEnabled, dragHandlers]);
 
   // Clear error
   const clearError = useCallback(() => {
@@ -272,26 +337,56 @@ export function useOpeningEditor(options: UseOpeningEditorOptions) {
     return activeJobs.find(j => j.status !== 'complete' && j.status !== 'failed') || null;
   }, [activeJobs]);
 
+  // Check if we're in drag/draft mode (should disable wall hover)
+  const isDragging = dragState.phase === 'dragging' || dragState.phase === 'draft';
+
+  // Handle selecting an existing opening for editing
+  const handleSelectExistingOpening = useCallback((opening: DetectedOpening) => {
+    if (!isEnabled) return;
+    
+    setSelectedExistingOpening(opening);
+    
+    // Find the wall this opening is on
+    const wallMatch = findOpeningWall(opening, walls);
+    if (wallMatch) {
+      // Start drag interaction at the opening's position
+      dragHandlers.onDragStart(
+        wallMatch.wall,
+        wallMatch.positionOnWall,
+        { x: 0, y: 0 } // Screen point not needed for existing openings
+      );
+    }
+  }, [isEnabled, walls, dragHandlers]);
+
+  // Clear existing opening selection
+  const clearExistingOpeningSelection = useCallback(() => {
+    setSelectedExistingOpening(null);
+  }, []);
+
   return {
     // State
     isEnabled,
     walls,
     mapper,
     hoveredWallId,
-    selectedWall,
-    selectedPosition,
-    isModalOpen,
     openings,
     activeJobs,
     activeJob,
     error,
+    existingOpenings,
+    selectedExistingOpening,
+    
+    // Drag state
+    dragState,
+    dragHandlers,
+    isDragging,
 
     // Actions
     toggleEnabled,
     setHoveredWallId,
     handleWallClick,
-    handleConfirmOpening,
-    handleCancelModal,
+    handleSelectExistingOpening,
+    clearExistingOpeningSelection,
     clearError,
   };
 }
