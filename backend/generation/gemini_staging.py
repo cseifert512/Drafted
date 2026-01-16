@@ -135,106 +135,96 @@ ROOM_PROMPTS: Dict[str, str] = {
 # =============================================================================
 
 OPENING_EDIT_SYSTEM_PROMPT = """
-You are performing a MINIMAL LOCAL EDIT on an EXISTING photorealistic floor plan image.
+You are editing an ARCHITECTURAL FLOOR PLAN - a TOP-DOWN ORTHOGRAPHIC VIEW seen from DIRECTLY ABOVE.
+
+### CRITICAL: THIS IS A TOP-DOWN PLAN VIEW ###
+
+This image is a floor plan viewed from 90 degrees above - like looking straight down at a dollhouse with the roof removed.
+- Everything is seen from DIRECTLY ABOVE
+- There is NO perspective, NO 3D angles, NO isometric view
+- Walls appear as thick black lines
+- Doors appear as FLAT RECTANGLES seen from above (not 3D)
+
+### HOW DOORS LOOK IN A FLOOR PLAN (TOP-DOWN VIEW) ###
+
+In a top-down floor plan, a door is rendered as:
+- A FLAT rectangular panel (the door leaf) - seen from above, it's just a thin rectangle
+- A door frame (gap in the black wall)
+- Optionally a curved arc showing the door swing path
+- NO 3D PERSPECTIVE - the door is completely flat, viewed from above
+- Look at the OTHER doors in this floor plan - your door must match that same style
 
 ### FIND THE EDIT LOCATION ###
 
-Look for the BRIGHT BLUE HIGHLIGHTED AREA with the label "ADD DOOR HERE".
-This is a semi-transparent blue rectangle with arrows pointing to it.
-The blue area is covering part of a BLACK WALL - that's where you add the door.
+Look for the BRIGHT BLUE HIGHLIGHTED AREA labeled "ADD DOOR HERE".
+The blue area is covering part of a BLACK WALL - add the door there.
 
-### THIS IS AN INPAINTING TASK - NOT A GENERATION TASK ###
+### ABSOLUTE RULES ###
 
-The input is a COMPLETE, FINISHED floor plan. Your job is to make ONE tiny change:
-- Find the blue highlighted area labeled "ADD DOOR HERE"
-- Insert a door/window EXACTLY at that blue highlighted location
-- Remove the blue highlight and label in your output
-- That's it. Nothing else changes.
+1. **DOOR STYLE**: The door must be rendered in TOP-DOWN PLAN VIEW matching existing doors
+   - Flat, seen from directly above
+   - NO perspective warping
+   - NO 3D effects
+   - Match the style of other doors already in the floor plan
 
-### ABSOLUTE RULES - VIOLATING THESE IS FAILURE ###
-
-1. **DOOR GOES EXACTLY WHERE THE BLUE HIGHLIGHT IS**:
-   - Find the blue semi-transparent rectangle
-   - Add the door ONLY at that EXACT location
+2. **DOOR LOCATION**: Add the door ONLY at the blue highlighted area
    - Do NOT add doors anywhere else
-   - Do NOT modify any other doors in the floor plan
+   - Do NOT modify any other doors
 
-2. **DO NOT ADD ANYTHING NEW TO THE FLOOR PLAN**:
-   - Do NOT add new rooms
-   - Do NOT add new walls
-   - Do NOT extend the floor plan
-   - Do NOT add new furniture or objects
-   - The floor plan is COMPLETE - you are only inserting a door where the blue highlight is
-
-3. **DO NOT CHANGE THE IMAGE SIZE OR CROP**:
-   - Output must be the EXACT same dimensions as input
-   - Do NOT zoom in or out
-   - Do NOT crop or extend the canvas
-
-4. **PRESERVE EVERYTHING ELSE PIXEL-PERFECT**:
-   - All furniture must stay exactly where it is
-   - All flooring patterns must be identical
-   - All OTHER walls and doors must be unchanged
-   - If a pixel is not under the blue highlight, it should be IDENTICAL to input
+3. **PRESERVE EVERYTHING ELSE**: 
+   - All furniture, flooring, other walls/doors must be UNCHANGED
+   - Output same dimensions as input
 """
 
-# Detailed opening type descriptions for prompts
+# Detailed opening type descriptions for prompts - all emphasize TOP-DOWN PLAN VIEW
 OPENING_TYPE_PROMPTS: Dict[str, str] = {
     "interior_door": """
-**OPENING TYPE: Interior Hinged Door**
-- Standard interior door with wooden panel
-- Show door frame (white/cream trim) from above
-- Show door panel (can be white, wood-grain, or match room style)
-- Door should appear slightly ajar or closed
-- Include realistic shadow under the door
+**OPENING TYPE: Interior Hinged Door (TOP-DOWN PLAN VIEW)**
+- In plan view: a thin rectangle (door panel) + gap in wall (door frame)
+- Door panel is a FLAT rectangle seen from above - like a piece of paper
+- May include a curved arc showing the swing direction
+- Match the style of existing doors in this floor plan
+- NO 3D perspective - completely flat, viewed from directly above
 """,
     "exterior_door": """
-**OPENING TYPE: Exterior Entry Door**
-- Solid exterior door (typically darker/heavier than interior)
-- Show substantial door frame and threshold
-- Door can have small window panels or be solid
-- Include weather stripping/threshold detail if visible
-- May show hint of outdoor lighting/shadow
+**OPENING TYPE: Exterior Entry Door (TOP-DOWN PLAN VIEW)**
+- In plan view: a rectangular door panel in a gap in the exterior wall
+- Slightly thicker/more substantial than interior doors
+- FLAT top-down view - no perspective or 3D effects
+- Match the rendering style of other doors in this floor plan
 """,
     "sliding_door": """
-**OPENING TYPE: Sliding Glass Door**
-- Large glass panels with thin metal/aluminum frame
-- Show glass reflection and slight transparency
-- One panel typically overlaps the other
-- May show outdoor patio/yard through the glass
-- Include track/rail at bottom if visible from above
+**OPENING TYPE: Sliding Glass Door (TOP-DOWN PLAN VIEW)**
+- In plan view: two overlapping rectangular panels
+- Thin lines representing the glass panels seen from above
+- Show the track/rail as thin parallel lines
+- FLAT top-down view - no perspective
 """,
     "french_door": """
-**OPENING TYPE: French Double Doors**
-- Two doors that open in the middle
-- Glass panes divided by mullions (grid pattern)
-- White or cream colored frames
-- Show both door panels from above
-- Elegant, traditional appearance
+**OPENING TYPE: French Double Doors (TOP-DOWN PLAN VIEW)**
+- In plan view: two rectangular door panels that meet in the middle
+- Gap in wall with two door leaves
+- FLAT top-down orthographic view
+- Match style of other doors in the floor plan
 """,
     "window": """
-**OPENING TYPE: Standard Window**
-- Casement or double-hung window
-- White frame with glass panes
-- Show window frame clearly from above
-- May show slight outdoor color/light through glass
-- Clean, simple residential window appearance
+**OPENING TYPE: Standard Window (TOP-DOWN PLAN VIEW)**
+- In plan view: a thin rectangular frame in the wall
+- Shows as a gap in the black wall with frame lines
+- May show glass as a lighter fill
+- FLAT top-down view - no perspective
 """,
     "picture_window": """
-**OPENING TYPE: Picture Window**
-- Large single fixed glass pane
-- Minimal frame, maximum glass area
-- Shows clear view/reflection
-- No mullions or dividers
-- Modern, clean appearance
+**OPENING TYPE: Picture Window (TOP-DOWN PLAN VIEW)**
+- In plan view: a wider rectangular opening in the wall
+- Simple frame lines, minimal detail
+- FLAT top-down view
 """,
     "bay_window": """
-**OPENING TYPE: Bay Window**
-- Projecting window with multiple panes
-- Typically 3 window sections at angles
-- Creates small alcove/nook in the wall
-- White frames with clear glass
-- May show window seat or plants
+**OPENING TYPE: Bay Window (TOP-DOWN PLAN VIEW)**
+- In plan view: an angular protrusion from the wall
+- Multiple window segments at angles
+- FLAT top-down orthographic view
 """,
 }
 
@@ -263,12 +253,15 @@ def build_opening_edit_prompt(
     
     # Build the prompt
     prompt = f"""
-**TASK: LOCAL INPAINTING - Insert a door/window into an EXISTING floor plan**
+**TASK: Add a door to this TOP-DOWN ARCHITECTURAL FLOOR PLAN**
+
+This is a floor plan viewed from DIRECTLY ABOVE (90 degrees, orthographic).
+The door you add must be in the SAME TOP-DOWN STYLE as existing doors in this image.
 
 STEP 1: Find the BRIGHT BLUE HIGHLIGHTED AREA labeled "ADD DOOR HERE"
-STEP 2: Add the door EXACTLY at that blue highlighted location on the wall
-STEP 3: Remove the blue highlight and label
-STEP 4: Output the image unchanged everywhere else
+STEP 2: Look at how OTHER DOORS in this floor plan are rendered (flat, top-down)
+STEP 3: Add a door in that SAME FLAT TOP-DOWN STYLE at the blue location
+STEP 4: Remove the blue highlight and output
 
 {type_description}
 
@@ -281,27 +274,26 @@ STEP 4: Output the image unchanged everywhere else
         prompt += f"- Swing Direction: Door swings to the {swing_direction}\n"
     
     prompt += """
-**CRITICAL - WHERE TO ADD THE DOOR**:
-- Look for the BLUE SEMI-TRANSPARENT RECTANGLE with "ADD DOOR HERE" label
-- The blue highlight is covering part of a BLACK WALL
-- Add the door EXACTLY where this blue highlight is - NOWHERE ELSE
-- Do NOT modify any other doors or openings in the floor plan
+**CRITICAL - DOOR RENDERING STYLE**:
+- This is a TOP-DOWN PLAN VIEW - everything is seen from directly above
+- The door must be FLAT - a rectangular panel viewed from above
+- NO 3D PERSPECTIVE - no vanishing points, no depth illusion
+- NO WARPING or tilting - the door is perfectly flat
+- MATCH THE STYLE of other doors already in this floor plan
+- Look at existing doors in the image and copy that exact rendering style
 
-**WHAT NOT TO DO** (FAILURE CONDITIONS):
-- Do NOT add doors anywhere except the blue highlighted area
-- Do NOT modify existing doors elsewhere in the plan
-- Do NOT add new rooms or extend the floor plan
-- Do NOT add new walls, hallways, furniture, or objects
-- Do NOT change ANYTHING outside the blue highlighted area
-- Do NOT resize or crop the image
+**WHERE TO ADD THE DOOR**:
+- Find the BLUE HIGHLIGHTED AREA with "ADD DOOR HERE" label
+- Add the door EXACTLY at that location in the black wall
+- Do NOT add doors anywhere else
+- Do NOT modify any other existing doors
 
-**PIXEL PRESERVATION**:
+**PRESERVE EVERYTHING ELSE**:
 - Every pixel NOT under the blue highlight should be UNCHANGED
-- The floor plan boundaries stay exactly the same
-- All existing furniture, flooring, doors, and details remain identical
-- ONLY the wall section under the blue highlight changes
+- All furniture, flooring, other doors must remain identical
+- Same image dimensions as input
 
-**OUTPUT**: Return the SAME floor plan with ONLY the door added where the blue highlight was. Remove the blue highlight and label. Everything else must be IDENTICAL to input.
+**OUTPUT**: The same floor plan with a FLAT TOP-DOWN door added at the blue highlight. Remove the blue highlight. Match the style of existing doors in the plan.
 """
     
     return prompt
