@@ -333,7 +333,7 @@ export function OpeningDraftPopover({
                       : 'border-gray-200 text-gray-600 hover:border-gray-300'
                   }`}
                 >
-                  {isExteriorWall ? '← Interior' : '← Left Swing'}
+                  {isExteriorWall ? '← Exterior' : '← Left Swing'}
                 </button>
                 <button
                   onClick={() => onSwingDirectionChange('right')}
@@ -343,7 +343,7 @@ export function OpeningDraftPopover({
                       : 'border-gray-200 text-gray-600 hover:border-gray-300'
                   }`}
                 >
-                  {isExteriorWall ? 'Exterior →' : 'Right Swing →'}
+                  {isExteriorWall ? 'Interior →' : 'Right Swing →'}
                 </button>
               </div>
             )}
