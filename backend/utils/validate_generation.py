@@ -10,7 +10,11 @@ CURRENT CHECKS:
    
 2. ARTIFACT LEAKAGE - Content should not appear outside the edit region.
    If originally-white pixels (background) become non-white outside the bbox,
-   Gemini hallucinated content where it shouldn't.
+   Gemini hallucinated content where it shouldn't (% of white pixels).
+
+3. OVERSIZED GENERATION - The generated element shouldn't be much larger than requested.
+   If the area of changed pixels outside the bbox exceeds 200% of the bbox area,
+   Gemini generated something way too big (e.g., huge window when small one requested).
 
 EXTENSIBILITY:
 Add new check functions following the pattern:
@@ -47,6 +51,12 @@ RED_PIXEL_THRESHOLD_PCT = 0.5  # If >0.5% of bbox pixels are red, reject
 # We check if these become non-white outside the edit region
 WHITE_LUMINANCE_MIN = 240  # Pixels with all channels > this are "white"
 CONTAMINATION_THRESHOLD_PCT = 1.0  # If >1% of white pixels outside bbox change, reject
+
+# --- Oversized Generation Detection ---
+# If Gemini generates a window/door much larger than requested, we detect it by
+# comparing the area of changed pixels (outside bbox) to the bbox area itself.
+# If changes outside bbox > X% of bbox area, the generation is oversized.
+OVERSIZED_AREA_THRESHOLD_PCT = 200.0  # If changes outside bbox > 200% of bbox area, reject
 
 # --- Debug Mode ---
 # Set to True to save debug visualizations of validation failures
@@ -209,6 +219,38 @@ def validate_generation(
     print(f"[VALIDATION] Check 2 PASSED: {artifact_check['contamination_pct']:.3f}% contamination (threshold: {CONTAMINATION_THRESHOLD_PCT}%)")
     
     # -------------------------------------------------------------------------
+    # CHECK 3: Oversized generation detection
+    # If changes outside bbox are much larger than the bbox itself,
+    # Gemini generated something way too big (e.g., huge window when small one requested)
+    # -------------------------------------------------------------------------
+    print(f"[VALIDATION] Check 3: Oversized generation check...")
+    oversized_check = _check_oversized_generation(original, output, bbox)
+    metrics["change_area_vs_bbox_pct"] = oversized_check["area_ratio_pct"]
+    metrics["changed_pixels_outside_bbox"] = oversized_check["changed_pixels"]
+    metrics["bbox_area"] = oversized_check["bbox_area"]
+    
+    if not oversized_check["passed"]:
+        reason = (
+            f"Oversized generation detected: Changes outside bbox are {oversized_check['area_ratio_pct']:.1f}% "
+            f"of bbox area ({oversized_check['changed_pixels']:,} changed pixels vs {oversized_check['bbox_area']:,} bbox pixels). "
+            f"Gemini generated something much larger than requested (threshold: {OVERSIZED_AREA_THRESHOLD_PCT}%)."
+        )
+        print(f"[VALIDATION] FAILED: {reason}")
+        
+        # Save debug visualization if enabled
+        if DEBUG_VALIDATION and job_id:
+            _save_validation_debug(output, bbox, "oversized_generation", job_id, oversized_check)
+        
+        return ValidationResult(
+            is_valid=False,
+            rejection_reason=reason,
+            metrics=metrics,
+            failed_check="oversized_generation",
+        )
+    
+    print(f"[VALIDATION] Check 3 PASSED: {oversized_check['area_ratio_pct']:.1f}% of bbox area (threshold: {OVERSIZED_AREA_THRESHOLD_PCT}%)")
+    
+    # -------------------------------------------------------------------------
     # All checks passed
     # -------------------------------------------------------------------------
     print(f"[VALIDATION] All checks PASSED for job {job_id}")
@@ -357,6 +399,100 @@ def _check_artifact_leakage(
         "contamination_pct": contamination_pct,
         "contaminated_pixels": contaminated_pixels,
         "total_white_outside": total_white_outside,
+    }
+
+
+def _check_oversized_generation(
+    original_img: Image.Image,
+    output_img: Image.Image,
+    bbox: Dict[str, int],
+) -> Dict[str, Any]:
+    """
+    Check if Gemini generated something much larger than the intended edit area.
+    
+    This catches cases where a small window is requested but Gemini generates
+    a huge one that extends far beyond the bbox. We compare the area of changed
+    pixels (outside the bbox) to the bbox area itself.
+    
+    Logic:
+    1. Calculate the bbox area (the intended edit region)
+    2. Count pixels that changed from white→non-white OUTSIDE the bbox
+    3. If changed_pixels > OVERSIZED_AREA_THRESHOLD_PCT of bbox_area, reject
+    
+    Args:
+        original_img: Original floor plan (PIL Image, RGB mode)
+        output_img: Gemini's output (PIL Image, RGB mode)
+        bbox: Bounding box dict with x1, y1, x2, y2
+        
+    Returns:
+        Dict with:
+            - passed: bool - whether the check passed
+            - area_ratio_pct: float - changed pixels as % of bbox area
+            - changed_pixels: int - count of pixels changed outside bbox
+            - bbox_area: int - area of the bbox in pixels
+    """
+    # Convert to numpy
+    original_arr = np.array(original_img, dtype=np.float32)
+    output_arr = np.array(output_img, dtype=np.float32)
+    
+    h, w = original_arr.shape[:2]
+    
+    # Extract bbox coordinates (clamped to image bounds)
+    x1 = max(0, int(bbox["x1"]))
+    y1 = max(0, int(bbox["y1"]))
+    x2 = min(w, int(bbox["x2"]))
+    y2 = min(h, int(bbox["y2"]))
+    
+    # Calculate bbox area
+    bbox_area = (x2 - x1) * (y2 - y1)
+    
+    if bbox_area == 0:
+        return {
+            "passed": True,
+            "area_ratio_pct": 0.0,
+            "changed_pixels": 0,
+            "bbox_area": 0,
+        }
+    
+    # Create mask for OUTSIDE the bbox
+    outside_mask = np.ones((h, w), dtype=bool)
+    outside_mask[y1:y2, x1:x2] = False  # Exclude the bbox region
+    
+    # Find white pixels in original (all channels > WHITE_LUMINANCE_MIN)
+    r_orig = original_arr[:, :, 0]
+    g_orig = original_arr[:, :, 1]
+    b_orig = original_arr[:, :, 2]
+    
+    is_white_original = (
+        (r_orig > WHITE_LUMINANCE_MIN) & 
+        (g_orig > WHITE_LUMINANCE_MIN) & 
+        (b_orig > WHITE_LUMINANCE_MIN)
+    )
+    
+    # Check output for white pixels
+    r_out = output_arr[:, :, 0]
+    g_out = output_arr[:, :, 1]
+    b_out = output_arr[:, :, 2]
+    
+    is_white_output = (
+        (r_out > WHITE_LUMINANCE_MIN) & 
+        (g_out > WHITE_LUMINANCE_MIN) & 
+        (b_out > WHITE_LUMINANCE_MIN)
+    )
+    
+    # Pixels that were white OUTSIDE bbox but are now non-white
+    # (This represents the area of "extra" content Gemini added)
+    changed_outside = is_white_original & outside_mask & ~is_white_output
+    changed_pixels = int(np.sum(changed_outside))
+    
+    # Compare to bbox area - what % of the bbox area is the extra content?
+    area_ratio_pct = (changed_pixels / bbox_area) * 100
+    
+    return {
+        "passed": area_ratio_pct < OVERSIZED_AREA_THRESHOLD_PCT,
+        "area_ratio_pct": area_ratio_pct,
+        "changed_pixels": changed_pixels,
+        "bbox_area": bbox_area,
     }
 
 
