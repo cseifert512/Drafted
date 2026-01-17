@@ -135,6 +135,14 @@ export interface EditHistoryEntry {
   timestamp: number;
 }
 
+// Editor edit state for undo/redo history
+// Bundles all state that changes together during an opening edit
+export interface EditorEditState {
+  renderedImage: string;
+  svg: string;
+  openings: OpeningPlacement[];
+}
+
 // Generation state
 export type DraftedGenerationState = 
   | 'idle' 

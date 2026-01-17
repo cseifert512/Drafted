@@ -18,7 +18,7 @@ import { WallHighlightLayer } from './WallHighlightLayer';
 import { OpeningPreviewOverlay, RenderProgress } from './OpeningPreviewOverlay';
 import { OpeningDragOverlay } from './OpeningDragOverlay';
 import { GeminiDebugModal } from './GeminiDebugModal';
-import type { DraftedPlan, RoomTypeDefinition } from '@/lib/drafted-types';
+import type { DraftedPlan, RoomTypeDefinition, EditorEditState, OpeningPlacement } from '@/lib/drafted-types';
 
 interface FloorPlanEditorProps {
   initialPlan?: DraftedPlan;
@@ -34,58 +34,87 @@ export function FloorPlanEditor({
   // Track PNG dimensions for coordinate mapping
   const [pngDimensions, setPngDimensions] = useState<{ width: number; height: number } | null>(null);
   
-  // Track current rendered image (can be updated by opening renders)
+  // ==========================================================================
+  // UNIFIED EDIT STATE WITH UNDO/REDO
+  // ==========================================================================
+  
+  // Track current edit state (rendered image + SVG + openings)
   const [currentRenderedImage, setCurrentRenderedImage] = useState<string | undefined>(
     initialPlan?.rendered_image_base64
   );
+  const [currentSvg, setCurrentSvg] = useState<string | undefined>(
+    initialPlan?.svg
+  );
+  const [currentOpenings, setCurrentOpenings] = useState<OpeningPlacement[]>([]);
   
-  // Undo/Redo history for rendered images
-  const [imageHistory, setImageHistory] = useState<string[]>([]);
-  const [imageFuture, setImageFuture] = useState<string[]>([]);
+  // Unified undo/redo history that tracks complete edit state
+  const [editHistory, setEditHistory] = useState<EditorEditState[]>([]);
+  const [editFuture, setEditFuture] = useState<EditorEditState[]>([]);
   
-  // Push current image to history when it changes (for undo support)
-  const pushToHistory = useCallback((prevImage: string | undefined) => {
-    if (prevImage) {
-      setImageHistory(prev => [...prev, prevImage]);
-      setImageFuture([]); // Clear redo stack on new change
+  // Push current state to history before making a new edit
+  const pushToHistory = useCallback(() => {
+    if (currentRenderedImage && currentSvg) {
+      const currentState: EditorEditState = {
+        renderedImage: currentRenderedImage,
+        svg: currentSvg,
+        openings: [...currentOpenings],
+      };
+      setEditHistory(prev => [...prev, currentState]);
+      setEditFuture([]); // Clear redo stack on new change
     }
-  }, []);
+  }, [currentRenderedImage, currentSvg, currentOpenings]);
   
-  // Undo - restore previous image
+  // Undo - restore previous complete state
   const handleUndo = useCallback(() => {
-    if (imageHistory.length === 0) return;
+    if (editHistory.length === 0) return;
     
-    const prevImage = imageHistory[imageHistory.length - 1];
-    const newHistory = imageHistory.slice(0, -1);
+    const prevState = editHistory[editHistory.length - 1];
+    const newHistory = editHistory.slice(0, -1);
     
     // Push current to future (for redo)
-    if (currentRenderedImage) {
-      setImageFuture(prev => [...prev, currentRenderedImage]);
+    if (currentRenderedImage && currentSvg) {
+      const currentState: EditorEditState = {
+        renderedImage: currentRenderedImage,
+        svg: currentSvg,
+        openings: [...currentOpenings],
+      };
+      setEditFuture(prev => [...prev, currentState]);
     }
     
-    setImageHistory(newHistory);
-    setCurrentRenderedImage(prevImage);
-  }, [imageHistory, currentRenderedImage]);
+    // Restore previous state
+    setEditHistory(newHistory);
+    setCurrentRenderedImage(prevState.renderedImage);
+    setCurrentSvg(prevState.svg);
+    setCurrentOpenings(prevState.openings);
+  }, [editHistory, currentRenderedImage, currentSvg, currentOpenings]);
   
-  // Redo - restore next image
+  // Redo - restore next state
   const handleRedo = useCallback(() => {
-    if (imageFuture.length === 0) return;
+    if (editFuture.length === 0) return;
     
-    const nextImage = imageFuture[imageFuture.length - 1];
-    const newFuture = imageFuture.slice(0, -1);
+    const nextState = editFuture[editFuture.length - 1];
+    const newFuture = editFuture.slice(0, -1);
     
     // Push current to history (for undo)
-    if (currentRenderedImage) {
-      setImageHistory(prev => [...prev, currentRenderedImage]);
+    if (currentRenderedImage && currentSvg) {
+      const currentState: EditorEditState = {
+        renderedImage: currentRenderedImage,
+        svg: currentSvg,
+        openings: [...currentOpenings],
+      };
+      setEditHistory(prev => [...prev, currentState]);
     }
     
-    setImageFuture(newFuture);
-    setCurrentRenderedImage(nextImage);
-  }, [imageFuture, currentRenderedImage]);
+    // Restore next state
+    setEditFuture(newFuture);
+    setCurrentRenderedImage(nextState.renderedImage);
+    setCurrentSvg(nextState.svg);
+    setCurrentOpenings(nextState.openings);
+  }, [editFuture, currentRenderedImage, currentSvg, currentOpenings]);
   
   // Check if undo/redo are available
-  const canUndo = imageHistory.length > 0;
-  const canRedo = imageFuture.length > 0;
+  const canUndo = editHistory.length > 0;
+  const canRedo = editFuture.length > 0;
   
   // Toggle between SVG and rendered view
   const [showRenderedOverlay, setShowRenderedOverlay] = useState(true);
@@ -104,24 +133,31 @@ export function FloorPlanEditor({
   const [currentGeminiPrompt, setCurrentGeminiPrompt] = useState<string | undefined>(
     initialPlan?.gemini_prompt
   );
-  const [currentModifiedSvg, setCurrentModifiedSvg] = useState<string | undefined>(
-    initialPlan?.svg
-  );
   
   // Opening editor hook with CAD-style drag support
+  // IMPORTANT: Pass currentSvg (cumulative) instead of initialPlan.svg
   const openingEditor = useOpeningEditor({
-    svg: initialPlan?.svg || null,
+    svg: currentSvg || null,
     croppedSvg: initialPlan?.cropped_svg || null,
     renderedImageBase64: currentRenderedImage || null,
     planId: initialPlan?.id || null,
     canonicalRoomKeys: initialPlan?.rooms?.map(r => r.canonical_key) || [],
     pngDimensions,
     containerRef: canvasContainerRef as React.RefObject<HTMLElement>,
+    // External control of openings for undo/redo sync
+    openings: currentOpenings,
+    onOpeningsChange: setCurrentOpenings,
     onRenderComplete: (newImageBase64, modifiedSvg, rawPngBase64, geminiPrompt) => {
       console.log('[FloorPlanEditor] Opening render complete');
-      // Save current image to history before updating (for undo)
-      pushToHistory(currentRenderedImage);
+      // Save current complete state to history before updating (for undo)
+      pushToHistory();
+      
+      // Update current state with new values
       setCurrentRenderedImage(newImageBase64);
+      if (modifiedSvg) {
+        setCurrentSvg(modifiedSvg);
+        console.log('[FloorPlanEditor] Updated SVG (cumulative edit)');
+      }
       
       // Update Gemini debug data to reflect current state
       if (rawPngBase64) {
@@ -132,17 +168,16 @@ export function FloorPlanEditor({
         setCurrentGeminiPrompt(geminiPrompt);
         console.log('[FloorPlanEditor] Updated Gemini prompt');
       }
-      if (modifiedSvg) {
-        setCurrentModifiedSvg(modifiedSvg);
-        console.log('[FloorPlanEditor] Updated modified SVG');
-      }
     },
   });
   
-  // Update current state when initialPlan changes
+  // Update current state when initialPlan changes (reset to new plan)
   useEffect(() => {
     if (initialPlan?.rendered_image_base64) {
       setCurrentRenderedImage(initialPlan.rendered_image_base64);
+    }
+    if (initialPlan?.svg) {
+      setCurrentSvg(initialPlan.svg);
     }
     if (initialPlan?.raw_png_base64) {
       setCurrentRawPngBase64(initialPlan.raw_png_base64);
@@ -150,7 +185,11 @@ export function FloorPlanEditor({
     if (initialPlan?.gemini_prompt) {
       setCurrentGeminiPrompt(initialPlan.gemini_prompt);
     }
-  }, [initialPlan?.rendered_image_base64, initialPlan?.raw_png_base64, initialPlan?.gemini_prompt]);
+    // Reset openings and history when plan changes
+    setCurrentOpenings([]);
+    setEditHistory([]);
+    setEditFuture([]);
+  }, [initialPlan?.id]); // Reset when plan ID changes
   
   // Get PNG dimensions when image loads
   const handleImageLoad = useCallback((e: React.SyntheticEvent<HTMLImageElement>) => {
@@ -159,17 +198,17 @@ export function FloorPlanEditor({
     console.log('[FloorPlanEditor] Image loaded:', img.naturalWidth, 'x', img.naturalHeight);
   }, []);
   
-  // Handle export SVG
+  // Handle export SVG - exports the current modified SVG (with all edits)
   const handleExportSvg = useCallback(() => {
-    if (!initialPlan?.svg) return;
-    const blob = new Blob([initialPlan.svg], { type: 'image/svg+xml' });
+    if (!currentSvg) return;
+    const blob = new Blob([currentSvg], { type: 'image/svg+xml' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
     a.download = 'floor-plan.svg';
     a.click();
     URL.revokeObjectURL(url);
-  }, [initialPlan?.svg]);
+  }, [currentSvg]);
   
   // Check if rendered image is available
   const hasRenderedImage = !!currentRenderedImage;
@@ -331,7 +370,7 @@ export function FloorPlanEditor({
                   ? 'hover:bg-drafted-bg text-drafted-black' 
                   : 'text-gray-300 cursor-not-allowed'
               }`}
-              title={canUndo ? `Undo (${imageHistory.length} steps)` : 'Nothing to undo'}
+              title={canUndo ? `Undo (${editHistory.length} steps)` : 'Nothing to undo'}
             >
               <Undo2 className="w-4 h-4" />
             </button>
@@ -343,7 +382,7 @@ export function FloorPlanEditor({
                   ? 'hover:bg-drafted-bg text-drafted-black' 
                   : 'text-gray-300 cursor-not-allowed'
               }`}
-              title={canRedo ? `Redo (${imageFuture.length} steps)` : 'Nothing to redo'}
+              title={canRedo ? `Redo (${editFuture.length} steps)` : 'Nothing to redo'}
             >
               <Redo2 className="w-4 h-4" />
             </button>
@@ -353,9 +392,9 @@ export function FloorPlanEditor({
           
           <button
             onClick={handleExportSvg}
-            disabled={!initialPlan?.svg}
+            disabled={!currentSvg}
             className="flex items-center gap-2 px-3 py-2 hover:bg-drafted-bg rounded-lg transition-colors text-sm disabled:opacity-50"
-            title="Export SVG"
+            title="Export SVG (includes all edits)"
           >
             <Download className="w-4 h-4" />
             <span>Export</span>
@@ -440,7 +479,7 @@ export function FloorPlanEditor({
         onClose={() => setShowGeminiDebug(false)}
         rawPngBase64={currentRawPngBase64}
         geminiPrompt={currentGeminiPrompt}
-        modifiedSvg={currentModifiedSvg}
+        modifiedSvg={currentSvg}
         planId={initialPlan?.id}
       />
       

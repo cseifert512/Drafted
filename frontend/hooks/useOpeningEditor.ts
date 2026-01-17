@@ -48,6 +48,9 @@ interface UseOpeningEditorOptions {
   pngDimensions: { width: number; height: number } | null;
   containerRef: React.RefObject<HTMLElement>;
   onRenderComplete?: (newImageBase64: string, modifiedSvg: string, rawPngBase64?: string, geminiPrompt?: string) => void;
+  // Optional external control of openings state (for undo/redo sync)
+  openings?: OpeningPlacement[];
+  onOpeningsChange?: (openings: OpeningPlacement[]) => void;
 }
 
 export function useOpeningEditor(options: UseOpeningEditorOptions) {
@@ -60,12 +63,24 @@ export function useOpeningEditor(options: UseOpeningEditorOptions) {
     pngDimensions,
     containerRef,
     onRenderComplete,
+    openings: externalOpenings,
+    onOpeningsChange,
   } = options;
 
   // State
   const [isEnabled, setIsEnabled] = useState(false);
   const [hoveredWallId, setHoveredWallId] = useState<string | null>(null);
-  const [openings, setOpenings] = useState<OpeningPlacement[]>([]);
+  // Use external openings if provided, otherwise manage internally
+  const [internalOpenings, setInternalOpenings] = useState<OpeningPlacement[]>([]);
+  const openings = externalOpenings ?? internalOpenings;
+  const setOpenings = useCallback((update: OpeningPlacement[] | ((prev: OpeningPlacement[]) => OpeningPlacement[])) => {
+    const newOpenings = typeof update === 'function' ? update(openings) : update;
+    if (onOpeningsChange) {
+      onOpeningsChange(newOpenings);
+    } else {
+      setInternalOpenings(newOpenings);
+    }
+  }, [openings, onOpeningsChange]);
   const [activeJobs, setActiveJobs] = useState<OpeningJob[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [selectedExistingOpening, setSelectedExistingOpening] = useState<DetectedOpening | null>(null);
@@ -140,11 +155,27 @@ export function useOpeningEditor(options: UseOpeningEditorOptions) {
       ...openingSpec,
     };
 
-    // Validate placement
+    // Convert detected existing openings to validation-compatible format
+    // These are openings already in the SVG (from previous edits or original plan)
+    const existingOpeningsForValidation: OpeningPlacement[] = existingOpenings
+      .filter(e => e.wallId && e.positionOnWall !== undefined) // Only include ones with wall info
+      .map(e => ({
+        id: e.id,
+        type: e.type === 'door' ? 'interior_door' : e.type === 'garage' ? 'exterior_door' : 'window',
+        wallId: e.wallId!,
+        positionOnWall: e.positionOnWall!,
+        // Convert width from SVG pixels to inches (SVG scale: 1px = 2 inches)
+        widthInches: e.width * 2,
+      }));
+    
+    // Combine session openings with existing SVG openings for validation
+    const allOpeningsForValidation = [...openings, ...existingOpeningsForValidation];
+    
+    // Validate placement against ALL openings (both session-added and pre-existing)
     const validation = validateOpeningPlacement(
       openingSpec,
       wall,
-      openings
+      allOpeningsForValidation
     );
 
     if (!validation.valid) {
