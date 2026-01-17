@@ -262,7 +262,7 @@ export function OpeningDraftPopover({
                       src={getAssetUrl(matchedAsset.filename)}
                       alt={matchedAsset.displayName}
                       className="max-w-full max-h-full object-contain"
-                      style={{ transform: swingDirection === 'right' ? 'scaleX(-1)' : 'none' }}
+                      style={{ transform: swingDirection === 'left' ? 'scaleX(-1)' : 'none' }}
                     />
                   </div>
                 )}
@@ -333,7 +333,7 @@ export function OpeningDraftPopover({
                       : 'border-gray-200 text-gray-600 hover:border-gray-300'
                   }`}
                 >
-                  ← Left Swing
+                  {isExteriorWall ? '← Interior' : '← Left Swing'}
                 </button>
                 <button
                   onClick={() => onSwingDirectionChange('right')}
@@ -343,7 +343,7 @@ export function OpeningDraftPopover({
                       : 'border-gray-200 text-gray-600 hover:border-gray-300'
                   }`}
                 >
-                  Right Swing →
+                  {isExteriorWall ? 'Exterior →' : 'Right Swing →'}
                 </button>
               </div>
             )}

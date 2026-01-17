@@ -39,6 +39,7 @@ export interface DragState {
   matchedAsset: DoorWindowAsset | null;
   categoryGroup: CategoryGroup;
   swingDirection: 'left' | 'right';
+  isRepositioning: boolean; // True when dragging to reposition in draft phase
 }
 
 export interface DragHandlers {
@@ -51,6 +52,10 @@ export interface DragHandlers {
   setCategoryGroup: (group: CategoryGroup) => void;
   setSwingDirection: (direction: 'left' | 'right') => void;
   setSelectedAsset: (asset: DoorWindowAsset) => void;
+  // Repositioning handlers (for moving window along wall in draft phase)
+  onRepositionStart: (screenPoint: Point) => void;
+  onRepositionMove: (screenPoint: Point) => void;
+  onRepositionEnd: () => void;
 }
 
 export interface UseOpeningDragOptions {
@@ -243,10 +248,17 @@ export function useOpeningDrag(options: UseOpeningDragOptions): [DragState, Drag
   const [categoryGroup, setCategoryGroup] = useState<CategoryGroup>(DEFAULT_CATEGORY_GROUP);
   const [swingDirection, setSwingDirection] = useState<'left' | 'right'>('right');
   const [selectedAsset, setSelectedAssetState] = useState<DoorWindowAsset | null>(null);
+  const [isRepositioning, setIsRepositioning] = useState(false);
   
   // Drag tracking refs
   const dragStartScreenRef = useRef<Point | null>(null);
   const dragStartWidthRef = useRef<number>(DEFAULT_START_WIDTH_INCHES);
+  const repositionStartRef = useRef<{ screenPoint: Point; position: number } | null>(null);
+  const dragStartTimeRef = useRef<number>(0);
+  
+  // Constants for single-click detection
+  const SINGLE_CLICK_TIME_MS = 200; // Max time for a single click
+  const SINGLE_CLICK_MOVE_PX = 10;  // Max movement for a single click
   
   // Calculate snapped width and matched asset
   const { snappedWidthInches, matchedAsset } = useMemo(() => {
@@ -292,6 +304,7 @@ export function useOpeningDrag(options: UseOpeningDragOptions): [DragState, Drag
     matchedAsset,
     categoryGroup,
     swingDirection,
+    isRepositioning,
   };
   
   // ==========================================================================
@@ -336,13 +349,15 @@ export function useOpeningDrag(options: UseOpeningDragOptions): [DragState, Drag
     
     dragStartScreenRef.current = screenPoint;
     dragStartWidthRef.current = DEFAULT_START_WIDTH_INCHES;
+    dragStartTimeRef.current = Date.now();
     
-    // Set default category based on wall type
-    if (targetWall.isExterior) {
-      setCategoryGroup('window'); // Default to window for exterior walls
-    } else {
-      setCategoryGroup('door'); // Default to door for interior walls
-    }
+    // Set default category based on wall type - default to door for both
+    setCategoryGroup('door');
+    
+    // Set default swing direction based on wall type
+    // For exterior walls, default to "exterior swing" (right = outward)
+    // For interior walls, default to "right" swing
+    setSwingDirection(targetWall.isExterior ? 'right' : 'right');
   }, []);
   
   const onDragMove = useCallback((screenPoint: Point) => {
@@ -353,6 +368,20 @@ export function useOpeningDrag(options: UseOpeningDragOptions): [DragState, Drag
     
     // Get container rect for coordinate conversion
     const rect = containerRef.current.getBoundingClientRect();
+    
+    // Calculate wall length in inches
+    const wallLengthSvg = Math.sqrt(
+      Math.pow(wall.end.x - wall.start.x, 2) + 
+      Math.pow(wall.end.y - wall.start.y, 2)
+    );
+    const wallLengthInches = svgPixelsToInches(wallLengthSvg);
+    
+    // Calculate max width based on center position (edges can't extend past wall)
+    // centerPosition is 0-1, so distance to each edge is centerPosition and (1-centerPosition)
+    const distanceToStartEdge = centerPosition * wallLengthInches;
+    const distanceToEndEdge = (1 - centerPosition) * wallLengthInches;
+    const maxHalfWidth = Math.min(distanceToStartEdge, distanceToEndEdge);
+    const maxWidthForPosition = maxHalfWidth * 2;
     
     // Calculate drag distance in screen pixels
     const orientation = getWallOrientation(wall);
@@ -373,19 +402,34 @@ export function useOpeningDrag(options: UseOpeningDragOptions): [DragState, Drag
     // Convert SVG pixels to inches (each direction from center = half width)
     const dragInches = svgPixelsToInches(dragDistanceSvg) * 2;
     
-    // Calculate new width (minimum of MIN_WIDTH_INCHES)
-    const newWidth = Math.max(MIN_WIDTH_INCHES, dragStartWidthRef.current + dragInches);
+    // Calculate new width with constraints:
+    // - Minimum: MIN_WIDTH_INCHES
+    // - Maximum: smaller of wall length or max width for current position
+    const maxAllowedWidth = Math.min(wallLengthInches, maxWidthForPosition);
+    const newWidth = Math.min(
+      maxAllowedWidth,
+      Math.max(MIN_WIDTH_INCHES, dragStartWidthRef.current + dragInches)
+    );
     
     setCurrentWidthInches(newWidth);
-  }, [phase, wall, mapper, containerRef]);
+  }, [phase, wall, mapper, containerRef, centerPosition]);
   
   const onDragEnd = useCallback(() => {
     if (phase !== 'dragging') return;
     
-    console.log('[useOpeningDrag] Drag end, transitioning to draft');
+    const dragDuration = Date.now() - dragStartTimeRef.current;
+    const wasSingleClick = dragDuration < SINGLE_CLICK_TIME_MS && currentWidthInches <= DEFAULT_START_WIDTH_INCHES + 4;
+    
+    if (wasSingleClick) {
+      console.log('[useOpeningDrag] Single click detected, using default 36" door');
+      // Reset to default 36" for single click
+      setCurrentWidthInches(36);
+    }
+    
+    console.log('[useOpeningDrag] Drag end, transitioning to draft', { wasSingleClick, duration: dragDuration });
     setPhase('draft');
     dragStartScreenRef.current = null;
-  }, [phase]);
+  }, [phase, currentWidthInches]);
   
   const handleConfirm = useCallback(() => {
     if (phase !== 'draft' || !wall || !matchedAsset) {
@@ -444,6 +488,72 @@ export function useOpeningDrag(options: UseOpeningDragOptions): [DragState, Drag
     setCurrentWidthInches(asset.inches);
   }, []);
   
+  // Repositioning handlers - for moving window along wall in draft phase
+  const handleRepositionStart = useCallback((screenPoint: Point) => {
+    if (phase !== 'draft' || !wall) return;
+    
+    console.log('[useOpeningDrag] Reposition start');
+    setIsRepositioning(true);
+    repositionStartRef.current = {
+      screenPoint,
+      position: centerPosition,
+    };
+  }, [phase, wall, centerPosition]);
+  
+  const handleRepositionMove = useCallback((screenPoint: Point) => {
+    if (!isRepositioning || !wall || !mapper || !containerRef.current) return;
+    
+    const start = repositionStartRef.current;
+    if (!start) return;
+    
+    // Get container rect for coordinate conversion
+    const rect = containerRef.current.getBoundingClientRect();
+    
+    // Calculate wall properties
+    const wallLengthSvg = Math.sqrt(
+      Math.pow(wall.end.x - wall.start.x, 2) + 
+      Math.pow(wall.end.y - wall.start.y, 2)
+    );
+    const wallLengthInches = svgPixelsToInches(wallLengthSvg);
+    
+    // Calculate drag distance in screen pixels along wall direction
+    const orientation = getWallOrientation(wall);
+    let dragDistancePx: number;
+    
+    if (orientation === 'horizontal') {
+      dragDistancePx = screenPoint.x - start.screenPoint.x;
+    } else {
+      dragDistancePx = screenPoint.y - start.screenPoint.y;
+    }
+    
+    // Convert to position change (0-1 along wall)
+    const scaleX = mapper.svgViewBox.width / rect.width;
+    const dragDistanceSvg = dragDistancePx * scaleX;
+    const dragDistanceInches = svgPixelsToInches(dragDistanceSvg);
+    const positionChange = dragDistanceInches / wallLengthInches;
+    
+    // Calculate new position
+    let newPosition = start.position + positionChange;
+    
+    // Constrain so window edges don't extend past wall
+    const widthInches = snappedWidthInches ?? currentWidthInches;
+    const halfWidthFraction = (widthInches / 2) / wallLengthInches;
+    const minPosition = halfWidthFraction;
+    const maxPosition = 1 - halfWidthFraction;
+    
+    newPosition = Math.max(minPosition, Math.min(maxPosition, newPosition));
+    
+    setCenterPosition(newPosition);
+  }, [isRepositioning, wall, mapper, containerRef, snappedWidthInches, currentWidthInches]);
+  
+  const handleRepositionEnd = useCallback(() => {
+    if (!isRepositioning) return;
+    
+    console.log('[useOpeningDrag] Reposition end');
+    setIsRepositioning(false);
+    repositionStartRef.current = null;
+  }, [isRepositioning]);
+  
   // Handlers object
   const handlers: DragHandlers = {
     onDragStart,
@@ -455,6 +565,9 @@ export function useOpeningDrag(options: UseOpeningDragOptions): [DragState, Drag
     setCategoryGroup: handleSetCategoryGroup,
     setSwingDirection: handleSetSwingDirection,
     setSelectedAsset: handleSetSelectedAsset,
+    onRepositionStart: handleRepositionStart,
+    onRepositionMove: handleRepositionMove,
+    onRepositionEnd: handleRepositionEnd,
   };
   
   return [state, handlers];
