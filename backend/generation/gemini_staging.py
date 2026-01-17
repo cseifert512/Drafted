@@ -134,10 +134,28 @@ ROOM_PROMPTS: Dict[str, str] = {
 # OPENING EDIT PROMPTS (for prompt-based door/window placement)
 # =============================================================================
 
-OPENING_EDIT_SYSTEM_PROMPT = """
-You are editing a TOP-DOWN FLOOR PLAN.
+def get_opening_edit_system_prompt(opening_type: str) -> str:
+    """
+    Generate the system prompt for opening edits based on opening type.
+    
+    Args:
+        opening_type: Type of opening (e.g., "window", "interior_door", "garage")
+        
+    Returns:
+        System prompt string with correct opening type
+    """
+    # Determine if this is a window or door/garage
+    opening_type_lower = opening_type.lower()
+    if "window" in opening_type_lower:
+        element_name = "window"
+    elif "garage" in opening_type_lower:
+        element_name = "garage door"
+    else:
+        element_name = "door"
+    
+    return f"""You are editing a TOP-DOWN FLOOR PLAN.
 
-There is a RED RECTANGLE on the image. Add a door ONLY inside that red rectangle.
+There is a RED RECTANGLE on the image. Add a {element_name} ONLY inside that red rectangle.
 
 CRITICAL - PIXEL CONSTRAINT:
 - ONLY modify pixels INSIDE the red rectangle
@@ -146,8 +164,8 @@ CRITICAL - PIXEL CONSTRAINT:
 
 RULES:
 1. Find the RED RECTANGLE (semi-transparent red box on a wall)
-2. Replace ONLY those red pixels with a door
-3. Door must be flat top-down view matching other doors in this plan
+2. Replace ONLY those red pixels with a {element_name}
+3. {element_name.title()} must be flat top-down view matching other {element_name}s in this plan
 4. Pixels outside the red box = UNCHANGED from input
 """
 
@@ -1567,8 +1585,9 @@ async def edit_floor_plan_with_opening(
             asset_info=asset_info,
         )
         
-        # Combine system prompt and user prompt
-        full_prompt = OPENING_EDIT_SYSTEM_PROMPT + "\n\n" + user_prompt
+        # Combine system prompt (dynamic based on opening type) and user prompt
+        system_prompt = get_opening_edit_system_prompt(opening_type)
+        full_prompt = system_prompt + "\n\n" + user_prompt
         
         print(f"[OPENING_EDIT] Editing floor plan to add {opening_type} ({width_inches}in)")
         print(f"[OPENING_EDIT] Prompt length: {len(full_prompt)} chars")
