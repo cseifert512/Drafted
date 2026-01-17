@@ -343,27 +343,37 @@ export function useOpeningDrag(options: UseOpeningDragOptions): [DragState, Drag
     positionOnWall: number,
     screenPoint: Point
   ) => {
-    console.log('[useOpeningDrag] Click on wall, placing default 36" door', { wall: targetWall.id, position: positionOnWall });
-    
     setWall(targetWall);
     setCenterPosition(positionOnWall);
-    // Go straight to draft mode with 36" default - no drag adjustment
-    setPhase('draft');
-    setCurrentWidthInches(36); // Always 36" on click
     setSelectedAssetState(null);
     
     dragStartScreenRef.current = screenPoint;
-    dragStartWidthRef.current = 36;
     dragStartTimeRef.current = Date.now();
     
     // Use the pre-selected default category (from toolbar button)
     setCategoryGroup(defaultCategoryGroup);
     
     // Set default swing direction based on wall type
-    // For exterior walls, default to "exterior swing" (right = outward)
-    // For interior walls, default to "right" swing
     setSwingDirection(targetWall.isExterior ? 'right' : 'right');
-  }, []);
+    
+    // Different behavior based on category:
+    // - Doors/Garage: click to place with default size, go straight to draft
+    // - Windows: drag to set width
+    if (defaultCategoryGroup === 'window') {
+      // Windows: start dragging mode to let user define width
+      console.log('[useOpeningDrag] Window mode: drag to set width', { wall: targetWall.id, position: positionOnWall });
+      setPhase('dragging');
+      setCurrentWidthInches(DEFAULT_START_WIDTH_INCHES);
+      dragStartWidthRef.current = DEFAULT_START_WIDTH_INCHES;
+    } else {
+      // Doors/Garage: click to place with default size
+      const defaultSize = defaultCategoryGroup === 'garage' ? 96 : 36; // 8ft for garage, 36" for doors
+      console.log(`[useOpeningDrag] ${defaultCategoryGroup} mode: placing default ${defaultSize}"`, { wall: targetWall.id, position: positionOnWall });
+      setPhase('draft');
+      setCurrentWidthInches(defaultSize);
+      dragStartWidthRef.current = defaultSize;
+    }
+  }, [defaultCategoryGroup]);
   
   const onDragMove = useCallback((screenPoint: Point) => {
     if (phase !== 'dragging' || !wall || !mapper || !containerRef.current) return;
@@ -425,16 +435,16 @@ export function useOpeningDrag(options: UseOpeningDragOptions): [DragState, Drag
     const dragDuration = Date.now() - dragStartTimeRef.current;
     const wasSingleClick = dragDuration < SINGLE_CLICK_TIME_MS && currentWidthInches <= DEFAULT_START_WIDTH_INCHES + 4;
     
-    if (wasSingleClick) {
-      console.log('[useOpeningDrag] Single click detected, using default 36" door');
-      // Reset to default 36" for single click
+    if (wasSingleClick && categoryGroup === 'window') {
+      console.log('[useOpeningDrag] Single click on window, using default 36" width');
+      // For windows, if user just clicked without dragging, default to 36"
       setCurrentWidthInches(36);
     }
     
-    console.log('[useOpeningDrag] Drag end, transitioning to draft', { wasSingleClick, duration: dragDuration });
+    console.log('[useOpeningDrag] Drag end, transitioning to draft', { wasSingleClick, duration: dragDuration, category: categoryGroup });
     setPhase('draft');
     dragStartScreenRef.current = null;
-  }, [phase, currentWidthInches]);
+  }, [phase, currentWidthInches, categoryGroup]);
   
   const handleConfirm = useCallback(() => {
     if (phase !== 'draft' || !wall || !matchedAsset) {
