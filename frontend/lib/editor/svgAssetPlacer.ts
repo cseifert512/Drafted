@@ -42,7 +42,8 @@ export interface AssetPlacement {
   asset: DoorWindowAsset;
   wall: WallSegment;
   positionOnWall: number;  // 0-1 along wall
-  flipHorizontal?: boolean;  // For swing direction
+  flipHorizontal?: boolean;  // For swing direction (horizontal mirror)
+  swingOutward?: boolean;  // For swing direction (outward=exterior, inward=interior)
 }
 
 /**
@@ -142,12 +143,20 @@ function extractOpeningRect(svgString: string): ParsedSvgAsset['openingRect'] | 
 
 /**
  * Calculate transform parameters for placing an asset on a wall
+ * 
+ * The door SVG assets have the door opening at the bottom of the viewBox,
+ * with the swing arc extending upward. When placed on a wall:
+ * - The bottom of the opening should align with the wall line
+ * - The swing arc extends perpendicular to the wall
+ * 
+ * @param swingOutward - if true, arc extends in negative Y (outward); if false, positive Y (inward)
  */
 export function calculateAssetTransform(
   wall: WallSegment,
   positionOnWall: number,
   assetWidthInches: number,
-  parsed: ParsedSvgAsset
+  parsed: ParsedSvgAsset,
+  swingOutward: boolean = true
 ): {
   centerX: number;
   centerY: number;
@@ -181,21 +190,33 @@ export function calculateAssetTransform(
   const assetOpeningWidth = parsed.openingRect?.width || parsed.viewBox.width;
   const scale = targetWidthSvg / assetOpeningWidth;
   
-  // Calculate translation to center the asset
-  // The asset should be centered on the wall position
-  const scaledWidth = parsed.viewBox.width * scale;
-  const scaledHeight = parsed.viewBox.height * scale;
-  
-  // Translate to position the center of the opening at the wall center
+  // Calculate translation to position the asset
+  // X: center the opening horizontally on the wall position
+  // Y: align the bottom of the opening with the wall line, arc extends perpendicular
   let translateX = -parsed.viewBox.width / 2;
-  let translateY = -parsed.viewBox.height / 2;
+  let translateY: number;
   
-  // If we have an opening rect, adjust translation to center it
   if (parsed.openingRect) {
+    // Center X on the opening
     const openingCenterX = parsed.openingRect.x + parsed.openingRect.width / 2;
-    const openingCenterY = parsed.openingRect.y + parsed.openingRect.height / 2;
     translateX = -openingCenterX;
-    translateY = -openingCenterY;
+    
+    // Position Y so the bottom of the opening sits on the wall line (y=0 after transform)
+    // The swing arc in the asset extends "upward" (toward y=0 in asset coords)
+    // After rotation, we want the arc to extend perpendicular to the wall
+    const openingBottom = parsed.openingRect.y + parsed.openingRect.height;
+    
+    if (swingOutward) {
+      // Arc extends in negative Y (outward from wall) - align bottom of opening with wall
+      translateY = -openingBottom;
+    } else {
+      // Arc extends in positive Y (inward) - flip the asset orientation
+      // Align top of opening with wall, arc goes the other direction
+      translateY = -parsed.openingRect.y;
+    }
+  } else {
+    // Fallback: center on viewBox
+    translateY = -parsed.viewBox.height / 2;
   }
   
   return {
@@ -333,7 +354,7 @@ export function generatePlacedAssetSvg(
 export async function placeAssetOnWall(
   placement: AssetPlacement
 ): Promise<PlacedAssetResult> {
-  const { asset, wall, positionOnWall, flipHorizontal } = placement;
+  const { asset, wall, positionOnWall, flipHorizontal, swingOutward = true } = placement;
   
   // Fetch and parse the SVG asset
   const svgString = await fetchAssetSvg(asset.filename);
@@ -342,12 +363,13 @@ export async function placeAssetOnWall(
   // Generate unique ID
   const openingId = generateOpeningId();
   
-  // Calculate transform
+  // Calculate transform - pass swing direction for proper Y alignment
   const transform = calculateAssetTransform(
     wall,
     positionOnWall,
     asset.inches,
-    parsed
+    parsed,
+    swingOutward
   );
   
   // Calculate wall break

@@ -8,7 +8,7 @@ which offers precise room control and seed-based editing.
 import os
 import sys
 from pathlib import Path
-from typing import List, Optional, Dict, Any
+from typing import List, Optional, Dict, Any, Tuple
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 
@@ -851,8 +851,16 @@ async def add_opening(request: AddOpeningRequest):
         # Generate preview overlay SVG (simple symbol for immediate display)
         preview_overlay_svg = _generate_preview_overlay(opening_with_id, viewbox)
         
+        # Prepare asset info for SVG embedding
+        asset_info_dict = {
+            "filename": request.asset_info.filename,
+            "category": request.asset_info.category,
+            "display_name": request.asset_info.display_name,
+            "description": request.asset_info.description,
+        } if request.asset_info else None
+        
         # Modify the source SVG to include the opening
-        modified_svg = _add_opening_to_svg(request.svg, opening_with_id)
+        modified_svg = _add_opening_to_svg(request.svg, opening_with_id, asset_info_dict)
         
         # Create job record
         job = {
@@ -1176,6 +1184,62 @@ async def _process_opening_render(job_id: str):
         job["error"] = str(e)
 
 
+def _load_asset_svg(filename: str) -> Tuple[Optional[str], Optional[float], Optional[float]]:
+    """
+    Load an SVG asset file from the doorwindow_assets folder.
+    
+    Returns:
+        Tuple of (svg_content, width, height) or (None, None, None) if not found
+    """
+    import os
+    import re
+    
+    # Path to doorwindow_assets relative to this file
+    current_dir = os.path.dirname(os.path.abspath(__file__))
+    assets_dir = os.path.join(current_dir, "..", "..", "editing", "doorwindow_assets")
+    asset_path = os.path.join(assets_dir, filename)
+    
+    # Normalize the path
+    asset_path = os.path.normpath(asset_path)
+    
+    print(f"[SVG] Looking for asset: {asset_path}")
+    
+    if not os.path.exists(asset_path):
+        print(f"[SVG] Asset file not found: {asset_path}")
+        return None, None, None
+    
+    try:
+        with open(asset_path, 'r', encoding='utf-8') as f:
+            svg_content = f.read()
+        
+        # Extract width and height from viewBox or explicit attributes
+        viewbox_match = re.search(r'viewBox="([^"]+)"', svg_content)
+        width_match = re.search(r'width="([0-9.]+)"', svg_content)
+        height_match = re.search(r'height="([0-9.]+)"', svg_content)
+        
+        width = None
+        height = None
+        
+        if viewbox_match:
+            parts = viewbox_match.group(1).split()
+            if len(parts) >= 4:
+                width = float(parts[2])
+                height = float(parts[3])
+        
+        # Explicit width/height override viewBox if present
+        if width_match:
+            width = float(width_match.group(1))
+        if height_match:
+            height = float(height_match.group(1))
+        
+        print(f"[SVG] Loaded asset: {filename}, dimensions: {width}x{height}")
+        return svg_content, width, height
+        
+    except Exception as e:
+        print(f"[SVG] Error loading asset {filename}: {e}")
+        return None, None, None
+
+
 def _generate_preview_overlay(opening: Dict[str, Any], viewbox: Dict[str, float]) -> str:
     """
     Generate a simple SVG overlay showing the opening symbol.
@@ -1213,13 +1277,16 @@ def _generate_preview_overlay(opening: Dict[str, Any], viewbox: Dict[str, float]
     </svg>'''
 
 
-def _add_opening_to_svg(svg: str, opening: Dict[str, Any]) -> str:
+def _add_opening_to_svg(svg: str, opening: Dict[str, Any], asset_info: Optional[Dict[str, Any]] = None) -> str:
     """
     Add an opening symbol to the SVG using the EXACT Drafted convention:
     - <g> with transform and data-role="opening-asset" attributes
     - <image> with embedded base64 SVG graphic
     
     This matches how Drafted natively renders doors/windows in SVG output.
+    
+    For doors, uses actual SVG assets from doorwindow_assets folder and applies
+    swing_direction to flip the door appropriately.
     """
     import re
     import math
@@ -1231,6 +1298,7 @@ def _add_opening_to_svg(svg: str, opening: Dict[str, Any]) -> str:
     length_px = width_inches / 2  # 1px = 2 inches (Drafted SVG scale)
     position_on_wall = opening.get("position_on_wall", 0.5)
     wall_coords = opening.get("wall_coords")
+    swing_direction = opening.get("swing_direction", "right")
     
     if not wall_coords:
         print("[SVG] WARNING: No wall_coords provided, cannot place opening")
@@ -1248,10 +1316,6 @@ def _add_opening_to_svg(svg: str, opening: Dict[str, Any]) -> str:
     wall_length = math.sqrt(wall_dx * wall_dx + wall_dy * wall_dy)
     wall_angle_rad = math.atan2(wall_dy, wall_dx)
     wall_angle_deg = math.degrees(wall_angle_rad)
-    
-    # The embedded window/door SVG is drawn HORIZONTALLY by default.
-    # To make it parallel to the wall, rotate it by the wall's angle.
-    rotation_deg = wall_angle_deg
     
     # Normalized wall direction vector
     dir_x = wall_dx / wall_length if wall_length > 0 else 1
@@ -1274,11 +1338,15 @@ def _add_opening_to_svg(svg: str, opening: Dict[str, Any]) -> str:
     
     print(f"[SVG] Adding {opening_type} (Drafted format)")
     print(f"[SVG]   Center: ({center_x:.3f}, {center_y:.3f})")
-    print(f"[SVG]   Rotation: {rotation_deg:.3f} degrees (parallel to wall)")
+    print(f"[SVG]   Wall angle: {wall_angle_deg:.3f} degrees")
     print(f"[SVG]   Width: {width_inches} inches, Length: {length_px} px")
+    print(f"[SVG]   Swing direction: {swing_direction}")
+    if asset_info:
+        print(f"[SVG]   Asset: {asset_info.get('filename', 'N/A')}")
     
     # Determine opening kind for data attributes
-    if "door" in opening_type:
+    is_door = "door" in opening_type
+    if is_door:
         opening_kind = "door-interior-single" if "interior" in opening_type else "door-exterior-single"
         if "sliding" in opening_type:
             opening_kind = "door-sliding-glass"
@@ -1295,40 +1363,111 @@ def _add_opening_to_svg(svg: str, opening: Dict[str, Any]) -> str:
         data_type = "window"
         is_exterior = True  # Windows are exterior
     
-    # Generate the embedded SVG for the opening asset
-    # These match the Drafted convention: white background, black strokes
-    base_svg = _generate_opening_base_svg(opening_type, width_inches)
+    # Try to load actual SVG asset from file
+    base_svg = None
+    asset_svg_width = None
+    asset_svg_height = None
+    
+    if asset_info and asset_info.get("filename"):
+        base_svg, asset_svg_width, asset_svg_height = _load_asset_svg(asset_info["filename"])
+        if base_svg:
+            print(f"[SVG]   Loaded asset: {asset_info['filename']} ({asset_svg_width}x{asset_svg_height})")
+    
+    # Fall back to generated SVG if asset not found
+    if not base_svg:
+        print(f"[SVG]   Using generated SVG (no asset file)")
+        base_svg = _generate_opening_base_svg(opening_type, width_inches)
+    
+    # Apply swing direction flip for doors
+    # The default door assets have hinge on LEFT (swings right into room)
+    # If swing_direction is 'left', we flip horizontally so hinge is on RIGHT
+    flip_horizontal = (swing_direction == "left") if is_door else False
+    
     base64_svg = base64.b64encode(base_svg.encode('utf-8')).decode('utf-8')
     
-    # Calculate image positioning
-    # The image is placed at the center, with width = length_px and small height
-    img_width = length_px
-    img_height = length_px * 0.375  # Aspect ratio from Drafted (3.75/10 ≈ 0.375)
+    # Calculate image dimensions and positioning
+    # Both door and window assets have the opening HORIZONTAL at the bottom.
+    # Door assets are taller (have swing arc extending upward).
+    # We rotate by wall_angle_deg to align the opening with the wall.
+    if is_door and asset_svg_width and asset_svg_height:
+        # Use actual asset aspect ratio for doors
+        # Door assets are wider than tall (opening along X, swing toward -Y)
+        asset_aspect = asset_svg_height / asset_svg_width
+        img_width = length_px
+        img_height = length_px * asset_aspect
+    else:
+        # Windows: use standard aspect ratio
+        img_width = length_px
+        img_height = length_px * 0.375  # Aspect ratio for windows
+    
+    # Rotation aligns the horizontal opening with the wall direction
+    rotation_deg = wall_angle_deg
+    
+    # Position the image so the door opening (bottom of asset) aligns with the wall
+    # The door SVG has the opening at the bottom, swing arc extends upward
+    # After rotation, we offset in the normal direction to align properly
     img_x = center_x - img_width / 2
-    img_y = center_y - img_height / 2
+    
+    # Offset Y so the door opening (bottom of image) sits on the wall line
+    # The swing arc extends perpendicular to the wall
+    # For exterior swing (right), arc goes outward (toward negative normal)
+    # For interior swing (left), arc goes inward (toward positive normal)
+    if is_door:
+        # Move image so opening aligns with wall, arc extends perpendicular
+        # swing_direction 'right' = exterior = arc toward -normal (outward)
+        # swing_direction 'left' = interior = arc toward +normal (inward)
+        swing_offset = img_height / 2 if swing_direction == "right" else -img_height / 2
+        img_y = center_y - img_height / 2 - swing_offset
+    else:
+        img_y = center_y - img_height / 2
+    
+    print(f"[SVG]   Final rotation: {rotation_deg:.3f} degrees")
+    print(f"[SVG]   Flip horizontal: {flip_horizontal}")
+    
+    # Build the image element
+    image_element = f'''<image href="data:image/svg+xml;base64,{base64_svg}" 
+                   xlink:href="data:image/svg+xml;base64,{base64_svg}"
+                   x="{img_x:.3f}" 
+                   y="{img_y:.3f}"'''
+    
+    # Build transform - rotation aligns with wall, flip changes hinge side
+    # For flip: We use nested groups. Outer rotates, inner flips around center.
+    # The flip transform is: translate(cx,cy) scale(-1,1) translate(-cx,-cy)
+    rotate_transform = f"rotate({rotation_deg:.3f} {center_x:.3f} {center_y:.3f})"
+    
+    if flip_horizontal:
+        # Flip around the center point, then rotate to align with wall
+        flip_transform = f"translate({center_x:.3f},{center_y:.3f}) scale(-1,1) translate({-center_x:.3f},{-center_y:.3f})"
+        inner_content = f'''
+            <g transform="{flip_transform}">
+                {image_element}
+                   width="{img_width:.3f}" 
+                   height="{img_height:.3f}" 
+                   preserveAspectRatio="xMidYMid meet"/>
+            </g>'''
+    else:
+        inner_content = f'''
+                {image_element}
+                   width="{img_width:.3f}" 
+                   height="{img_height:.3f}" 
+                   preserveAspectRatio="xMidYMid meet"/>'''
     
     # Create the opening asset group matching Drafted convention exactly
     # Note: Drafted uses both href AND xlink:href for SVG 1.x/2.x compatibility
     opening_group = f'''
-        <g transform="rotate({rotation_deg:.3f} {center_x:.3f} {center_y:.3f})" 
+        <g transform="{rotate_transform}" 
            data-role="opening-asset" 
            data-opening-type="{data_type}" 
            data-opening-kind="{opening_kind}" 
            data-width-in="{width_inches}" 
            data-length-px="{length_px:.0f}" 
            data-anchor="center" 
-           data-flip-y="false" 
+           data-flip-y="{str(flip_horizontal).lower()}" 
+           data-swing-direction="{swing_direction}"
            data-room-a="OUTSIDE" 
            data-room-b="INTERIOR"
            data-door-exterior="{str(is_exterior).lower()}"
-           id="{opening_id}">
-            <image href="data:image/svg+xml;base64,{base64_svg}" 
-                   xlink:href="data:image/svg+xml;base64,{base64_svg}"
-                   x="{img_x:.3f}" 
-                   y="{img_y:.3f}" 
-                   width="{img_width:.3f}" 
-                   height="{img_height:.3f}" 
-                   preserveAspectRatio="xMidYMid meet"/>
+           id="{opening_id}">{inner_content}
         </g>'''
     
     # Ensure SVG has xlink namespace for embedded images
