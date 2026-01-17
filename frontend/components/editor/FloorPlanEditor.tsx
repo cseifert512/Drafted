@@ -7,6 +7,8 @@ import {
   Image,
   FileCode,
   DoorOpen,
+  Square,
+  Warehouse,
   Bug,
   Undo2,
   Redo2,
@@ -285,29 +287,91 @@ export function FloorPlanEditor({
           
           <div className="w-px h-6 bg-drafted-border mx-1" />
           
-          {/* Door/Window Editing Toggle */}
-          <button
-            onClick={() => {
-              // Auto-switch to rendered overlay when enabling door/window mode
-              if (!openingEditor.isEnabled && !showRenderedOverlay && hasRenderedImage) {
-                setShowRenderedOverlay(true);
-              }
-              openingEditor.toggleEnabled();
-            }}
-            disabled={!hasRenderedImage}
-            className={`px-3 py-1.5 rounded-lg transition-colors text-xs font-medium flex items-center gap-1.5 ${
-              openingEditor.isEnabled 
-                ? 'bg-orange-100 text-orange-600 hover:bg-orange-200' 
-                : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-            } ${!hasRenderedImage ? 'opacity-50 cursor-not-allowed' : ''}`}
-            title={hasRenderedImage 
-              ? (openingEditor.isEnabled ? "Exit door/window mode" : "Add doors & windows")
-              : "Requires a rendered floor plan"
-            }
-          >
-            <DoorOpen className="w-3.5 h-3.5" />
-            <span>{openingEditor.isEnabled ? 'Exit Edit' : 'Doors/Windows'}</span>
-          </button>
+          {/* Door/Window/Garage Editing Buttons */}
+          <div className="flex items-center gap-1">
+            <button
+              onClick={() => {
+                // Auto-switch to rendered overlay when enabling
+                if (!openingEditor.isEnabled && !showRenderedOverlay && hasRenderedImage) {
+                  setShowRenderedOverlay(true);
+                }
+                openingEditor.dragHandlers.setDefaultCategoryGroup('door');
+                if (!openingEditor.isEnabled) {
+                  openingEditor.toggleEnabled();
+                }
+              }}
+              disabled={!hasRenderedImage}
+              className={`px-2.5 py-1.5 rounded-lg transition-colors text-xs font-medium flex items-center gap-1 ${
+                openingEditor.isEnabled && openingEditor.dragState.defaultCategoryGroup === 'door'
+                  ? 'bg-orange-100 text-orange-600 hover:bg-orange-200 ring-2 ring-orange-400' 
+                  : openingEditor.isEnabled 
+                  ? 'bg-orange-50 text-orange-500 hover:bg-orange-100'
+                  : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+              } ${!hasRenderedImage ? 'opacity-50 cursor-not-allowed' : ''}`}
+              title="Add doors"
+            >
+              <DoorOpen className="w-3.5 h-3.5" />
+              <span>Door</span>
+            </button>
+            
+            <button
+              onClick={() => {
+                if (!openingEditor.isEnabled && !showRenderedOverlay && hasRenderedImage) {
+                  setShowRenderedOverlay(true);
+                }
+                openingEditor.dragHandlers.setDefaultCategoryGroup('window');
+                if (!openingEditor.isEnabled) {
+                  openingEditor.toggleEnabled();
+                }
+              }}
+              disabled={!hasRenderedImage}
+              className={`px-2.5 py-1.5 rounded-lg transition-colors text-xs font-medium flex items-center gap-1 ${
+                openingEditor.isEnabled && openingEditor.dragState.defaultCategoryGroup === 'window'
+                  ? 'bg-sky-100 text-sky-600 hover:bg-sky-200 ring-2 ring-sky-400' 
+                  : openingEditor.isEnabled 
+                  ? 'bg-sky-50 text-sky-500 hover:bg-sky-100'
+                  : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+              } ${!hasRenderedImage ? 'opacity-50 cursor-not-allowed' : ''}`}
+              title="Add windows"
+            >
+              <Square className="w-3.5 h-3.5" />
+              <span>Window</span>
+            </button>
+            
+            <button
+              onClick={() => {
+                if (!openingEditor.isEnabled && !showRenderedOverlay && hasRenderedImage) {
+                  setShowRenderedOverlay(true);
+                }
+                openingEditor.dragHandlers.setDefaultCategoryGroup('garage');
+                if (!openingEditor.isEnabled) {
+                  openingEditor.toggleEnabled();
+                }
+              }}
+              disabled={!hasRenderedImage}
+              className={`px-2.5 py-1.5 rounded-lg transition-colors text-xs font-medium flex items-center gap-1 ${
+                openingEditor.isEnabled && openingEditor.dragState.defaultCategoryGroup === 'garage'
+                  ? 'bg-emerald-100 text-emerald-600 hover:bg-emerald-200 ring-2 ring-emerald-400' 
+                  : openingEditor.isEnabled 
+                  ? 'bg-emerald-50 text-emerald-500 hover:bg-emerald-100'
+                  : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+              } ${!hasRenderedImage ? 'opacity-50 cursor-not-allowed' : ''}`}
+              title="Add garage doors"
+            >
+              <Warehouse className="w-3.5 h-3.5" />
+              <span>Garage</span>
+            </button>
+            
+            {openingEditor.isEnabled && (
+              <button
+                onClick={() => openingEditor.toggleEnabled()}
+                className="px-2 py-1.5 rounded-lg transition-colors text-xs font-medium bg-red-100 text-red-600 hover:bg-red-200"
+                title="Exit editing mode"
+              >
+                ✕
+              </button>
+            )}
+          </div>
           
           <div className="w-px h-6 bg-drafted-border mx-1" />
           

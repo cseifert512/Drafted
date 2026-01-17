@@ -38,6 +38,7 @@ export interface DragState {
   snappedWidthInches: number | null;
   matchedAsset: DoorWindowAsset | null;
   categoryGroup: CategoryGroup;
+  defaultCategoryGroup: CategoryGroup; // Pre-selected category for next placement
   swingDirection: 'left' | 'right';
   isRepositioning: boolean; // True when dragging to reposition in draft phase
 }
@@ -50,6 +51,7 @@ export interface DragHandlers {
   onCancel: () => void;
   onRenderComplete: () => void; // Reset to idle after render completes
   setCategoryGroup: (group: CategoryGroup) => void;
+  setDefaultCategoryGroup: (group: CategoryGroup) => void; // Set category for next placement
   setSwingDirection: (direction: 'left' | 'right') => void;
   setSelectedAsset: (asset: DoorWindowAsset) => void;
   // Repositioning handlers (for moving window along wall in draft phase)
@@ -246,6 +248,7 @@ export function useOpeningDrag(options: UseOpeningDragOptions): [DragState, Drag
   const [centerPosition, setCenterPosition] = useState<number>(0.5);
   const [currentWidthInches, setCurrentWidthInches] = useState<number>(DEFAULT_START_WIDTH_INCHES);
   const [categoryGroup, setCategoryGroup] = useState<CategoryGroup>(DEFAULT_CATEGORY_GROUP);
+  const [defaultCategoryGroup, setDefaultCategoryGroup] = useState<CategoryGroup>(DEFAULT_CATEGORY_GROUP);
   const [swingDirection, setSwingDirection] = useState<'left' | 'right'>('right');
   const [selectedAsset, setSelectedAssetState] = useState<DoorWindowAsset | null>(null);
   const [isRepositioning, setIsRepositioning] = useState(false);
@@ -303,6 +306,7 @@ export function useOpeningDrag(options: UseOpeningDragOptions): [DragState, Drag
     snappedWidthInches,
     matchedAsset,
     categoryGroup,
+    defaultCategoryGroup,
     swingDirection,
     isRepositioning,
   };
@@ -352,8 +356,8 @@ export function useOpeningDrag(options: UseOpeningDragOptions): [DragState, Drag
     dragStartWidthRef.current = 36;
     dragStartTimeRef.current = Date.now();
     
-    // Set default category based on wall type - default to door for both
-    setCategoryGroup('door');
+    // Use the pre-selected default category (from toolbar button)
+    setCategoryGroup(defaultCategoryGroup);
     
     // Set default swing direction based on wall type
     // For exterior walls, default to "exterior swing" (right = outward)
@@ -480,6 +484,10 @@ export function useOpeningDrag(options: UseOpeningDragOptions): [DragState, Drag
     setSelectedAssetState(null); // Clear manual selection when changing groups
   }, []);
   
+  const handleSetDefaultCategoryGroup = useCallback((group: CategoryGroup) => {
+    setDefaultCategoryGroup(group);
+  }, []);
+  
   const handleSetSwingDirection = useCallback((direction: 'left' | 'right') => {
     setSwingDirection(direction);
   }, []);
@@ -564,6 +572,7 @@ export function useOpeningDrag(options: UseOpeningDragOptions): [DragState, Drag
     onCancel: handleCancel,
     onRenderComplete: handleRenderComplete,
     setCategoryGroup: handleSetCategoryGroup,
+    setDefaultCategoryGroup: handleSetDefaultCategoryGroup,
     setSwingDirection: handleSetSwingDirection,
     setSelectedAsset: handleSetSelectedAsset,
     onRepositionStart: handleRepositionStart,
