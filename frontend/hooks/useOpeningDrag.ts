@@ -339,16 +339,17 @@ export function useOpeningDrag(options: UseOpeningDragOptions): [DragState, Drag
     positionOnWall: number,
     screenPoint: Point
   ) => {
-    console.log('[useOpeningDrag] Drag start', { wall: targetWall.id, position: positionOnWall });
+    console.log('[useOpeningDrag] Click on wall, placing default 36" door', { wall: targetWall.id, position: positionOnWall });
     
     setWall(targetWall);
     setCenterPosition(positionOnWall);
-    setPhase('dragging');
-    setCurrentWidthInches(DEFAULT_START_WIDTH_INCHES);
+    // Go straight to draft mode with 36" default - no drag adjustment
+    setPhase('draft');
+    setCurrentWidthInches(36); // Always 36" on click
     setSelectedAssetState(null);
     
     dragStartScreenRef.current = screenPoint;
-    dragStartWidthRef.current = DEFAULT_START_WIDTH_INCHES;
+    dragStartWidthRef.current = 36;
     dragStartTimeRef.current = Date.now();
     
     // Set default category based on wall type - default to door for both
