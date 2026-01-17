@@ -130,16 +130,16 @@ export function OpeningPreviewOverlay({
               {/* Door swing arc (for doors only) */}
               {/* 
                 Door swing conventions:
-                - "Right swing" / "Exterior" = door opens outward (toward negative Y - outside)
-                - "Left swing" / "Interior" = door opens inward (toward positive Y - inside)
+                - "Interior" (left) = door opens inward (toward positive Y - inside) - DEFAULT CORRECT
+                - "Exterior" (right) = mirror of interior across wall axis (toward negative Y - outside)
                 The arc traces the path of the door's free edge as it opens.
               */}
               {isDoor && opening.type !== 'sliding_door' && (
                 <motion.path
                   d={opening.swingDirection === 'right'
-                    // Right swing (Exterior): arc sweeps outward (negative Y)
-                    ? `M ${widthPx / 2},0 A ${widthPx},${widthPx} 0 0 1 ${-widthPx / 2},${-widthPx}`
-                    // Left swing (Interior): arc sweeps inward (positive Y) - mirrored across X axis
+                    // Exterior: same arc shape as interior, just mirrored across X axis (wall)
+                    ? `M ${-widthPx / 2},0 A ${widthPx},${widthPx} 0 0 1 ${widthPx / 2},${-widthPx}`
+                    // Interior: arc sweeps inward (positive Y) - this is correct
                     : `M ${-widthPx / 2},0 A ${widthPx},${widthPx} 0 0 0 ${widthPx / 2},${widthPx}`
                   }
                   fill="none"
