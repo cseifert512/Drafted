@@ -80,6 +80,7 @@ const DEFAULT_START_WIDTH_INCHES = 36;
 // Default category for new openings
 const DEFAULT_CATEGORY_GROUP: CategoryGroup = 'door';
 
+
 // =============================================================================
 // UTILITIES
 // =============================================================================
@@ -292,6 +293,29 @@ export function useOpeningDrag(options: UseOpeningDragOptions): [DragState, Drag
     categoryGroup,
     swingDirection,
   };
+  
+  // ==========================================================================
+  // ESC KEY HANDLER - Cancel placement when Escape is pressed during dragging
+  // ==========================================================================
+  
+  useEffect(() => {
+    if (phase !== 'dragging') return;
+    
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        console.log('[useOpeningDrag] ESC pressed, cancelling drag');
+        setPhase('idle');
+        setWall(null);
+        setCenterPosition(0.5);
+        setCurrentWidthInches(DEFAULT_START_WIDTH_INCHES);
+        setSelectedAssetState(null);
+        dragStartScreenRef.current = null;
+      }
+    };
+    
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [phase]);
   
   // ==========================================================================
   // HANDLERS
