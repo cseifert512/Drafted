@@ -1050,37 +1050,96 @@ async def _process_opening_render(job_id: str):
         # Also save in job for API response (for debugging)
         job["raw_png_base64"] = base64.b64encode(annotated_png).decode('utf-8')
         
-        # Step 2: Send annotated PNG to Gemini with opening-specific prompt
-        print(f"[RENDER] Sending to Gemini for prompt-based edit...")
-        print(f"[RENDER] Asset info: {job.get('asset_info')}")
-        edit_result = await edit_floor_plan_with_opening(
-            annotated_png=annotated_png,
-            opening=job["opening"],
-            asset_info=job.get("asset_info"),
-        )
+        # Import validation module
+        from utils.validate_generation import validate_generation
         
-        # Save the prompt used
-        if edit_result.prompt_used:
-            job["gemini_prompt"] = edit_result.prompt_used
-            print(f"[RENDER] Prompt length: {len(edit_result.prompt_used)} chars")
+        # Get bbox for validation (needed before the loop)
+        bbox = annotation_metadata.get("edit_bbox")
         
-        if not edit_result.success:
+        # =====================================================================
+        # Step 2: Send to Gemini with VALIDATION RETRY LOOP
+        # If Gemini hallucinates (red marker remains, artifacts outside bbox),
+        # we reject the output and retry automatically.
+        # =====================================================================
+        MAX_VALIDATION_RETRIES = 3
+        edit_result = None
+        validation_result = None
+        
+        for validation_attempt in range(MAX_VALIDATION_RETRIES):
+            attempt_num = validation_attempt + 1
+            print(f"[RENDER] Attempt {attempt_num}/{MAX_VALIDATION_RETRIES}: Sending to Gemini...")
+            print(f"[RENDER] Asset info: {job.get('asset_info')}")
+            
+            edit_result = await edit_floor_plan_with_opening(
+                annotated_png=annotated_png,
+                opening=job["opening"],
+                asset_info=job.get("asset_info"),
+            )
+            
+            # Save the prompt used
+            if edit_result.prompt_used:
+                job["gemini_prompt"] = edit_result.prompt_used
+                print(f"[RENDER] Prompt length: {len(edit_result.prompt_used)} chars")
+            
+            # Check if Gemini API call itself failed
+            if not edit_result.success:
+                print(f"[RENDER] Gemini API failed on attempt {attempt_num}: {edit_result.error}")
+                # Don't retry validation failures for API errors - those have their own retry
+                job["status"] = "failed"
+                job["error"] = edit_result.error or "Gemini edit failed"
+                return
+            
+            # Save raw Gemini output for debugging (with attempt number)
+            gemini_raw_path = debug_dir / f"02_gemini_raw_output_attempt{attempt_num}.png"
+            with open(gemini_raw_path, 'wb') as f:
+                f.write(edit_result.edited_image)
+            print(f"[DEBUG] Saved raw Gemini output to: {gemini_raw_path}")
+            
+            # -----------------------------------------------------------------
+            # VALIDATION: Check for hallucinations before accepting the result
+            # -----------------------------------------------------------------
+            if bbox:
+                print(f"[RENDER] Validating Gemini output (attempt {attempt_num})...")
+                validation_result = validate_generation(
+                    original_png=original_png,
+                    gemini_output_png=edit_result.edited_image,
+                    bbox=bbox,
+                    opening_type=job["opening"].get("type", "unknown"),
+                    job_id=job_id,
+                )
+                
+                if validation_result.is_valid:
+                    print(f"[RENDER] Validation PASSED on attempt {attempt_num}")
+                    break  # Success! Exit retry loop
+                else:
+                    print(f"[RENDER] Validation FAILED on attempt {attempt_num}: {validation_result.rejection_reason}")
+                    job["last_validation_failure"] = validation_result.to_dict()
+                    
+                    if attempt_num < MAX_VALIDATION_RETRIES:
+                        print(f"[RENDER] Retrying Gemini call...")
+                    # Loop continues to next attempt
+            else:
+                # No bbox means we can't validate - accept the result
+                print(f"[RENDER] WARNING: No bbox, skipping validation")
+                break
+        
+        # Check if we exhausted all validation retries
+        if validation_result and not validation_result.is_valid:
             job["status"] = "failed"
-            job["error"] = edit_result.error or "Gemini edit failed"
-            print(f"[RENDER] Edit failed: {edit_result.error}")
+            job["error"] = f"Validation failed after {MAX_VALIDATION_RETRIES} attempts: {validation_result.rejection_reason}"
+            job["validation_metrics"] = validation_result.metrics
+            print(f"[RENDER] Job {job_id} FAILED: Exhausted validation retries")
             return
         
-        # Save raw Gemini output for debugging
+        # Also save the final successful Gemini output with standard name
         gemini_raw_path = debug_dir / "02_gemini_raw_output.png"
         with open(gemini_raw_path, 'wb') as f:
             f.write(edit_result.edited_image)
-        print(f"[DEBUG] Saved raw Gemini output to: {gemini_raw_path}")
+        print(f"[DEBUG] Saved final Gemini output to: {gemini_raw_path}")
         
         # Step 3: Composite ONLY the bbox region from Gemini onto original
         # This enforces that only the door area changes
-        from backend.utils.surgical_blend import composite_only_bbox
-        
-        bbox = annotation_metadata.get("edit_bbox")
+        from utils.surgical_blend import composite_only_bbox
         if bbox:
             print(f"[RENDER] Compositing only bbox region: {bbox}")
             final_image = composite_only_bbox(
