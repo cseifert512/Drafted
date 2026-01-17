@@ -46,18 +46,11 @@ RED_G_MAX = 80        # Green channel maximum
 RED_B_MAX = 80        # Blue channel maximum
 RED_PIXEL_THRESHOLD_PCT = 0.5  # If >0.5% of bbox pixels are red, reject
 
-# --- Light Background / Artifact Leakage ---
-# Background pixels include white AND light-colored floors (beige, tan, light gray)
-# We check if these become significantly darker outside the edit region
-LIGHT_BACKGROUND_LUMINANCE_MIN = 180  # Pixels with luminance > this are "light background"
-# This catches white (255), beige (~220), tan (~200), light floors
-CONTAMINATION_THRESHOLD_PCT = 1.0  # If >1% of light pixels outside bbox change, reject
-
-# --- Significant Change Detection ---
-# To avoid flagging subtle lighting/shadow changes as artifacts, we require
-# a SIGNIFICANT color change to count as contamination. Subtle shifts (255→240)
-# are okay (lighting), but dramatic changes (255→150) indicate actual content.
-SIGNIFICANT_CHANGE_THRESHOLD = 50  # Pixel must change by >50 luminance to count as artifact
+# --- Artifact / Change Detection ---
+# We check if ANY pixels outside the bbox changed significantly.
+# A pixel "changed significantly" if any RGB channel changed by > this threshold.
+# This allows subtle lighting shifts but catches actual content appearing.
+SIGNIFICANT_CHANGE_THRESHOLD = 50  # Any channel must change by >50 to count
 
 # --- Oversized Generation Detection ---
 # If Gemini generates a window/door much larger than requested, we detect it by
@@ -327,11 +320,10 @@ def _check_artifact_leakage(
     bbox: Dict[str, int],
 ) -> Dict[str, Any]:
     """
-    Check if pixels outside the bbox that were white/background have been contaminated.
+    Check if ANY pixels outside the bbox changed significantly.
     
-    This detects when Gemini adds doors/windows/artifacts outside the intended edit area.
-    We only check pixels that were originally white (background) - we don't want to
-    flag changes to furniture, walls, etc. that might legitimately be near the bbox.
+    Simple and strict: if pixels outside the edit region changed substantially,
+    reject the generation. Period.
     
     Args:
         original_img: Original floor plan (PIL Image, RGB mode)
@@ -341,9 +333,9 @@ def _check_artifact_leakage(
     Returns:
         Dict with:
             - passed: bool - whether the check passed
-            - contamination_pct: float - percentage of white pixels that changed
-            - contaminated_pixels: int - count of contaminated pixels
-            - total_white_outside: int - total white pixels outside bbox
+            - changed_pixels: int - count of significantly changed pixels outside bbox
+            - total_outside: int - total pixels outside bbox
+            - change_pct: float - percentage of outside pixels that changed
     """
     # Convert to numpy
     original_arr = np.array(original_img, dtype=np.float32)
@@ -361,56 +353,44 @@ def _check_artifact_leakage(
     outside_mask = np.ones((h, w), dtype=bool)
     outside_mask[y1:y2, x1:x2] = False  # Exclude the bbox region
     
-    # Find light background pixels in original using luminance
-    # This catches white, beige, tan, light gray floors - not just pure white
-    r_orig = original_arr[:, :, 0]
-    g_orig = original_arr[:, :, 1]
-    b_orig = original_arr[:, :, 2]
+    total_outside = int(np.sum(outside_mask))
     
-    # Calculate luminance: 0.299*R + 0.587*G + 0.114*B
-    lum_orig = 0.299 * r_orig + 0.587 * g_orig + 0.114 * b_orig
-    
-    # Light background = luminance > threshold (catches beige floors at ~200-220)
-    is_light_background = lum_orig > LIGHT_BACKGROUND_LUMINANCE_MIN
-    
-    # Only look at light background pixels OUTSIDE the bbox
-    light_outside = is_light_background & outside_mask
-    total_light_outside = int(np.sum(light_outside))
-    
-    if total_light_outside == 0:
-        # No light background pixels to check - pass by default
+    if total_outside == 0:
         return {
             "passed": True,
+            "changed_pixels": 0,
+            "total_outside": 0,
+            "change_pct": 0.0,
             "contamination_pct": 0.0,
-            "contaminated_pixels": 0,
             "total_white_outside": 0,
         }
     
-    # Check for SIGNIFICANT changes (not just subtle lighting shifts)
-    # Calculate luminance for output
-    r_out = output_arr[:, :, 0]
-    g_out = output_arr[:, :, 1]
-    b_out = output_arr[:, :, 2]
+    # Calculate per-pixel difference (max of RGB channel differences)
+    diff = np.abs(original_arr - output_arr)
+    max_diff = np.max(diff, axis=2)  # Max difference across R, G, B channels
     
-    lum_out = 0.299 * r_out + 0.587 * g_out + 0.114 * b_out
+    # A pixel "changed significantly" if any channel changed by > threshold
+    significant_change = max_diff > SIGNIFICANT_CHANGE_THRESHOLD
     
-    # A pixel is "contaminated" only if:
-    # 1. It was light background in the original (outside bbox)
-    # 2. Its luminance dropped by more than SIGNIFICANT_CHANGE_THRESHOLD
-    # This allows subtle lighting changes but catches actual content appearing
-    luminance_drop = lum_orig - lum_out
-    significant_change = luminance_drop > SIGNIFICANT_CHANGE_THRESHOLD
+    # Count pixels that changed significantly OUTSIDE the bbox
+    changed_outside = significant_change & outside_mask
+    changed_pixels = int(np.sum(changed_outside))
     
-    # Contaminated = was light background outside bbox AND changed significantly
-    contaminated = light_outside & significant_change
-    contaminated_pixels = int(np.sum(contaminated))
-    contamination_pct = (contaminated_pixels / total_light_outside) * 100
+    # Calculate percentage
+    change_pct = (changed_pixels / total_outside) * 100
+    
+    # STRICT: If more than 0.5% of outside pixels changed, reject
+    # This is very strict but prevents artifacts
+    MAX_OUTSIDE_CHANGE_PCT = 0.5
     
     return {
-        "passed": contamination_pct < CONTAMINATION_THRESHOLD_PCT,
-        "contamination_pct": contamination_pct,
-        "contaminated_pixels": contaminated_pixels,
-        "total_white_outside": total_light_outside,
+        "passed": change_pct < MAX_OUTSIDE_CHANGE_PCT,
+        "changed_pixels": changed_pixels,
+        "total_outside": total_outside,
+        "change_pct": change_pct,
+        # Legacy keys for compatibility
+        "contamination_pct": change_pct,
+        "total_white_outside": total_outside,
     }
 
 
@@ -428,7 +408,7 @@ def _check_oversized_generation(
     
     Logic:
     1. Calculate the bbox area (the intended edit region)
-    2. Count pixels that changed from white→non-white OUTSIDE the bbox
+    2. Count ANY pixels that changed significantly OUTSIDE the bbox
     3. If changed_pixels > OVERSIZED_AREA_THRESHOLD_PCT of bbox_area, reject
     
     Args:
@@ -470,33 +450,16 @@ def _check_oversized_generation(
     outside_mask = np.ones((h, w), dtype=bool)
     outside_mask[y1:y2, x1:x2] = False  # Exclude the bbox region
     
-    # Find light background pixels in original using luminance
-    # This catches white, beige, tan, light gray floors - not just pure white
-    r_orig = original_arr[:, :, 0]
-    g_orig = original_arr[:, :, 1]
-    b_orig = original_arr[:, :, 2]
+    # Calculate per-pixel difference (max of RGB channel differences)
+    diff = np.abs(original_arr - output_arr)
+    max_diff = np.max(diff, axis=2)  # Max difference across R, G, B channels
     
-    # Calculate luminance: 0.299*R + 0.587*G + 0.114*B
-    lum_orig = 0.299 * r_orig + 0.587 * g_orig + 0.114 * b_orig
+    # A pixel "changed significantly" if any channel changed by > threshold
+    significant_change = max_diff > SIGNIFICANT_CHANGE_THRESHOLD
     
-    # Light background = luminance > threshold (catches beige floors at ~200-220)
-    is_light_background = lum_orig > LIGHT_BACKGROUND_LUMINANCE_MIN
-    
-    # Check for SIGNIFICANT changes (not just subtle lighting shifts)
-    r_out = output_arr[:, :, 0]
-    g_out = output_arr[:, :, 1]
-    b_out = output_arr[:, :, 2]
-    
-    lum_out = 0.299 * r_out + 0.587 * g_out + 0.114 * b_out
-    
-    # A pixel counts as "changed" only if luminance dropped significantly
-    # This ignores subtle lighting/shadow changes but catches actual content
-    luminance_drop = lum_orig - lum_out
-    significant_change = luminance_drop > SIGNIFICANT_CHANGE_THRESHOLD
-    
-    # Pixels that were light background OUTSIDE bbox AND changed significantly
+    # Pixels that changed significantly OUTSIDE bbox
     # (This represents the area of "extra" content Gemini added)
-    changed_outside = is_light_background & outside_mask & significant_change
+    changed_outside = outside_mask & significant_change
     changed_pixels = int(np.sum(changed_outside))
     
     # Compare to bbox area - what % of the bbox area is the extra content?
