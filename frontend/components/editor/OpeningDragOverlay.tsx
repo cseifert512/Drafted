@@ -8,7 +8,6 @@ import type { CoordinateMapper } from '@/lib/editor/coordinateMapping';
 import { openingToPngCoords } from '@/lib/editor/coordinateMapping';
 import { formatInches } from '@/lib/editor/assetManifest';
 import type { DragState, DragHandlers } from '@/hooks/useOpeningDrag';
-import { getWallOrientation } from '@/hooks/useOpeningDrag';
 import { OpeningDraftPopover } from './OpeningDraftPopover';
 
 // =============================================================================
@@ -61,48 +60,91 @@ export function OpeningDragOverlay({
     return openingToPngCoords(wall, centerPosition, displayWidth, mapper);
   }, [wall, centerPosition, currentWidthInches, snappedWidthInches, mapper]);
   
-  // Determine wall orientation for popover placement
-  const wallOrientation = useMemo(() => {
-    if (!wall) return 'horizontal';
-    return getWallOrientation(wall);
-  }, [wall]);
+  // Determine which side of the floorplan the wall is on
+  // based on opening center position in PNG coordinates (matches CSS positioning)
+  type WallSide = 'north' | 'south' | 'east' | 'west';
   
-  // Calculate popover position and placement based on wall orientation
-  // - Horizontal walls: popover appears 50px above the opening edge
-  // - Vertical walls: popover appears 50px to the left of the opening edge
+  const wallSide = useMemo((): WallSide => {
+    if (!wall || !mapper || !openingCoords) return 'north';
+    
+    // Use PNG dimensions as the reference frame (matches CSS positioning)
+    const pngCenterX = mapper.pngDimensions.width / 2;
+    const pngCenterY = mapper.pngDimensions.height / 2;
+    
+    // Opening center in PNG coordinates
+    const openingX = openingCoords.center.x;
+    const openingY = openingCoords.center.y;
+    
+    // Determine wall orientation
+    const dx = Math.abs(wall.end.x - wall.start.x);
+    const dy = Math.abs(wall.end.y - wall.start.y);
+    const isHorizontal = dx >= dy;
+    
+    if (isHorizontal) {
+      // Horizontal wall: check if in top or bottom half of image
+      return openingY < pngCenterY ? 'north' : 'south';
+    } else {
+      // Vertical wall: check if in left or right half of image
+      return openingX < pngCenterX ? 'west' : 'east';
+    }
+  }, [wall, mapper, openingCoords]);
+  
+  // Calculate popover position based on wall side
+  // Popover appears on the EXTERIOR side of the house (outside the floorplan)
+  // Using direct pixel positioning (no CSS transforms) to ensure no overlap
   const popoverConfig = useMemo(() => {
     if (!openingCoords) return { position: { x: 0, y: 0 }, placement: 'top' as const };
     
-    const ARROW_OFFSET = 50; // pixels from the opening edge to arrow tip
-    const { center, start, end } = openingCoords;
+    const { center } = openingCoords;
     
-    // Calculate the half-width of the opening in screen pixels
-    const halfWidthPx = Math.sqrt(
-      Math.pow(end.x - start.x, 2) + Math.pow(end.y - start.y, 2)
-    ) / 2;
+    // Known popover dimensions (from min-w-[240px] and typical content height)
+    const POPOVER_WIDTH = 260;
+    const POPOVER_HEIGHT = 200;
+    const GAP = 60; // Gap between window and popover
     
-    if (wallOrientation === 'horizontal') {
-      // For horizontal walls, the opening extends left/right
-      // Place popover above: offset from top edge of the opening rectangle
-      return {
-        position: {
-          x: center.x,
-          y: center.y - 25 - ARROW_OFFSET, // 25px is half the rectangle height, plus offset
-        },
-        placement: 'top' as const,
-      };
-    } else {
-      // For vertical walls, the opening extends up/down
-      // Place popover to the left: offset from left edge of the opening rectangle
-      return {
-        position: {
-          x: center.x - halfWidthPx - ARROW_OFFSET, // Left edge minus offset
-          y: center.y,
-        },
-        placement: 'left' as const,
-      };
+    switch (wallSide) {
+      case 'north':
+        // Popover ABOVE the window (outside the house)
+        // Position so bottom edge of popover is above window center
+        return {
+          position: {
+            x: center.x - POPOVER_WIDTH / 2,  // Centered horizontally
+            y: center.y - POPOVER_HEIGHT - 20, // Smaller gap for north (was too far)
+          },
+          placement: 'top' as const,
+        };
+      case 'south':
+        // Popover BELOW the window (outside the house)
+        // Position so top edge of popover is GAP pixels below window center
+        return {
+          position: {
+            x: center.x - POPOVER_WIDTH / 2,  // Centered horizontally
+            y: center.y + GAP, // Below the window
+          },
+          placement: 'bottom' as const,
+        };
+      case 'west':
+        // Popover to the LEFT of the window (outside the house)
+        // Position so right edge of popover is GAP pixels left of window center
+        return {
+          position: {
+            x: center.x - POPOVER_WIDTH - GAP, // Left of the window
+            y: center.y - POPOVER_HEIGHT / 2,  // Centered vertically
+          },
+          placement: 'left' as const,
+        };
+      case 'east':
+        // Popover to the RIGHT of the window (outside the house)
+        // Position so left edge of popover is GAP pixels right of window center
+        return {
+          position: {
+            x: center.x + GAP, // Right of the window
+            y: center.y - POPOVER_HEIGHT / 2,  // Centered vertically
+          },
+          placement: 'right' as const,
+        };
     }
-  }, [openingCoords, wallOrientation]);
+  }, [openingCoords, wallSide]);
   
   // Don't render if idle or no data
   if (phase === 'idle' || !wall || !mapper || !openingCoords) {

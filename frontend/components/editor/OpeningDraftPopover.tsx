@@ -30,7 +30,7 @@ import {
 // TYPES
 // =============================================================================
 
-type PopoverPlacement = 'top' | 'left' | 'right';
+type PopoverPlacement = 'top' | 'bottom' | 'left' | 'right';
 
 interface OpeningDraftPopoverProps {
   isVisible: boolean;
@@ -148,27 +148,30 @@ export function OpeningDraftPopover({
   const displayWidth = snappedWidthInches ?? Math.round(currentWidthInches);
   const Icon = CATEGORY_GROUP_ICONS[categoryGroup];
   
-  // Get transform and animation based on placement
-  const getTransformAndAnimation = () => {
+  // Get animation config based on placement (no CSS transforms - position is calculated directly)
+  const getAnimationConfig = () => {
     switch (placement) {
       case 'left':
         return {
-          transform: 'translate(-100%, -50%)', // Right edge at position, vertically centered
           initial: { opacity: 0, x: 10, scale: 0.95 },
           animate: { opacity: 1, x: 0, scale: 1 },
           exit: { opacity: 0, x: 10, scale: 0.95 },
         };
       case 'right':
         return {
-          transform: 'translate(0%, -50%)', // Left edge at position, vertically centered
           initial: { opacity: 0, x: -10, scale: 0.95 },
           animate: { opacity: 1, x: 0, scale: 1 },
           exit: { opacity: 0, x: -10, scale: 0.95 },
         };
+      case 'bottom':
+        return {
+          initial: { opacity: 0, y: -10, scale: 0.95 },
+          animate: { opacity: 1, y: 0, scale: 1 },
+          exit: { opacity: 0, y: -10, scale: 0.95 },
+        };
       case 'top':
       default:
         return {
-          transform: 'translate(-50%, -100%)', // Bottom edge at position, horizontally centered
           initial: { opacity: 0, y: 10, scale: 0.95 },
           animate: { opacity: 1, y: 0, scale: 1 },
           exit: { opacity: 0, y: 10, scale: 0.95 },
@@ -176,7 +179,7 @@ export function OpeningDraftPopover({
     }
   };
   
-  const transformConfig = getTransformAndAnimation();
+  const animationConfig = getAnimationConfig();
   
   return (
     <AnimatePresence>
@@ -185,11 +188,10 @@ export function OpeningDraftPopover({
         style={{
           left: position.x,
           top: position.y,
-          transform: transformConfig.transform,
         }}
-        initial={transformConfig.initial}
-        animate={transformConfig.animate}
-        exit={transformConfig.exit}
+        initial={animationConfig.initial}
+        animate={animationConfig.animate}
+        exit={animationConfig.exit}
         transition={{ duration: 0.15 }}
       >
         {/* Main popover container */}
@@ -372,6 +374,16 @@ export function OpeningDraftPopover({
               borderLeft: '8px solid transparent',
               borderRight: '8px solid transparent',
               borderTop: '8px solid white',
+            }}
+          />
+        )}
+        {placement === 'bottom' && (
+          <div 
+            className="absolute left-1/2 -translate-x-1/2 -top-2 w-0 h-0"
+            style={{
+              borderLeft: '8px solid transparent',
+              borderRight: '8px solid transparent',
+              borderBottom: '8px solid white',
             }}
           />
         )}
