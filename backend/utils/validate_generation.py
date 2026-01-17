@@ -52,6 +52,12 @@ RED_PIXEL_THRESHOLD_PCT = 0.5  # If >0.5% of bbox pixels are red, reject
 WHITE_LUMINANCE_MIN = 240  # Pixels with all channels > this are "white"
 CONTAMINATION_THRESHOLD_PCT = 1.0  # If >1% of white pixels outside bbox change, reject
 
+# --- Significant Change Detection ---
+# To avoid flagging subtle lighting/shadow changes as artifacts, we require
+# a SIGNIFICANT color change to count as contamination. Subtle shifts (255→240)
+# are okay (lighting), but dramatic changes (255→150) indicate actual content.
+SIGNIFICANT_CHANGE_THRESHOLD = 50  # Pixel must change by >50 luminance to count as artifact
+
 # --- Oversized Generation Detection ---
 # If Gemini generates a window/door much larger than requested, we detect it by
 # comparing the area of changed pixels (outside bbox) to the bbox area itself.
@@ -378,19 +384,25 @@ def _check_artifact_leakage(
             "total_white_outside": 0,
         }
     
-    # Check if these white pixels are still white in output
+    # Check for SIGNIFICANT changes (not just subtle lighting shifts)
+    # Calculate luminance for both original and output
+    # Luminance = 0.299*R + 0.587*G + 0.114*B
     r_out = output_arr[:, :, 0]
     g_out = output_arr[:, :, 1]
     b_out = output_arr[:, :, 2]
     
-    is_white_output = (
-        (r_out > WHITE_LUMINANCE_MIN) & 
-        (g_out > WHITE_LUMINANCE_MIN) & 
-        (b_out > WHITE_LUMINANCE_MIN)
-    )
+    lum_orig = 0.299 * r_orig + 0.587 * g_orig + 0.114 * b_orig
+    lum_out = 0.299 * r_out + 0.587 * g_out + 0.114 * b_out
     
-    # Pixels that were white (outside bbox) but are no longer white
-    contaminated = white_outside & ~is_white_output
+    # A pixel is "contaminated" only if:
+    # 1. It was white in the original (outside bbox)
+    # 2. Its luminance dropped by more than SIGNIFICANT_CHANGE_THRESHOLD
+    # This allows subtle lighting changes but catches actual content appearing
+    luminance_drop = lum_orig - lum_out
+    significant_change = luminance_drop > SIGNIFICANT_CHANGE_THRESHOLD
+    
+    # Contaminated = was white outside bbox AND changed significantly
+    contaminated = white_outside & significant_change
     contaminated_pixels = int(np.sum(contaminated))
     contamination_pct = (contaminated_pixels / total_white_outside) * 100
     
@@ -469,20 +481,23 @@ def _check_oversized_generation(
         (b_orig > WHITE_LUMINANCE_MIN)
     )
     
-    # Check output for white pixels
+    # Check for SIGNIFICANT changes (not just subtle lighting shifts)
     r_out = output_arr[:, :, 0]
     g_out = output_arr[:, :, 1]
     b_out = output_arr[:, :, 2]
     
-    is_white_output = (
-        (r_out > WHITE_LUMINANCE_MIN) & 
-        (g_out > WHITE_LUMINANCE_MIN) & 
-        (b_out > WHITE_LUMINANCE_MIN)
-    )
+    # Calculate luminance for both original and output
+    lum_orig = 0.299 * r_orig + 0.587 * g_orig + 0.114 * b_orig
+    lum_out = 0.299 * r_out + 0.587 * g_out + 0.114 * b_out
     
-    # Pixels that were white OUTSIDE bbox but are now non-white
+    # A pixel counts as "changed" only if luminance dropped significantly
+    # This ignores subtle lighting/shadow changes but catches actual content
+    luminance_drop = lum_orig - lum_out
+    significant_change = luminance_drop > SIGNIFICANT_CHANGE_THRESHOLD
+    
+    # Pixels that were white OUTSIDE bbox AND changed significantly
     # (This represents the area of "extra" content Gemini added)
-    changed_outside = is_white_original & outside_mask & ~is_white_output
+    changed_outside = is_white_original & outside_mask & significant_change
     changed_pixels = int(np.sum(changed_outside))
     
     # Compare to bbox area - what % of the bbox area is the extra content?
