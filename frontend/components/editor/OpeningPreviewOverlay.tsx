@@ -130,17 +130,17 @@ export function OpeningPreviewOverlay({
               {/* Door swing arc (for doors only) */}
               {/* 
                 Door swing conventions:
-                - "Right swing" / "Exterior" = hinge on left, door swings to the right (opens toward positive Y)
-                - "Left swing" / "Interior" = hinge on right, door swings to the left (opens toward positive Y)
+                - "Right swing" / "Exterior" = hinge on left, door swings to the right (opens toward negative Y)
+                - "Left swing" / "Interior" = hinge on right, door swings to the left (opens toward negative Y)
                 The arc traces the path of the door's free edge as it opens.
               */}
               {isDoor && opening.type !== 'sliding_door' && (
                 <motion.path
                   d={opening.swingDirection === 'right'
-                    // Right swing (Exterior): hinge at left edge, arc from right edge sweeping down/outward
-                    ? `M ${widthPx / 2},0 A ${widthPx},${widthPx} 0 0 0 ${-widthPx / 2},${widthPx}`
-                    // Left swing (Interior): hinge at right edge, arc from left edge sweeping down/outward
-                    : `M ${-widthPx / 2},0 A ${widthPx},${widthPx} 0 0 1 ${widthPx / 2},${widthPx}`
+                    // Right swing (Exterior): hinge at left edge, arc from right edge sweeping up/outward
+                    ? `M ${widthPx / 2},0 A ${widthPx},${widthPx} 0 0 1 ${-widthPx / 2},${-widthPx}`
+                    // Left swing (Interior): hinge at right edge, arc from left edge sweeping up/inward
+                    : `M ${-widthPx / 2},0 A ${widthPx},${widthPx} 0 0 0 ${widthPx / 2},${-widthPx}`
                   }
                   fill="none"
                   stroke={accentColor}
