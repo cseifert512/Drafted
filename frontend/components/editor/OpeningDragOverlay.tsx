@@ -1,9 +1,10 @@
 'use client';
 
-import { useMemo } from 'react';
+import { useMemo, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Loader2 } from 'lucide-react';
+import { Loader2, Move } from 'lucide-react';
 import type { WallSegment, Point } from '@/lib/editor/openingTypes';
+import { svgPixelsToInches } from '@/lib/editor/openingTypes';
 import type { CoordinateMapper } from '@/lib/editor/coordinateMapping';
 import { openingToPngCoords } from '@/lib/editor/coordinateMapping';
 import { formatInches } from '@/lib/editor/assetManifest';
@@ -49,7 +50,39 @@ export function OpeningDragOverlay({
     matchedAsset,
     categoryGroup,
     swingDirection,
+    isRepositioning,
   } = dragState;
+  
+  // Handle repositioning mouse events at document level
+  const handleMouseMove = useCallback((e: MouseEvent) => {
+    if (!isRepositioning) return;
+    dragHandlers.onRepositionMove({ x: e.clientX, y: e.clientY });
+  }, [isRepositioning, dragHandlers]);
+  
+  const handleMouseUp = useCallback(() => {
+    if (!isRepositioning) return;
+    dragHandlers.onRepositionEnd();
+  }, [isRepositioning, dragHandlers]);
+  
+  // Add/remove document listeners for repositioning drag
+  useEffect(() => {
+    if (isRepositioning) {
+      document.addEventListener('mousemove', handleMouseMove);
+      document.addEventListener('mouseup', handleMouseUp);
+      return () => {
+        document.removeEventListener('mousemove', handleMouseMove);
+        document.removeEventListener('mouseup', handleMouseUp);
+      };
+    }
+  }, [isRepositioning, handleMouseMove, handleMouseUp]);
+  
+  // Start repositioning when clicking on the opening in draft mode
+  const handleOpeningMouseDown = useCallback((e: React.MouseEvent) => {
+    if (phase !== 'draft') return;
+    e.preventDefault();
+    e.stopPropagation();
+    dragHandlers.onRepositionStart({ x: e.clientX, y: e.clientY });
+  }, [phase, dragHandlers]);
   
   // Calculate opening position in PNG coordinates
   const openingCoords = useMemo(() => {
@@ -167,8 +200,11 @@ export function OpeningDragOverlay({
   const isSnapped = snappedWidthInches !== null;
   const displayWidth = snappedWidthInches ?? Math.round(currentWidthInches);
   
+  // Allow pointer events in draft mode for repositioning
+  const allowPointerEvents = isDraft && !isRendering;
+  
   return (
-    <div className="absolute inset-0 pointer-events-none">
+    <div className={`absolute inset-0 ${allowPointerEvents ? '' : 'pointer-events-none'}`}>
       {/* SVG Overlay for opening visualization */}
       <svg
         className="absolute inset-0 w-full h-full"
@@ -203,7 +239,24 @@ export function OpeningDragOverlay({
         <g
           transform={`translate(${center.x}, ${center.y}) rotate(${angle})`}
           filter="url(#drag-opening-glow)"
+          style={{ 
+            cursor: isDraft ? (isRepositioning ? 'grabbing' : 'grab') : 'default',
+            pointerEvents: isDraft ? 'auto' : 'none',
+          }}
+          onMouseDown={handleOpeningMouseDown}
         >
+          {/* Invisible hit area for easier dragging */}
+          {isDraft && (
+            <rect
+              x={-widthPx / 2 - 20}
+              y={-30}
+              width={widthPx + 40}
+              height={60}
+              fill="transparent"
+              style={{ cursor: isRepositioning ? 'grabbing' : 'grab' }}
+            />
+          )}
+          
           {/* Background glow - larger when dragging */}
           <motion.rect
             x={-widthPx / 2 - 15}
@@ -214,8 +267,8 @@ export function OpeningDragOverlay({
             rx={6}
             initial={{ opacity: 0 }}
             animate={{ 
-              opacity: isDragging ? 0.3 : 0.2,
-              scale: isDragging ? 1.05 : 1,
+              opacity: isDragging || isRepositioning ? 0.3 : 0.2,
+              scale: isDragging || isRepositioning ? 1.05 : 1,
             }}
             transition={{ duration: 0.2 }}
           />
@@ -304,9 +357,20 @@ export function OpeningDragOverlay({
           )}
           
           {/* Door swing arc preview (for doors in draft state) */}
+          {/* 
+            Door swing conventions:
+            - "Right swing" = hinge on left, door swings to the right (opens toward negative Y in local coords)
+            - "Left swing" = hinge on right, door swings to the left (opens toward negative Y in local coords)
+            The arc traces the path of the door's free edge as it opens.
+          */}
           {isDraft && matchedAsset?.hasSwing && (
             <motion.path
-              d={`M ${-widthPx / 2},0 A ${widthPx * 0.8},${widthPx * 0.8} 0 0 ${swingDirection === 'left' ? 0 : 1} ${swingDirection === 'left' ? -widthPx / 2 - widthPx * 0.6 : widthPx / 2 + widthPx * 0.6},${swingDirection === 'left' ? -widthPx * 0.6 : widthPx * 0.6}`}
+              d={swingDirection === 'right' 
+                // Right swing: hinge at left edge, arc from right edge sweeping perpendicular (into room)
+                ? `M ${widthPx / 2},0 A ${widthPx},${widthPx} 0 0 1 ${-widthPx / 2},${-widthPx}`
+                // Left swing: hinge at right edge, arc from left edge sweeping perpendicular (into room)
+                : `M ${-widthPx / 2},0 A ${widthPx},${widthPx} 0 0 0 ${widthPx / 2},${-widthPx}`
+              }
               fill="none"
               stroke={accentColor}
               strokeWidth={2}
@@ -350,6 +414,32 @@ export function OpeningDragOverlay({
         )}
       </AnimatePresence>
       
+      {/* Repositioning indicator badge */}
+      <AnimatePresence>
+        {isRepositioning && (
+          <motion.div
+            className="absolute pointer-events-none"
+            style={{
+              left: center.x,
+              top: center.y + 35,
+              transform: 'translateX(-50%)',
+            }}
+            initial={{ opacity: 0, y: -5 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -5 }}
+            transition={{ duration: 0.1 }}
+          >
+            <div 
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-white text-sm font-bold shadow-lg"
+              style={{ backgroundColor: accentColor }}
+            >
+              <Move className="w-3.5 h-3.5" />
+              <span>Move</span>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+      
       {/* Rendering status badge */}
       <AnimatePresence>
         {isRendering && (
@@ -376,24 +466,40 @@ export function OpeningDragOverlay({
       </AnimatePresence>
       
       {/* Draft popover - shows after drag ends */}
-      {isDraft && (
-        <OpeningDraftPopover
-          isVisible={true}
-          position={popoverConfig.position}
-          placement={popoverConfig.placement}
-          matchedAsset={matchedAsset}
-          currentWidthInches={currentWidthInches}
-          snappedWidthInches={snappedWidthInches}
-          categoryGroup={categoryGroup}
-          isExteriorWall={wall.isExterior}
-          swingDirection={swingDirection}
-          onCategoryGroupChange={dragHandlers.setCategoryGroup}
-          onSwingDirectionChange={dragHandlers.setSwingDirection}
-          onAssetSelect={dragHandlers.setSelectedAsset}
-          onConfirm={dragHandlers.onConfirm}
-          onCancel={dragHandlers.onCancel}
-        />
-      )}
+      {isDraft && (() => {
+        // Calculate wall length in inches
+        const wallLengthSvg = Math.sqrt(
+          Math.pow(wall.end.x - wall.start.x, 2) + 
+          Math.pow(wall.end.y - wall.start.y, 2)
+        );
+        const wallLengthInches = svgPixelsToInches(wallLengthSvg);
+        
+        // Calculate max width based on center position (edges can't extend past wall)
+        const distanceToStartEdge = centerPosition * wallLengthInches;
+        const distanceToEndEdge = (1 - centerPosition) * wallLengthInches;
+        const maxHalfWidth = Math.min(distanceToStartEdge, distanceToEndEdge);
+        const maxWidthForPosition = maxHalfWidth * 2;
+        
+        return (
+          <OpeningDraftPopover
+            isVisible={true}
+            position={popoverConfig.position}
+            placement={popoverConfig.placement}
+            matchedAsset={matchedAsset}
+            currentWidthInches={currentWidthInches}
+            snappedWidthInches={snappedWidthInches}
+            categoryGroup={categoryGroup}
+            isExteriorWall={wall.isExterior}
+            swingDirection={swingDirection}
+            maxWidthInches={maxWidthForPosition}
+            onCategoryGroupChange={dragHandlers.setCategoryGroup}
+            onSwingDirectionChange={dragHandlers.setSwingDirection}
+            onAssetSelect={dragHandlers.setSelectedAsset}
+            onConfirm={dragHandlers.onConfirm}
+            onCancel={dragHandlers.onCancel}
+          />
+        );
+      })()}
     </div>
   );
 }

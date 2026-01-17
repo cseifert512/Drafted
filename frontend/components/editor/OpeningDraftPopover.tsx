@@ -42,6 +42,7 @@ interface OpeningDraftPopoverProps {
   categoryGroup: CategoryGroup;
   isExteriorWall: boolean;
   swingDirection: 'left' | 'right';
+  maxWidthInches?: number; // Maximum width allowed (wall length)
   onCategoryGroupChange: (group: CategoryGroup) => void;
   onSwingDirectionChange: (direction: 'left' | 'right') => void;
   onAssetSelect: (asset: DoorWindowAsset) => void;
@@ -78,6 +79,7 @@ export function OpeningDraftPopover({
   onAssetSelect,
   onConfirm,
   onCancel,
+  maxWidthInches,
 }: OpeningDraftPopoverProps) {
   // Asset manifest
   const [assets, setAssets] = useState<DoorWindowAsset[]>([]);
@@ -110,14 +112,20 @@ export function OpeningDraftPopover({
     return categories;
   }, [assets, categoryGroup, isExteriorWall]);
   
-  // Get available assets for dropdown
+  // Get available assets for dropdown (filtered by wall length if provided)
   const availableAssets = useMemo(() => {
     if (!matchedAsset) return [];
     
     // Get all assets in the matched category
-    const categoryAssets = assets.filter(a => a.category === matchedAsset.category);
+    let categoryAssets = assets.filter(a => a.category === matchedAsset.category);
+    
+    // Filter out assets wider than the wall
+    if (maxWidthInches) {
+      categoryAssets = categoryAssets.filter(a => a.inches <= maxWidthInches);
+    }
+    
     return categoryAssets.sort((a, b) => a.inches - b.inches);
-  }, [assets, matchedAsset]);
+  }, [assets, matchedAsset, maxWidthInches]);
   
   // Accent color based on category
   const accentColor = useMemo(() => {
@@ -254,7 +262,7 @@ export function OpeningDraftPopover({
                       src={getAssetUrl(matchedAsset.filename)}
                       alt={matchedAsset.displayName}
                       className="max-w-full max-h-full object-contain"
-                      style={{ transform: swingDirection === 'left' ? 'scaleX(-1)' : 'none' }}
+                      style={{ transform: swingDirection === 'right' ? 'scaleX(-1)' : 'none' }}
                     />
                   </div>
                 )}
