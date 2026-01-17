@@ -1410,13 +1410,12 @@ def _add_opening_to_svg(svg: str, opening: Dict[str, Any], asset_info: Optional[
     
     # Offset Y so the door opening (bottom of image) sits on the wall line
     # The swing arc extends perpendicular to the wall
-    # For exterior swing (right), arc goes outward (toward negative normal)
-    # For interior swing (left), arc goes inward (toward positive normal)
+    # For exterior swing (right), arc goes outward 
+    # For interior swing (left), arc goes inward
     if is_door:
         # Move image so opening aligns with wall, arc extends perpendicular
-        # swing_direction 'right' = exterior = arc toward -normal (outward)
-        # swing_direction 'left' = interior = arc toward +normal (inward)
-        swing_offset = img_height / 2 if swing_direction == "right" else -img_height / 2
+        # Flip the offset direction to correct the arc placement
+        swing_offset = -img_height / 2 if swing_direction == "right" else img_height / 2
         img_y = center_y - img_height / 2 - swing_offset
     else:
         img_y = center_y - img_height / 2
