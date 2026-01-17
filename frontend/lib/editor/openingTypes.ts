@@ -131,6 +131,14 @@ export interface AddOpeningResponse {
 }
 
 // Status poll response
+export interface RejectedGeneration {
+  attempt: number;
+  reason: string;
+  failed_check?: string;
+  metrics?: Record<string, any>;
+  image_base64: string;
+}
+
 export interface OpeningStatusResponse {
   jobId: string;
   status: OpeningJobStatus;
@@ -138,6 +146,7 @@ export interface OpeningStatusResponse {
   rawPngBase64?: string;     // PNG sent to Gemini (for debug)
   geminiPrompt?: string;     // Prompt sent to Gemini (for debug)
   error?: string;
+  rejectedGenerations?: RejectedGeneration[];  // Generations that failed validation
 }
 
 // Opening type definitions for UI

@@ -390,6 +390,7 @@ def _check_artifact_leakage(
         "change_pct": change_pct,
         # Legacy keys for compatibility
         "contamination_pct": change_pct,
+        "contaminated_pixels": changed_pixels,
         "total_white_outside": total_outside,
     }
 

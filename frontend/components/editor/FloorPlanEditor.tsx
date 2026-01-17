@@ -135,6 +135,7 @@ export function FloorPlanEditor({
   const [currentGeminiPrompt, setCurrentGeminiPrompt] = useState<string | undefined>(
     initialPlan?.gemini_prompt
   );
+  const [currentRejectedGenerations, setCurrentRejectedGenerations] = useState<any[] | undefined>();
   
   // Opening editor hook with CAD-style drag support
   // IMPORTANT: Pass currentSvg (cumulative) instead of initialPlan.svg
@@ -149,7 +150,7 @@ export function FloorPlanEditor({
     // External control of openings for undo/redo sync
     openings: currentOpenings,
     onOpeningsChange: setCurrentOpenings,
-    onRenderComplete: (newImageBase64, modifiedSvg, rawPngBase64, geminiPrompt) => {
+    onRenderComplete: (newImageBase64, modifiedSvg, rawPngBase64, geminiPrompt, rejectedGenerations) => {
       console.log('[FloorPlanEditor] Opening render complete');
       // Save current complete state to history before updating (for undo)
       pushToHistory();
@@ -169,6 +170,11 @@ export function FloorPlanEditor({
       if (geminiPrompt) {
         setCurrentGeminiPrompt(geminiPrompt);
         console.log('[FloorPlanEditor] Updated Gemini prompt');
+      }
+      // Update rejected generations for debug view
+      setCurrentRejectedGenerations(rejectedGenerations);
+      if (rejectedGenerations && rejectedGenerations.length > 0) {
+        console.log(`[FloorPlanEditor] ${rejectedGenerations.length} generations were rejected by validation`);
       }
     },
   });
@@ -545,6 +551,7 @@ export function FloorPlanEditor({
         geminiPrompt={currentGeminiPrompt}
         modifiedSvg={currentSvg}
         planId={initialPlan?.id}
+        rejectedGenerations={currentRejectedGenerations}
       />
       
       {/* Render Progress (for multiple openings) */}

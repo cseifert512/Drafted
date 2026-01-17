@@ -407,6 +407,7 @@ export async function getOpeningStatus(jobId: string): Promise<OpeningStatusResp
     rawPngBase64: data.raw_png_base64,
     geminiPrompt: data.gemini_prompt,
     error: data.error,
+    rejectedGenerations: data.rejected_generations,
   };
 }
 

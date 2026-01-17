@@ -15,6 +15,7 @@ import type {
   OpeningPlacement, 
   OpeningJobStatus,
   Point,
+  RejectedGeneration,
 } from '@/lib/editor/openingTypes';
 import { assetToOpeningPlacement } from '@/lib/editor/openingTypes';
 import { extractWallSegments } from '@/lib/editor/wallDetection';
@@ -47,7 +48,7 @@ interface UseOpeningEditorOptions {
   canonicalRoomKeys: string[];
   pngDimensions: { width: number; height: number } | null;
   containerRef: React.RefObject<HTMLElement>;
-  onRenderComplete?: (newImageBase64: string, modifiedSvg: string, rawPngBase64?: string, geminiPrompt?: string) => void;
+  onRenderComplete?: (newImageBase64: string, modifiedSvg: string, rawPngBase64?: string, geminiPrompt?: string, rejectedGenerations?: RejectedGeneration[]) => void;
   // Optional external control of openings state (for undo/redo sync)
   openings?: OpeningPlacement[];
   onOpeningsChange?: (openings: OpeningPlacement[]) => void;
@@ -254,7 +255,8 @@ export function useOpeningEditor(options: UseOpeningEditorOptions) {
               status.renderedImageBase64, 
               result.modifiedSvg,
               status.rawPngBase64,
-              status.geminiPrompt
+              status.geminiPrompt,
+              status.rejectedGenerations
             );
             
             // Reset drag state to idle

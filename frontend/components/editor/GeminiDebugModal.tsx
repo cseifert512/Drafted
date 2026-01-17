@@ -1,7 +1,15 @@
 'use client';
 
-import { X, Copy, Check, Image, FileText, Download, FileCode } from 'lucide-react';
+import { X, Copy, Check, Image, FileText, Download, FileCode, AlertTriangle } from 'lucide-react';
 import { useState, useCallback } from 'react';
+
+interface RejectedGeneration {
+  attempt: number;
+  reason: string;
+  failed_check?: string;
+  metrics?: Record<string, any>;
+  image_base64: string;
+}
 
 interface GeminiDebugModalProps {
   isOpen: boolean;
@@ -10,6 +18,7 @@ interface GeminiDebugModalProps {
   geminiPrompt?: string;
   modifiedSvg?: string;
   planId?: string;
+  rejectedGenerations?: RejectedGeneration[];
 }
 
 export function GeminiDebugModal({
@@ -19,9 +28,11 @@ export function GeminiDebugModal({
   geminiPrompt,
   modifiedSvg,
   planId,
+  rejectedGenerations,
 }: GeminiDebugModalProps) {
   const [copiedPrompt, setCopiedPrompt] = useState(false);
-  const [activeTab, setActiveTab] = useState<'svg' | 'png' | 'prompt'>('svg');
+  const [activeTab, setActiveTab] = useState<'svg' | 'png' | 'prompt' | 'rejected'>('svg');
+  const [selectedRejected, setSelectedRejected] = useState(0);
 
   const handleCopyPrompt = useCallback(async () => {
     if (!geminiPrompt) return;
@@ -123,6 +134,19 @@ export function GeminiDebugModal({
             <FileText className="w-4 h-4" />
             Prompt
           </button>
+          {rejectedGenerations && rejectedGenerations.length > 0 && (
+            <button
+              onClick={() => setActiveTab('rejected')}
+              className={`flex items-center gap-2 px-4 py-3 text-sm font-medium border-b-2 transition-colors ${
+                activeTab === 'rejected'
+                  ? 'border-orange-500 text-orange-600'
+                  : 'border-transparent text-gray-500 hover:text-gray-700'
+              }`}
+            >
+              <AlertTriangle className="w-4 h-4" />
+              Rejected ({rejectedGenerations.length})
+            </button>
+          )}
         </div>
 
         {/* Content */}
@@ -245,6 +269,70 @@ export function GeminiDebugModal({
                   <FileText className="w-12 h-12 mx-auto mb-2 opacity-30" />
                   <p>No prompt data available</p>
                   <p className="text-xs mt-1">Add a door or window to see the prompt</p>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Rejected Generations Tab */}
+          {activeTab === 'rejected' && rejectedGenerations && (
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <p className="text-sm text-gray-600">
+                  Generations that failed validation and were rejected
+                </p>
+                <div className="flex gap-2">
+                  {rejectedGenerations.map((_, idx) => (
+                    <button
+                      key={idx}
+                      onClick={() => setSelectedRejected(idx)}
+                      className={`px-3 py-1 text-sm rounded-lg transition-colors ${
+                        selectedRejected === idx
+                          ? 'bg-orange-500 text-white'
+                          : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                      }`}
+                    >
+                      Attempt {idx + 1}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              
+              {rejectedGenerations[selectedRejected] && (
+                <div className="space-y-4">
+                  {/* Rejection reason */}
+                  <div className="bg-orange-50 border border-orange-200 rounded-lg p-4">
+                    <div className="flex items-start gap-3">
+                      <AlertTriangle className="w-5 h-5 text-orange-500 flex-shrink-0 mt-0.5" />
+                      <div>
+                        <p className="font-medium text-orange-800">
+                          Failed Check: {rejectedGenerations[selectedRejected].failed_check || 'Unknown'}
+                        </p>
+                        <p className="text-sm text-orange-700 mt-1">
+                          {rejectedGenerations[selectedRejected].reason}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Rejected image */}
+                  <div className="bg-gray-100 rounded-lg p-4 flex items-center justify-center">
+                    <img
+                      src={`data:image/png;base64,${rejectedGenerations[selectedRejected].image_base64}`}
+                      alt={`Rejected generation attempt ${selectedRejected + 1}`}
+                      className="max-w-full max-h-[50vh] object-contain border-2 border-orange-300 rounded shadow-lg"
+                    />
+                  </div>
+
+                  {/* Metrics */}
+                  {rejectedGenerations[selectedRejected].metrics && (
+                    <div className="bg-gray-900 rounded-lg p-4 overflow-auto max-h-40">
+                      <p className="text-xs text-gray-400 mb-2">Validation Metrics:</p>
+                      <pre className="text-xs text-orange-400 font-mono whitespace-pre-wrap">
+                        {JSON.stringify(rejectedGenerations[selectedRejected].metrics, null, 2)}
+                      </pre>
+                    </div>
+                  )}
                 </div>
               )}
             </div>

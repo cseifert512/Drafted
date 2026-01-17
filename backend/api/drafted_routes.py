@@ -102,6 +102,15 @@ class OpeningJobResponse(BaseModel):
     error: Optional[str] = None
 
 
+class RejectedGeneration(BaseModel):
+    """A generation that was rejected by validation."""
+    attempt: int
+    reason: str
+    failed_check: Optional[str] = None
+    metrics: Optional[Dict[str, Any]] = None
+    image_base64: str
+
+
 class OpeningStatusResponse(BaseModel):
     """Response from polling opening render status."""
     job_id: str
@@ -110,6 +119,7 @@ class OpeningStatusResponse(BaseModel):
     raw_png_base64: Optional[str] = None  # PNG sent to Gemini (for debug)
     gemini_prompt: Optional[str] = None   # Prompt sent to Gemini (for debug)
     error: Optional[str] = None
+    rejected_generations: Optional[List[RejectedGeneration]] = None  # Generations that failed validation
 
 
 # =============================================================================
@@ -926,6 +936,13 @@ async def get_opening_status(job_id: str):
     
     job = _opening_jobs[job_id]
     
+    # Convert rejected generations to response model
+    rejected_gens = None
+    if job.get("rejected_generations"):
+        rejected_gens = [
+            RejectedGeneration(**rg) for rg in job["rejected_generations"]
+        ]
+    
     return OpeningStatusResponse(
         job_id=job_id,
         status=job["status"],
@@ -933,6 +950,7 @@ async def get_opening_status(job_id: str):
         raw_png_base64=job.get("raw_png_base64"),
         gemini_prompt=job.get("gemini_prompt"),
         error=job.get("error"),
+        rejected_generations=rejected_gens,
     )
 
 
@@ -1073,6 +1091,9 @@ async def _process_opening_render(job_id: str):
         edit_result = None
         validation_result = None
         
+        # Store rejected generations for UI debugging
+        rejected_generations = []
+        
         for validation_attempt in range(MAX_VALIDATION_RETRIES):
             attempt_num = validation_attempt + 1
             print(f"[RENDER] Attempt {attempt_num}/{MAX_VALIDATION_RETRIES}: Sending to Gemini...")
@@ -1121,6 +1142,16 @@ async def _process_opening_render(job_id: str):
                     break  # Success! Exit retry loop
                 else:
                     print(f"[RENDER] Validation FAILED on attempt {attempt_num}: {validation_result.rejection_reason}")
+                    
+                    # Store this rejected generation for UI debugging
+                    rejected_generations.append({
+                        "attempt": attempt_num,
+                        "reason": validation_result.rejection_reason,
+                        "failed_check": validation_result.failed_check,
+                        "metrics": validation_result.metrics,
+                        "image_base64": base64.b64encode(edit_result.edited_image).decode('utf-8'),
+                    })
+                    job["rejected_generations"] = rejected_generations
                     job["last_validation_failure"] = validation_result.to_dict()
                     
                     if attempt_num < MAX_VALIDATION_RETRIES:

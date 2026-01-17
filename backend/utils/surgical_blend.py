@@ -829,12 +829,33 @@ def annotate_png_for_opening_edit(
         for x, y in box_corners_svg
     ]
     
-    # Draw bold RED box outline (simple and visible)
-    RED = (255, 0, 0)
+    # === Draw filled red box annotation ===
+    # Convert to RGBA for transparency support
+    if img.mode != 'RGBA':
+        img = img.convert('RGBA')
+    
+    # Create overlay for semi-transparent fill
+    overlay = Image.new('RGBA', img.size, (0, 0, 0, 0))
+    overlay_draw = ImageDraw.Draw(overlay)
+    
+    # Draw filled semi-transparent RED rectangle
+    RED_FILL = (255, 0, 0, 100)  # Semi-transparent red
+    RED_SOLID = (255, 0, 0, 255)  # Solid red for outline
+    
+    overlay_draw.polygon(box_corners_png, fill=RED_FILL)
+    
+    # Draw thick red outline (10px)
     for i in range(len(box_corners_png)):
         p1 = box_corners_png[i]
         p2 = box_corners_png[(i + 1) % len(box_corners_png)]
-        draw.line([p1, p2], fill=RED, width=6)
+        overlay_draw.line([p1, p2], fill=RED_SOLID, width=10)
+    
+    # Composite the overlay onto the original image
+    img = Image.alpha_composite(img, overlay)
+    img = img.convert('RGB')
+    
+    # Update draw object
+    draw = ImageDraw.Draw(img)
     
     print(f"[ANNOTATE] Red box at PNG center ({png_center_x}, {png_center_y})")
     
@@ -847,15 +868,90 @@ def annotate_png_for_opening_edit(
     img.save(output, format='PNG')
     annotated_png = output.getvalue()
     
-    # Build metadata
+    # Build metadata - include bounding box for post-processing
+    # Calculate bounding box from corners
+    xs = [p[0] for p in box_corners_png]
+    ys = [p[1] for p in box_corners_png]
+    bbox = {
+        "x1": max(0, min(xs) - 30),  # Add 30px padding
+        "y1": max(0, min(ys) - 30),
+        "x2": min(width, max(xs) + 30),
+        "y2": min(height, max(ys) + 30),
+    }
+    
     metadata = {
         "blue_box_center_png": (png_center_x, png_center_y),
         "blue_box_corners_png": box_corners_png,
         "opening_width_inches": width_inches,
         "viewbox": viewbox,
+        "edit_bbox": bbox,  # Bounding box for post-processing
     }
     
     return annotated_png, metadata
+
+
+def composite_only_bbox(
+    original_png: bytes,
+    gemini_output_png: bytes,
+    bbox: Dict[str, int],
+    job_id: str = "",
+) -> bytes:
+    """
+    Composite Gemini's output ONLY within the bounding box.
+    Everything outside the bbox is taken from the original image.
+    
+    This enforces that only the door area changes, regardless of what Gemini did.
+    
+    Args:
+        original_png: The original rendered floor plan (before annotation)
+        gemini_output_png: Gemini's edited output
+        bbox: Bounding box dict with x1, y1, x2, y2
+        job_id: For debug output
+        
+    Returns:
+        Composited PNG bytes
+    """
+    from PIL import Image
+    import io
+    
+    # Load images
+    original = Image.open(io.BytesIO(original_png)).convert('RGB')
+    gemini = Image.open(io.BytesIO(gemini_output_png)).convert('RGB')
+    
+    # Ensure same size - resize gemini output if needed
+    if gemini.size != original.size:
+        print(f"[COMPOSITE] Resizing Gemini output from {gemini.size} to {original.size}")
+        gemini = gemini.resize(original.size, Image.Resampling.LANCZOS)
+    
+    # Create result starting from original
+    result = original.copy()
+    
+    # Extract bbox
+    x1 = int(bbox["x1"])
+    y1 = int(bbox["y1"])
+    x2 = int(bbox["x2"])
+    y2 = int(bbox["y2"])
+    
+    # Clamp to image bounds
+    x1 = max(0, min(x1, original.width - 1))
+    y1 = max(0, min(y1, original.height - 1))
+    x2 = max(0, min(x2, original.width))
+    y2 = max(0, min(y2, original.height))
+    
+    print(f"[COMPOSITE] Applying Gemini changes only in bbox: ({x1}, {y1}) to ({x2}, {y2})")
+    
+    # Copy ONLY the bbox region from Gemini's output
+    bbox_region = gemini.crop((x1, y1, x2, y2))
+    result.paste(bbox_region, (x1, y1))
+    
+    # Debug: Save composite result
+    if DEBUG_BLEND and job_id:
+        _save_debug_image(result, "08_bbox_composite", job_id)
+    
+    # Convert back to bytes
+    output = io.BytesIO()
+    result.save(output, format='PNG')
+    return output.getvalue()
 
 
 def _expand_polygon(
