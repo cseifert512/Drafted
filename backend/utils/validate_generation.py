@@ -12,11 +12,6 @@ CURRENT CHECKS:
    If originally-white pixels (background) become non-white outside the bbox,
    Gemini hallucinated content where it shouldn't.
 
-3. CONTENT FILL RATIO - The generated element should actually fill the intended area.
-   We look at pixels that were WHITE in the ORIGINAL image (the wall/empty area where
-   the opening should go) and check if they got filled with content in the output.
-   If Gemini generates a tiny/malformed element, most originally-white pixels stay white.
-
 EXTENSIBILITY:
 Add new check functions following the pattern:
     def _check_xxx(original, output, bbox, **kwargs) -> Dict[str, Any]
@@ -52,13 +47,6 @@ RED_PIXEL_THRESHOLD_PCT = 0.5  # If >0.5% of bbox pixels are red, reject
 # We check if these become non-white outside the edit region
 WHITE_LUMINANCE_MIN = 240  # Pixels with all channels > this are "white"
 CONTAMINATION_THRESHOLD_PCT = 1.0  # If >1% of white pixels outside bbox change, reject
-
-# --- Content Fill Ratio (Undersized Generation Detection) ---
-# When placing a window/door, the bbox should have meaningful content.
-# If Gemini generates something tiny/empty, the bbox will be mostly white/unchanged.
-# We check what percentage of the bbox has actual content (non-white pixels).
-MIN_CONTENT_FILL_PCT = 15.0  # At least 15% of bbox should have non-white content
-# This catches cases where Gemini generates a tiny element instead of proper window/door
 
 # --- Debug Mode ---
 # Set to True to save debug visualizations of validation failures
@@ -221,38 +209,6 @@ def validate_generation(
     print(f"[VALIDATION] Check 2 PASSED: {artifact_check['contamination_pct']:.3f}% contamination (threshold: {CONTAMINATION_THRESHOLD_PCT}%)")
     
     # -------------------------------------------------------------------------
-    # CHECK 3: Content fill ratio (undersized generation detection)
-    # The bbox should have meaningful content - if it's mostly empty/white,
-    # Gemini generated something too small (like a tiny window instead of proper one)
-    # -------------------------------------------------------------------------
-    print(f"[VALIDATION] Check 3: Content fill ratio in bbox...")
-    fill_check = _check_content_fill_ratio(original, output, bbox)
-    metrics["content_fill_pct"] = fill_check["fill_pct"]
-    metrics["filled_pixels"] = fill_check["filled_pixels"]
-    metrics["total_white_in_bbox"] = fill_check["total_white_in_bbox"]
-    
-    if not fill_check["passed"]:
-        reason = (
-            f"Undersized generation detected: Only {fill_check['fill_pct']:.2f}% of originally-white pixels got filled "
-            f"({fill_check['filled_pixels']:,} of {fill_check['total_white_in_bbox']:,} pixels). "
-            f"Gemini generated something too small - expected at least {MIN_CONTENT_FILL_PCT}% fill."
-        )
-        print(f"[VALIDATION] FAILED: {reason}")
-        
-        # Save debug visualization if enabled
-        if DEBUG_VALIDATION and job_id:
-            _save_validation_debug(output, bbox, "undersized_content", job_id, fill_check)
-        
-        return ValidationResult(
-            is_valid=False,
-            rejection_reason=reason,
-            metrics=metrics,
-            failed_check="undersized_content",
-        )
-    
-    print(f"[VALIDATION] Check 3 PASSED: {fill_check['fill_pct']:.2f}% content fill (threshold: {MIN_CONTENT_FILL_PCT}%)")
-    
-    # -------------------------------------------------------------------------
     # All checks passed
     # -------------------------------------------------------------------------
     print(f"[VALIDATION] All checks PASSED for job {job_id}")
@@ -401,87 +357,6 @@ def _check_artifact_leakage(
         "contamination_pct": contamination_pct,
         "contaminated_pixels": contaminated_pixels,
         "total_white_outside": total_white_outside,
-    }
-
-
-def _check_content_fill_ratio(
-    original_img: Image.Image,
-    output_img: Image.Image,
-    bbox: Dict[str, int],
-) -> Dict[str, Any]:
-    """
-    Check if originally-white pixels in the bbox got filled with actual content.
-    
-    This catches cases where Gemini generates something tiny/malformed instead of
-    a proper door/window. We look at pixels that were WHITE in the ORIGINAL image
-    (the area where the opening should be placed) and check if they now have content.
-    
-    Logic:
-    1. Find pixels that were WHITE in the ORIGINAL bbox (the wall/empty area)
-    2. Check how many of those are now NON-WHITE in the OUTPUT (filled with window/door)
-    3. If too few got filled = Gemini generated something too small
-    
-    For example: If we requested a 36" window but Gemini generates a tiny 
-    5-pixel element, most of the originally-white pixels will STILL be white = FAIL.
-    
-    Args:
-        original_img: Original floor plan BEFORE annotation (PIL Image, RGB mode)
-        output_img: Gemini's output image (PIL Image, RGB mode)
-        bbox: Bounding box dict with x1, y1, x2, y2
-        
-    Returns:
-        Dict with:
-            - passed: bool - whether the check passed
-            - fill_pct: float - percentage of originally-white pixels that now have content
-            - filled_pixels: int - count of originally-white pixels that are now non-white
-            - total_white_in_bbox: int - total white pixels in original bbox
-    """
-    # Extract bbox coordinates (clamped to image bounds)
-    x1 = max(0, int(bbox["x1"]))
-    y1 = max(0, int(bbox["y1"]))
-    x2 = min(original_img.width, int(bbox["x2"]))
-    y2 = min(output_img.height, int(bbox["y2"]))
-    
-    # Crop both images to bbox
-    original_region = original_img.crop((x1, y1, x2, y2))
-    output_region = output_img.crop((x1, y1, x2, y2))
-    
-    # Convert to numpy
-    original_arr = np.array(original_region, dtype=np.float32)
-    output_arr = np.array(output_region, dtype=np.float32)
-    
-    # Find pixels that were WHITE in the ORIGINAL (the empty area to be filled)
-    r_orig, g_orig, b_orig = original_arr[:, :, 0], original_arr[:, :, 1], original_arr[:, :, 2]
-    was_white = (r_orig > WHITE_LUMINANCE_MIN) & (g_orig > WHITE_LUMINANCE_MIN) & (b_orig > WHITE_LUMINANCE_MIN)
-    
-    total_white_in_bbox = int(np.sum(was_white))
-    
-    if total_white_in_bbox == 0:
-        # No white pixels in original bbox - can't measure fill ratio
-        # This might happen if the bbox was entirely over existing content
-        return {
-            "passed": True,  # Can't validate, pass by default
-            "fill_pct": 100.0,
-            "filled_pixels": 0,
-            "total_white_in_bbox": 0,
-        }
-    
-    # Check if those originally-white pixels are now non-white (have content)
-    r_out, g_out, b_out = output_arr[:, :, 0], output_arr[:, :, 1], output_arr[:, :, 2]
-    is_white_now = (r_out > WHITE_LUMINANCE_MIN) & (g_out > WHITE_LUMINANCE_MIN) & (b_out > WHITE_LUMINANCE_MIN)
-    
-    # Pixels that WERE white but are NOW non-white (got filled with content)
-    got_filled = was_white & ~is_white_now
-    filled_pixels = int(np.sum(got_filled))
-    
-    # What percentage of originally-white pixels now have content?
-    fill_pct = (filled_pixels / total_white_in_bbox) * 100
-    
-    return {
-        "passed": fill_pct >= MIN_CONTENT_FILL_PCT,
-        "fill_pct": fill_pct,
-        "filled_pixels": filled_pixels,
-        "total_white_in_bbox": total_white_in_bbox,
     }
 
 
