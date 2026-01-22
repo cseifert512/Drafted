@@ -1,7 +1,10 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { Suspense, useState, useEffect, useCallback } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
+
+// Prevent static generation - this page uses useSearchParams
+export const dynamic = 'force-dynamic';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Loader2, 
