@@ -265,8 +265,6 @@ export default function EditorPage() {
           <FloorPlanEditor
             initialPlan={initialPlan}
             roomTypes={roomTypes}
-            onSave={handleSave}
-            onRegenerate={isApiAvailable ? handleRegenerate : undefined}
           />
         ) : (
           <div className="h-full flex items-center justify-center">
