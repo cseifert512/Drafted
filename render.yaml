@@ -7,18 +7,16 @@ services:
     name: drafted-diversity-api
     runtime: python
     region: oregon
-    plan: free
+    rootDir: backend
     buildCommand: |
-      cd backend
+      apt-get update && apt-get install -y libcairo2-dev libffi-dev libpango1.0-dev
       pip install -r requirements.txt
-    startCommand: |
-      cd backend
-      uvicorn main:app --host 0.0.0.0 --port $PORT
+    startCommand: uvicorn main:app --host 0.0.0.0 --port $PORT
     envVars:
       - key: PYTHON_VERSION
         value: "3.11.4"
       - key: GEMINI_API_KEY
-        sync: false  # You'll need to set this manually in Render dashboard
+        sync: false  # Set this manually in Render dashboard
     healthCheckPath: /health
     autoDeploy: true
 
@@ -27,14 +25,11 @@ services:
     name: drafted-diversity-frontend
     runtime: node
     region: oregon
-    plan: free
+    rootDir: frontend
     buildCommand: |
-      cd frontend
       npm install
       npm run build
-    startCommand: |
-      cd frontend
-      npm start
+    startCommand: npm start
     envVars:
       - key: NODE_VERSION
         value: "20"
