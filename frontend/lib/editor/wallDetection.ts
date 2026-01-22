@@ -6,7 +6,8 @@
  * 2. Edges on the exterior boundary (exterior walls)
  */
 
-import type { WallSegment, Point } from './openingTypes';
+import type { WallSegment } from './openingTypes';
+import type { Point } from './editorTypes';
 
 // Tolerance for considering points equal (in SVG units)
 const POINT_TOLERANCE = 2;
@@ -335,7 +336,7 @@ function findExteriorEdges(polygons: RoomPolygon[], sharedEdges: Set<string>): E
       if (!sharedEdges.has(key)) {
         // Double-check it's not close to any shared edge
         let isShared = false;
-        for (const sharedKey of sharedEdges) {
+        for (const sharedKey of Array.from(sharedEdges)) {
           const [startStr, endStr] = sharedKey.split('-');
           const [sx, sy] = startStr.split(',').map(Number);
           const [ex, ey] = endStr.split(',').map(Number);

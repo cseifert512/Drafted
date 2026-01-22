@@ -7,7 +7,8 @@
  * - Screen coordinates (mouse events)
  */
 
-import type { Point, WallSegment } from './openingTypes';
+import type { WallSegment } from './openingTypes';
+import type { Point } from './editorTypes';
 import { findNearestWall } from './wallDetection';
 
 /**

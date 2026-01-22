@@ -3,6 +3,7 @@
  */
 
 import type { AssetCategory, DoorWindowAsset } from './assetManifest';
+import type { Point } from './editorTypes';
 
 // Legacy opening types (kept for backward compatibility)
 export type OpeningType = 
@@ -16,12 +17,6 @@ export type OpeningType =
 
 // Opening category for UI grouping
 export type OpeningCategory = 'door' | 'window';
-
-// Point type for coordinates
-export interface Point {
-  x: number;
-  y: number;
-}
 
 // Wall segment extracted from SVG
 export interface WallSegment {

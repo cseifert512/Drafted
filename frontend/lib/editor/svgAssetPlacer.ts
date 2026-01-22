@@ -5,7 +5,8 @@
  * transforms, scaling, and wall breaks for clean vector export.
  */
 
-import type { WallSegment, Point } from './openingTypes';
+import type { WallSegment } from './openingTypes';
+import type { Point } from './editorTypes';
 import { inchesToSvgPixels, SVG_INCHES_PER_PIXEL } from './openingTypes';
 import type { DoorWindowAsset, AssetCategory } from './assetManifest';
 import { getAssetUrl, fetchAssetSvg, CATEGORY_METADATA } from './assetManifest';

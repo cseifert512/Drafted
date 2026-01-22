@@ -5,7 +5,8 @@
  * Follows standard architectural drawing conventions.
  */
 
-import type { OpeningPlacement, OpeningType, WallSegment, Point } from './openingTypes';
+import type { OpeningPlacement, OpeningType, WallSegment } from './openingTypes';
+import type { Point } from './editorTypes';
 import { inchesToSvgPixels } from './openingTypes';
 import { extractWallSegments, getWallAngle } from './wallDetection';
 

@@ -9,7 +9,8 @@
  */
 
 import { useState, useCallback, useMemo, useRef, useEffect } from 'react';
-import type { WallSegment, Point } from '@/lib/editor/openingTypes';
+import type { WallSegment } from '@/lib/editor/openingTypes';
+import type { Point } from '@/lib/editor/editorTypes';
 import { svgPixelsToInches, inchesToSvgPixels } from '@/lib/editor/openingTypes';
 import type { CoordinateMapper } from '@/lib/editor/coordinateMapping';
 import type { 

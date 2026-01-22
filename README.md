@@ -31,11 +31,32 @@ This tool:
 - **Edit Plans**: AI-powered image-to-image editing (add pool, open concept, expand rooms, etc.)
 - **Smart Naming**: AI-generated descriptive names like "Spacious Open-Concept Ranch" with rename support
 
+### 🆕 Door & Window Editor
+- **80+ SVG Assets**: Comprehensive library of door and window symbols organized by category
+- **Asset Categories**: Interior doors (single, double, bifold), exterior doors, sliding doors, French doors, garage doors, windows
+- **CAD-Style Placement**: Click walls to place openings with drag-to-define width
+- **Wall Detection**: Automatic wall segment extraction from SVG for precise placement
+- **Photorealistic Re-rendering**: Gemini-powered img2img to render placed doors/windows realistically
+- **Surgical Blending**: AI-validated compositing that only modifies the door/window area
+- **Validation Pipeline**: Automatic rejection and retry of hallucinated outputs
+
+### 🆕 Photorealistic Staging
+- **Gemini Flash 3.0**: Transform schematic floor plans into photorealistic top-down renders
+- **Smart Aspect Ratios**: Automatic selection of optimal canvas size (1:1, 4:3, 3:4, 16:9, 9:16)
+- **Room-Aware Prompts**: Custom staging prompts based on room types (kitchen, bedroom, etc.)
+- **High-Fidelity Output**: Furniture, flooring, materials, and lighting rendered per room
+
 ### Editor & Tools
 - **Floor Plan Editor**: Interactive SVG editor with drag-and-drop room manipulation
 - **Hybrid Mode**: Edit rooms visually, then regenerate with AI to refine the layout
 - **Room Palette**: Add rooms from a categorized palette with proper sizing
 - **Grid Snapping**: Precise room placement with configurable grid
+- **Wall Highlight Layer**: Visual feedback when hovering over placeable walls
+
+### 🆕 Tutorial System
+- **Interactive Onboarding**: Step-by-step tutorials for new users
+- **Spotlight Highlighting**: Focus attention on specific UI elements
+- **Contextual Tooltips**: Inline guidance during editing workflows
 
 ### Dev Mode (Debugging)
 - **Model Transparency**: Toggle-activated developer mode to understand AI behavior
@@ -44,6 +65,18 @@ This tool:
 - **Room Deltas**: Color-coded table showing added, removed, and modified rooms
 - **Prompt Diff**: Line-by-line comparison of original vs edited prompts with syntax highlighting
 - **Generation Metadata**: Seeds, timing, model parameters, and area analysis
+
+### 🆕 Advanced Dev Mode Analytics
+- **Batch Runner**: Generate multiple plans with same config for statistical analysis
+- **Consistency Metrics**: Analyze area, position, and room count consistency across batches
+- **Adjacency Graph**: Visualize room connectivity and topology
+- **Difference Heatmap**: Pixel-level comparison between before/after edits
+- **Position Scatter**: Plot room centroid distributions across generations
+- **Size Distribution**: Box plots showing room size variance
+- **Sensitivity Matrix**: Analyze model sensitivity to parameter changes
+- **Room Overlay View**: Superimpose room polygons from multiple plans
+- **Linked SVG Viewer**: Synchronized pan/zoom for detailed SVG comparison
+- **Rejected Generations**: View Gemini outputs that failed validation with failure reasons
 
 ### General
 - **Two-Phase Processing**: Plans display immediately while diversity analysis runs in background
@@ -57,7 +90,7 @@ This tool:
 ├── backend/                  # Python FastAPI backend
 │   ├── api/                  # REST API endpoints
 │   │   ├── routes.py         # Gemini generation routes
-│   │   ├── drafted_routes.py # Drafted.ai generation routes
+│   │   ├── drafted_routes.py # Drafted.ai generation + opening routes
 │   │   └── schemas.py        # Pydantic models
 │   ├── extractors/           # Feature extraction modules
 │   │   ├── color_segmentation.py   # Room detection via color
@@ -69,17 +102,25 @@ This tool:
 │   │   ├── metrics.py              # Individual metrics
 │   │   ├── aggregator.py           # Combined score
 │   │   └── visualization.py        # Scatter plot data
-│   ├── generation/           # Gemini AI integration
-│   │   ├── gemini_client.py        # API client with retry logic
-│   │   └── prompt_templates.py     # Engineered prompts
+│   ├── generation/           # AI generation modules
+│   │   ├── gemini_client.py        # Gemini API client with retry logic
+│   │   ├── gemini_staging.py       # Photorealistic staging (img2img)
+│   │   ├── prompt_templates.py     # Engineered prompts
+│   │   ├── prompt_builder.py       # Dynamic prompt construction
+│   │   └── response_parser.py      # Parse Gemini responses
 │   └── utils/                # Utilities
+│       ├── surgical_blend.py       # Door/window compositing
+│       └── validate_generation.py  # Hallucination detection
 │
 ├── editing/                  # Drafted.ai integration module
 │   ├── api_integration.py    # FastAPI integration layer
 │   ├── drafted_client.py     # Runpod endpoint client
 │   ├── svg_parser.py         # SVG floor plan parser
 │   ├── clip_tokenizer.py     # CLIP token validation
-│   └── rooms.json            # Room type definitions (30+ types)
+│   ├── rooms.json            # Room type definitions (30+ types)
+│   └── doorwindow_assets/    # Door & window SVG library
+│       ├── manifest.json           # Asset metadata
+│       └── *.svg                   # 80+ door/window assets
 │
 ├── frontend/                 # Next.js React frontend
 │   ├── app/                  # Next.js app router
@@ -90,7 +131,25 @@ This tool:
 │   │   ├── layout/           # Header, Section
 │   │   ├── drafted/          # Drafted generation components
 │   │   ├── editor/           # Floor plan editor components
+│   │   │   ├── OpeningPlacementModal.tsx  # Door/window picker
+│   │   │   ├── OpeningPreviewOverlay.tsx  # Placement preview
+│   │   │   ├── WallHighlightLayer.tsx     # Wall selection UI
+│   │   │   └── ...
 │   │   ├── dev/              # Dev mode debugging components
+│   │   │   ├── BatchRunner.tsx           # Batch generation
+│   │   │   ├── ConsistencyMetrics.tsx    # Statistical analysis
+│   │   │   ├── AdjacencyGraph.tsx        # Room connectivity
+│   │   │   ├── DifferenceHeatmap.tsx     # Visual diff
+│   │   │   ├── PositionScatter.tsx       # Position analysis
+│   │   │   ├── SizeDistribution.tsx      # Size box plots
+│   │   │   ├── SensitivityMatrix.tsx     # Parameter sensitivity
+│   │   │   ├── RoomOverlayView.tsx       # Room overlay
+│   │   │   ├── LinkedSVGViewer.tsx       # Linked pan/zoom
+│   │   │   └── ...
+│   │   ├── tutorial/         # Onboarding components
+│   │   │   ├── TutorialOverlay.tsx
+│   │   │   ├── TutorialSpotlight.tsx
+│   │   │   └── TutorialTooltip.tsx
 │   │   ├── sidebar/          # GenerationSidebar
 │   │   ├── drafts/           # DraftGrid
 │   │   ├── upload/           # DropZone
@@ -99,17 +158,31 @@ This tool:
 │   │   ├── analysis/         # AnalysisPanel
 │   │   └── providers/        # React context providers
 │   ├── contexts/             # React contexts
-│   │   └── DevModeContext.tsx    # Dev mode state management
+│   │   ├── DevModeContext.tsx    # Dev mode state management
+│   │   ├── TutorialContext.tsx   # Tutorial state management
+│   │   └── ThemeContext.tsx      # Theme state management
 │   ├── hooks/                # Custom React hooks
 │   │   ├── useAnalysis.ts        # Upload/analysis state
 │   │   ├── useGeneration.ts      # Gemini generation state
 │   │   ├── useDraftedGeneration.ts  # Drafted generation state
-│   │   └── useFloorPlanEditor.ts    # Editor state management
+│   │   ├── useFloorPlanEditor.ts    # Editor state management
+│   │   ├── useOpeningEditor.ts      # Door/window placement
+│   │   └── useOpeningDrag.ts        # CAD-style drag placement
 │   └── lib/                  # API client, types, utilities
 │       ├── drafted-api.ts        # Drafted API client
 │       ├── drafted-types.ts      # TypeScript types
 │       ├── editor/               # Editor utilities
+│       │   ├── wallDetection.ts      # Extract walls from SVG
+│       │   ├── openingDetection.ts   # Detect existing openings
+│       │   ├── coordinateMapping.ts  # SVG↔PNG coordinate transforms
+│       │   ├── assetManifest.ts      # Door/window asset types
+│       │   └── svgOpenings.ts        # Opening SVG manipulation
 │       └── dev/                  # Dev mode utilities
+│           ├── batchAnalysis.ts      # Batch statistics
+│           ├── deltaUtils.ts         # Room delta calculations
+│           └── promptDiff.ts         # Prompt comparison logic
+│
+├── debug_blend/              # Debug output for opening edits
 │
 └── render.yaml               # Render deployment blueprint
 ```
@@ -185,6 +258,9 @@ GEMINI_API_KEY=your_google_ai_studio_api_key
 
 # Optional: For Drafted.ai generation (precise room control)
 DRAFTED_API_ENDPOINT=https://api.runpod.ai/v2/your-endpoint-id
+
+# Optional: Enable debug output for door/window blending
+DEBUG_BLEND=true
 ```
 
 **Frontend** (`frontend/.env.local` - for production):
@@ -205,14 +281,21 @@ For Drafted.ai integration, you'll need access to a Runpod endpoint running the 
 3. Edit plans:
    - Click "Edit" on any plan to add/remove/resize rooms
    - Use seed-based editing to maintain layout coherence
-4. Use the Editor (`/editor`):
+4. **Add Doors & Windows**:
+   - Enable opening mode in the editor
+   - Hover over walls to highlight them
+   - Click to place a door or window from the asset library
+   - Choose swing direction for doors
+   - Wait for photorealistic re-render
+5. Use the Editor (`/editor`):
    - Drag and drop rooms from the palette
    - Resize rooms with handles
    - Switch to hybrid mode to regenerate with AI
-5. Enable Dev Mode:
+6. Enable Dev Mode:
    - Toggle "DEV" in the header for debugging tools
    - Compare before/after plans visually
    - Inspect room deltas and prompt changes
+   - Run batch generations for statistical analysis
 
 ## API Endpoints
 
@@ -243,6 +326,25 @@ For Drafted.ai integration, you'll need access to a Runpod endpoint running the 
 | `/api/drafted/generate/batch` | POST | Generate multiple plans with different seeds |
 | `/api/drafted/edit` | POST | Edit plan using seed-based editing |
 | `/api/drafted/rooms` | GET | Get complete rooms.json schema |
+| `/api/drafted/stage` | POST | Stage floor plan SVG to photorealistic render |
+| `/api/drafted/generate-and-stage` | POST | Generate + stage in one call |
+
+### Door & Window Openings
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/api/drafted/doorwindow-assets` | GET | Get door/window asset manifest |
+| `/api/drafted/openings/add` | POST | Add door/window to floor plan |
+| `/api/drafted/openings/status/{job_id}` | GET | Poll opening render status |
+| `/api/drafted/openings/{plan_id}/{opening_id}` | DELETE | Remove an opening |
+
+### Debug Endpoints
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/api/drafted/debug/blend-jobs` | GET | List debug blend jobs |
+| `/api/drafted/debug/blend-jobs/{job_id}/{filename}` | GET | Get debug file (PNG/SVG) |
+| `/api/drafted/debug/opening-job/{job_id}` | GET | Get detailed opening job debug info |
 
 ### Generation Request Example
 
@@ -279,6 +381,38 @@ POST /api/plan/gen_abc123/edit
 
 Response includes a new plan with both colored and stylized versions.
 
+### Add Opening Request Example
+
+```json
+POST /api/drafted/openings/add
+{
+  "plan_id": "plan_abc123",
+  "svg": "<svg>...</svg>",
+  "cropped_svg": "<svg>...</svg>",
+  "rendered_image_base64": "...",
+  "opening": {
+    "type": "interior_door",
+    "wall_id": "wall_R001_R002",
+    "position_on_wall": 0.5,
+    "width_inches": 36,
+    "swing_direction": "right",
+    "wall_coords": {
+      "start_x": 100,
+      "start_y": 200,
+      "end_x": 200,
+      "end_y": 200
+    }
+  },
+  "canonical_room_keys": ["living", "kitchen", "bedroom"],
+  "asset_info": {
+    "filename": "door_interior_single_36.svg",
+    "category": "DoorInteriorSingle",
+    "display_name": "36\" Interior Door",
+    "description": "Standard interior swing door"
+  }
+}
+```
+
 ## Color-Coded Floor Plans
 
 For best results, floor plans use these room colors:
@@ -292,6 +426,23 @@ For best results, floor plans use these room colors:
 | Hallway | Light gray | #F5F5F5 |
 | Storage | Burlywood | #DEB887 |
 | Outdoor | Light green | #90EE90 |
+
+## Door & Window Assets
+
+The `editing/doorwindow_assets/` folder contains 80+ SVG assets:
+
+| Category | Asset Types | Sizes |
+|----------|-------------|-------|
+| Interior Single | Standard swing doors | 28", 30", 32", 36" |
+| Interior Double | Double swing doors | 56", 60", 64", 72" |
+| Interior Bifold | Bifold closet doors | 20"-96" |
+| Exterior Single | Entry doors | 30"-42" |
+| Exterior Double | Double entry doors | 60"-72" |
+| Exterior Sliding | Sliding glass doors | 60"-168" |
+| Exterior Bifold | Folding patio doors | 192"-252" |
+| Garage Single | Single garage doors | 8ft |
+| Garage Double | Double garage doors | 16ft |
+| Windows | Standard windows | 16"-196" |
 
 ## Gemini AI Integration
 
@@ -327,6 +478,13 @@ Edit existing plans using natural language instructions:
 - Quick edits: Add pool, open concept, expand rooms, add office, etc.
 - Custom instructions for any modification
 - Preserves original plan while creating new edited version
+
+### Photorealistic Staging
+Transform schematic floor plans into photorealistic renders:
+- Uses Gemini Flash 3.0 for img2img transformation
+- Automatic aspect ratio optimization
+- Room-specific materials and furniture
+- Preserves wall geometry and openings
 
 ### Smart Naming
 AI generates descriptive names for each floor plan:
@@ -436,12 +594,25 @@ Shows a detailed breakdown of room changes:
 - Model parameters (steps, guidance scale)
 - Area analysis and room counts
 
+#### Batch Analysis (Advanced)
+- Run N generations with identical config
+- Statistical analysis: mean, std dev, quartiles
+- Consistency scoring across batches
+- Export data for external analysis
+
+#### Opening Edit Debugging
+- View annotated input PNG (blue box + red boundary)
+- See rejected Gemini generations with failure reasons
+- Inspect Gemini prompt used for door/window editing
+- Track validation metrics (red marker detection, outside-bbox artifacts)
+
 ### Architecture
 
 ```
 frontend/
   contexts/
     DevModeContext.tsx      # Global state with localStorage persistence
+    TutorialContext.tsx     # Tutorial state management
   components/
     dev/
       DevModeToggle.tsx     # Header toggle button
@@ -450,8 +621,18 @@ frontend/
       RoomDeltaView.tsx     # Room changes table
       PromptCompareView.tsx # Prompt diff display
       ImageFormatToggle.tsx # JPEG/SVG switcher
+      BatchRunner.tsx       # Batch generation UI
+      ConsistencyMetrics.tsx # Statistical displays
+      AdjacencyGraph.tsx    # Room connectivity graph
+      DifferenceHeatmap.tsx # Pixel diff visualization
+      PositionScatter.tsx   # Centroid scatter plot
+      SizeDistribution.tsx  # Box plot charts
+      SensitivityMatrix.tsx # Parameter sensitivity
+      RoomOverlayView.tsx   # Room polygon overlay
+      LinkedSVGViewer.tsx   # Synchronized pan/zoom
   lib/
     dev/
+      batchAnalysis.ts      # Batch statistics calculations
       deltaUtils.ts         # Room delta calculations
       promptDiff.ts         # Prompt comparison logic
 ```
@@ -474,11 +655,13 @@ This project includes a `render.yaml` Blueprint for easy deployment:
 
 **Backend:**
 - FastAPI
-- Google Generative AI (Gemini 2.0 Flash)
+- Google Generative AI (Gemini 2.0 Flash, Gemini 3 Pro Image Preview)
 - OpenCV, scikit-image
 - PyTorch (ResNet50)
 - scikit-learn, UMAP
 - NetworkX
+- Pillow (PIL) for image processing
+- CairoSVG for SVG rendering
 
 **Frontend:**
 - Next.js 14 (App Router)
@@ -486,6 +669,16 @@ This project includes a `render.yaml` Blueprint for easy deployment:
 - D3.js
 - TailwindCSS
 - Framer Motion
+- Lucide React (icons)
+
+## Future Roadmap
+
+See `editing/FEATURE_ROADMAP.md` for planned features:
+- Smart Suggestions Panel
+- Magnetic Snapping Visual Feedback
+- Design Themes (Modern Farmhouse, Mid-Century, etc.)
+- Favorites & Collections
+- Gamification (Design Score + Achievements)
 
 ## License
 

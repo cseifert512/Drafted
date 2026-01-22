@@ -5,7 +5,8 @@
  * Allows users to click on existing openings to modify them.
  */
 
-import type { Point, WallSegment, OpeningPlacement } from './openingTypes';
+import type { WallSegment, OpeningPlacement } from './openingTypes';
+import type { Point } from './editorTypes';
 import type { CoordinateMapper } from './coordinateMapping';
 import type { AssetCategory, CategoryGroup } from './assetManifest';
 

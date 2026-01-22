@@ -2,7 +2,8 @@
 
 import { useMemo, useCallback } from 'react';
 import { motion } from 'framer-motion';
-import type { WallSegment, Point } from '@/lib/editor/openingTypes';
+import type { WallSegment } from '@/lib/editor/openingTypes';
+import type { Point } from '@/lib/editor/editorTypes';
 import type { CoordinateMapper } from '@/lib/editor/coordinateMapping';
 import { wallToPngCoords, getWallCenterPng } from '@/lib/editor/coordinateMapping';
 

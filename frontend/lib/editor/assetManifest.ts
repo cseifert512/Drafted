@@ -379,7 +379,7 @@ export function getAvailableSizes(
   category: AssetCategory
 ): number[] {
   const categoryAssets = getAssetsByCategory(assets, category);
-  const sizes = [...new Set(categoryAssets.map(a => a.inches))];
+  const sizes = Array.from(new Set(categoryAssets.map(a => a.inches)));
   return sizes.sort((a, b) => a - b);
 }
 
@@ -387,7 +387,7 @@ export function getAvailableSizes(
  * Get all unique categories from loaded assets
  */
 export function getAvailableCategories(assets: DoorWindowAsset[]): AssetCategory[] {
-  const categories = [...new Set(assets.map(a => a.category))];
+  const categories = Array.from(new Set(assets.map(a => a.category)));
   return categories;
 }
 

@@ -14,9 +14,9 @@ import type {
   WallSegment, 
   OpeningPlacement, 
   OpeningJobStatus,
-  Point,
   RejectedGeneration,
 } from '@/lib/editor/openingTypes';
+import type { Point } from '@/lib/editor/editorTypes';
 import { assetToOpeningPlacement } from '@/lib/editor/openingTypes';
 import { extractWallSegments } from '@/lib/editor/wallDetection';
 import { createMapperFromSvg, type CoordinateMapper } from '@/lib/editor/coordinateMapping';

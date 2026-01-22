@@ -3,7 +3,6 @@
  */
 
 import type { OpeningPlacement } from './editor/openingTypes';
-export type { OpeningPlacement };
 
 // Room size options
 export type RoomSize = 'S' | 'M' | 'L' | 'XL';
@@ -171,8 +170,8 @@ export type RoomCategory = keyof typeof ROOM_CATEGORIES;
 
 // Helper to get category for a room type
 export function getRoomCategory(roomType: string): RoomCategory | null {
-  for (const [category, types] of Object.entries(ROOM_CATEGORIES)) {
-    if (types.includes(roomType as any)) {
+  for (const [category, types] of Object.entries(ROOM_CATEGORIES) as [string, readonly string[]][]) {
+    if (types.includes(roomType)) {
       return category as RoomCategory;
     }
   }
