@@ -63,8 +63,8 @@ export function RoomPalette({ roomTypes, onAddRoom, isOpen, onToggle }: RoomPale
   const categories = useMemo(() => {
     const result: PaletteCategory[] = [];
     
-    for (const [category, roomTypeKeys] of Object.entries(ROOM_CATEGORIES)) {
-      const rooms = roomTypes.filter(rt => roomTypeKeys.includes(rt.key as any));
+    for (const [category, roomTypeKeys] of Object.entries(ROOM_CATEGORIES) as [string, readonly string[]][]) {
+      const rooms = roomTypes.filter(rt => roomTypeKeys.includes(rt.key));
       if (rooms.length > 0) {
         result.push({
           key: category,
