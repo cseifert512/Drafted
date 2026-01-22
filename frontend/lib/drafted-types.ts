@@ -2,6 +2,9 @@
  * TypeScript types for Drafted.ai floor plan generation
  */
 
+import type { OpeningPlacement } from './editor/openingTypes';
+export type { OpeningPlacement };
+
 // Room size options
 export type RoomSize = 'S' | 'M' | 'L' | 'XL';
 
