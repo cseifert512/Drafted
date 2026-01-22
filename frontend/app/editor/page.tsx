@@ -2,9 +2,6 @@
 
 import { Suspense, useState, useEffect, useCallback } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
-
-// Prevent static generation - this page uses useSearchParams
-export const dynamic = 'force-dynamic';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Loader2, 
@@ -23,7 +20,20 @@ import {
 import type { DraftedPlan, RoomTypeDefinition, DraftedGenerationResult } from '@/lib/drafted-types';
 import type { EditorRoom } from '@/lib/editor/editorTypes';
 
-export default function EditorPage() {
+// Loading fallback for Suspense
+function EditorLoading() {
+  return (
+    <div className="min-h-screen bg-drafted-cream flex items-center justify-center">
+      <div className="text-center">
+        <Loader2 className="w-8 h-8 text-coral-500 animate-spin mx-auto mb-4" />
+        <p className="text-drafted-gray">Loading Floor Plan Editor...</p>
+      </div>
+    </div>
+  );
+}
+
+// Inner component that uses useSearchParams
+function EditorContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   
@@ -165,14 +175,7 @@ export default function EditorPage() {
   
   // Loading state
   if (isLoading) {
-    return (
-      <div className="min-h-screen bg-drafted-cream flex items-center justify-center">
-        <div className="text-center">
-          <Loader2 className="w-8 h-8 text-coral-500 animate-spin mx-auto mb-4" />
-          <p className="text-drafted-gray">Loading Floor Plan Editor...</p>
-        </div>
-      </div>
-    );
+    return <EditorLoading />;
   }
   
   // Error state
@@ -372,3 +375,11 @@ export default function EditorPage() {
   );
 }
 
+// Main page component with Suspense boundary
+export default function EditorPage() {
+  return (
+    <Suspense fallback={<EditorLoading />}>
+      <EditorContent />
+    </Suspense>
+  );
+}
