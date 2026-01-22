@@ -52,6 +52,10 @@ RED_PIXEL_THRESHOLD_PCT = 0.5  # If >0.5% of bbox pixels are red, reject
 # This allows subtle lighting shifts but catches actual content appearing.
 SIGNIFICANT_CHANGE_THRESHOLD = 50  # Any channel must change by >50 to count
 
+# --- Artifact / Contamination Detection ---
+# If more than this % of pixels outside the bbox changed, reject
+CONTAMINATION_THRESHOLD_PCT = 0.5  # If >0.5% of outside pixels changed, reject
+
 # --- Oversized Generation Detection ---
 # If Gemini generates a window/door much larger than requested, we detect it by
 # comparing the area of changed pixels (outside bbox) to the bbox area itself.
@@ -379,12 +383,10 @@ def _check_artifact_leakage(
     # Calculate percentage
     change_pct = (changed_pixels / total_outside) * 100
     
-    # STRICT: If more than 0.5% of outside pixels changed, reject
+    # STRICT: If more than threshold% of outside pixels changed, reject
     # This is very strict but prevents artifacts
-    MAX_OUTSIDE_CHANGE_PCT = 0.5
-    
     return {
-        "passed": change_pct < MAX_OUTSIDE_CHANGE_PCT,
+        "passed": change_pct < CONTAMINATION_THRESHOLD_PCT,
         "changed_pixels": changed_pixels,
         "total_outside": total_outside,
         "change_pct": change_pct,
