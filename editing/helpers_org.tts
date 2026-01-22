@@ -648,3 +648,4 @@ export async function stageFloorPlan(
     processedSvg,
   };
 }
+v

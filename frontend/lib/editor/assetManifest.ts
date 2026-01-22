@@ -518,3 +518,5 @@ export function getGarageCategories(): AssetCategory[] {
   ) as AssetCategory[];
 }
 
+
+
