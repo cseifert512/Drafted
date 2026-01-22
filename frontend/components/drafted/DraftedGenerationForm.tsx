@@ -309,7 +309,7 @@ export function DraftedGenerationForm({
       {/* Generate Button */}
       <button
         onClick={handleGenerate}
-        disabled={generating || rooms.length === 0 || (validation && !validation.valid)}
+        disabled={!!generating || rooms.length === 0 || !!(validation && !validation.valid)}
         className="w-full mt-6 btn-drafted-coral py-4 text-base disabled:opacity-50 disabled:cursor-not-allowed"
       >
         {generating ? (
